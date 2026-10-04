@@ -1,0 +1,18 @@
+# Environment and Local Config Overrides
+*.env.local
+
+# Logs
+storage/logs/*.log
+storage/logs/*.txt
+
+# Snapshots and Backups
+storage/snapshots/*
+!storage/snapshots/.gitkeep
+storage/backups/*
+!storage/backups/.gitkeep
+
+# Composer vendor
+# /vendor/
+
+# Temporary / Scratch scripts
+scratch/
