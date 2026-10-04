@@ -4,3 +4,29 @@
 [03-Oct-2026 04:05:33 Africa/Nairobi] PHP Notice:  Print connector was not finalized. Did you forget to close the printer? in C:\xampp\htdocs\Mombas Mall Basement Sys\vendor\mike42\escpos-php\src\Mike42\Escpos\PrintConnectors\WindowsPrintConnector.php on line 167
 [03-Oct-2026 04:05:37 Africa/Nairobi] Thermal printer error: Class "IntlBreakIterator" not found
 [03-Oct-2026 04:05:37 Africa/Nairobi] PHP Notice:  Print connector was not finalized. Did you forget to close the printer? in C:\xampp\htdocs\Mombas Mall Basement Sys\vendor\mike42\escpos-php\src\Mike42\Escpos\PrintConnectors\WindowsPrintConnector.php on line 167
+[04-Oct-2026 16:40:05 Africa/Nairobi] Database Connection Failure: SQLSTATE[HY000] [2002] No connection could be made because the target machine actively refused it
+[04-Oct-2026 16:40:05 Africa/Nairobi] PHP Fatal error:  Uncaught RuntimeException: Database connection failed: SQLSTATE[HY000] [2002] No connection could be made because the target machine actively refused it in C:\xampp\htdocs\parking\config\database.php:49
+Stack trace:
+#0 C:\xampp\htdocs\parking\scripts\test_phase1.php(9): get_db()
+#1 {main}
+  thrown in C:\xampp\htdocs\parking\config\database.php on line 49
+[04-Oct-2026 17:25:01 Africa/Nairobi] Database Connection Failure: SQLSTATE[HY000] [2002] No connection could be made because the target machine actively refused it
+[04-Oct-2026 17:25:01 Africa/Nairobi] PHP Fatal error:  Uncaught RuntimeException: Database connection failed: SQLSTATE[HY000] [2002] No connection could be made because the target machine actively refused it in C:\xampp\htdocs\parking\config\database.php:49
+Stack trace:
+#0 C:\xampp\htdocs\parking\scripts\test_phase1.php(9): get_db()
+#1 {main}
+  thrown in C:\xampp\htdocs\parking\config\database.php on line 49
+[04-Oct-2026 17:26:52 Africa/Nairobi] Database Connection Failure: SQLSTATE[HY000] [1049] Unknown database 'mombasa_parking'
+[04-Oct-2026 17:26:52 Africa/Nairobi] PHP Fatal error:  Uncaught RuntimeException: Database connection failed: SQLSTATE[HY000] [1049] Unknown database 'mombasa_parking' in C:\xampp\htdocs\parking\config\database.php:49
+Stack trace:
+#0 C:\xampp\htdocs\parking\scripts\test_phase1.php(9): get_db()
+#1 {main}
+  thrown in C:\xampp\htdocs\parking\config\database.php on line 49
+[04-Oct-2026 17:44:51 Africa/Nairobi] Thermal printer error: Class "IntlBreakIterator" not found
+[04-Oct-2026 17:44:51 Africa/Nairobi] PHP Notice:  Print connector was not finalized. Did you forget to close the printer? in C:\xampp\htdocs\parking\vendor\mike42\escpos-php\src\Mike42\Escpos\PrintConnectors\WindowsPrintConnector.php on line 167
+[04-Oct-2026 17:49:59 Africa/Nairobi] Thermal printer error: Class "IntlBreakIterator" not found
+[04-Oct-2026 17:49:59 Africa/Nairobi] PHP Notice:  Print connector was not finalized. Did you forget to close the printer? in C:\xampp\htdocs\parking\vendor\mike42\escpos-php\src\Mike42\Escpos\PrintConnectors\WindowsPrintConnector.php on line 167
+[04-Oct-2026 17:50:01 Africa/Nairobi] Thermal printer error: Class "IntlBreakIterator" not found
+[04-Oct-2026 17:50:01 Africa/Nairobi] PHP Notice:  Print connector was not finalized. Did you forget to close the printer? in C:\xampp\htdocs\parking\vendor\mike42\escpos-php\src\Mike42\Escpos\PrintConnectors\WindowsPrintConnector.php on line 167
+[04-Oct-2026 17:50:02 Africa/Nairobi] Thermal printer error: Class "IntlBreakIterator" not found
+[04-Oct-2026 17:50:02 Africa/Nairobi] PHP Notice:  Print connector was not finalized. Did you forget to close the printer? in C:\xampp\htdocs\parking\vendor\mike42\escpos-php\src\Mike42\Escpos\PrintConnectors\WindowsPrintConnector.php on line 167

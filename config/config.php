@@ -66,9 +66,12 @@ return [
         'voting_frames'      => 2,
         'source_mode'        => 'rtsp', // 'rtsp' or 'isapi_snapshot'
         'entrance' => [
-            'rtsp_main'      => 'rtsp://admin:password@192.168.1.1:554/Streaming/Channels/101',
-            'rtsp_sub'       => 'rtsp://admin:password@192.168.1.1:554/Streaming/Channels/102',
-            'isapi_snapshot' => 'http://192.168.1.1/ISAPI/Streaming/channels/101/picture',
+            'ip'             => '192.168.1.230',
+            'username'       => 'admin',
+            'password'       => 'Mall@2024',
+            'rtsp_main'      => 'rtsp://admin:Mall@2024@192.168.1.230:554/cam/realmonitor?channel=1&subtype=0',
+            'rtsp_sub'       => 'rtsp://admin:Mall@2024@192.168.1.230:554/cam/realmonitor?channel=1&subtype=1',
+            'snapshot_url'   => 'http://192.168.1.230/cgi-bin/snapshot.cgi?channel=1',
         ],
         'exit' => [
             'rtsp_main'      => 'rtsp://admin:password@192.168.1.1:554/Streaming/Channels/201',

@@ -10,7 +10,7 @@ declare(strict_types=1);
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-cache, no-store, must-revalidate');
 
-require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../config/database.php';
 
 $sinceId = isset($_GET['since']) ? (int)$_GET['since'] : 0;
 
@@ -44,7 +44,7 @@ try {
 
     // 2. Compute LIVE Occupancy directly from database to prevent counter drift
     // Occupied = COUNT(parking_sessions WHERE status = 'ACTIVE')
-    $cfg = require __DIR__ . '/../../config/config.php';
+    $cfg = require __DIR__ . '/../config/config.php';
     $capacity = (int)($cfg['app']['capacity'] ?? 60);
 
     // Check system_settings if customized
