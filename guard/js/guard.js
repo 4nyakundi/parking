@@ -981,10 +981,61 @@ function nextWizardStep() {}
 function prevWizardStep() {}
 function updateWizardStep() {}
 
+let guardActiveFloor = 'ALL';
+
 function selectDestination(name) {
     STATE.wizard.destination = name;
     document.querySelectorAll('.dest-tile').forEach(tile => {
         tile.classList.toggle('selected', tile.getAttribute('data-name') === name);
+    });
+    const label = document.getElementById('wizSelectedDestLabel');
+    if (label) label.textContent = name || 'None';
+}
+
+function renderGuardDestGrid() {
+    const grid = document.getElementById('wizDestinationsGrid');
+    if (!grid) return;
+
+    const query = (document.getElementById('wizDestSearch')?.value || '').trim().toLowerCase();
+    const list = STATE.destinations || [];
+
+    const filtered = list.filter(d => {
+        if (guardActiveFloor !== 'ALL') {
+            if ((d.floor_level || '').toLowerCase() !== guardActiveFloor.toLowerCase()) {
+                return false;
+            }
+        }
+        if (query.length > 0) {
+            const name = (d.name || '').toLowerCase();
+            const code = (d.unit_code || '').toLowerCase();
+            const cat  = (d.category || '').toLowerCase();
+            return name.includes(query) || code.includes(query) || cat.includes(query);
+        }
+        return true;
+    });
+
+    grid.innerHTML = '';
+    if (filtered.length === 0) {
+        grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:12px; color:var(--text-muted); font-size:11px;">No matching stores</div>';
+        return;
+    }
+
+    filtered.forEach(d => {
+        const tile = document.createElement('div');
+        const isSelected = STATE.wizard.destination === d.name;
+        tile.className = 'dest-tile' + (isSelected ? ' selected' : '');
+        tile.setAttribute('data-name', d.name);
+        tile.onclick = () => selectDestination(d.name);
+
+        const codeTag = d.unit_code ? `<span class="unit-code-tag">${d.unit_code}</span>` : '';
+        const catTag  = d.category ? `<span class="dest-cat-text">${d.category}</span>` : '';
+
+        tile.innerHTML = `
+            ${codeTag}
+            <span>${d.name}</span>
+            ${catTag}
+        `;
+        grid.appendChild(tile);
     });
 }
 
@@ -1001,7 +1052,7 @@ async function submitManualWizard() {
         return;
     }
     if (!dest) {
-        alert('Please select a destination.');
+        alert('Please select a destination store.');
         return;
     }
 
@@ -1031,7 +1082,7 @@ async function submitManualWizard() {
     } catch (e) {
         alert('Network error registering vehicle.');
     } finally {
-        if (btn) { btn.disabled = false; btn.textContent = '✓ Register & Print Ticket'; }
+        if (btn) { btn.disabled = false; btn.textContent = 'Register & Print Ticket'; }
     }
 }
 
@@ -1041,17 +1092,25 @@ async function loadDestinations() {
         const json = await res.json();
         if (json.ok && json.data) {
             STATE.destinations = json.data;
-            const grid = document.getElementById('wizDestinationsGrid');
-            if (!grid) return;
+            renderGuardDestGrid();
+        }
 
-            grid.innerHTML = '';
-            json.data.forEach(d => {
-                const tile = document.createElement('div');
-                tile.className = 'dest-tile';
-                tile.setAttribute('data-name', d.name);
-                tile.innerHTML = `<span>${d.icon || '🏬'}</span><br><span>${d.name}</span>`;
-                tile.onclick = () => selectDestination(d.name);
-                grid.appendChild(tile);
+        // Setup guard floor filter tabs
+        document.querySelectorAll('#wizFloorTabs .floor-pill').forEach(btn => {
+            btn.onclick = () => {
+                document.querySelectorAll('#wizFloorTabs .floor-pill').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                guardActiveFloor = btn.getAttribute('data-floor') || 'ALL';
+                renderGuardDestGrid();
+            };
+        });
+
+        // Setup guard search input
+        const searchInput = document.getElementById('wizDestSearch');
+        if (searchInput && !searchInput._bound) {
+            searchInput._bound = true;
+            searchInput.addEventListener('input', () => {
+                renderGuardDestGrid();
             });
         }
     } catch (e) { console.warn('Failed to load destinations:', e); }

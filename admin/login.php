@@ -1,6 +1,7 @@
 <?php
 /**
  * Mombasa Mall Basement Parking - Admin & Supervisor Login
+ * LIGHT THEME v4.0 | Palette: #116FC7 / #609FDA / #B0CFEC / #FFFFFF
  */
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
@@ -15,17 +16,27 @@ if (!empty($_SESSION['user_id']) && in_array($_SESSION['role'] ?? '', ['supervis
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Management Login - Mombasa Mall Parking</title>
+    <title>Management Portal Login — Mombasa Mall Parking</title>
     <style>
         :root {
-            --bg: #090e17;
-            --card: #111a2f;
-            --border: #273553;
-            --text: #f8fafc;
-            --blue: #3b82f6;
-            --blue-glow: rgba(59, 130, 246, 0.3);
+            --bg:        #eef5fc;
+            --card:      #ffffff;
+            --card-alt:  #f5f9fe;
+            --border:    #b0cfec;
+            --border-l:  #d0e5f5;
+            --blue:      #116FC7;
+            --blue-mid:  #609FDA;
+            --blue-light:#B0CFEC;
+            --blue-dim:  rgba(17,111,199,0.08);
+            --blue-hover:#0d5ca8;
+            --text:      #0d2b4e;
+            --text-sub:  #2e5c8a;
+            --text-mut:  #6b92b8;
+            --red:       #dc2626;
+            --font:      system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            --shadow:    0 8px 30px rgba(17,111,199,0.12), 0 0 0 1px var(--border);
         }
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: var(--font); }
         body {
             background-color: var(--bg);
             color: var(--text);
@@ -33,106 +44,149 @@ if (!empty($_SESSION['user_id']) && in_array($_SESSION['role'] ?? '', ['supervis
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 20px;
+            padding: 24px;
         }
         .login-box {
             background: var(--card);
-            border: 2px solid var(--border);
-            border-radius: 20px;
-            padding: 40px;
-            max-width: 440px;
+            border: 1px solid var(--border);
+            border-top: 4px solid var(--blue);
+            border-radius: 12px;
+            padding: 36px 32px;
+            max-width: 420px;
             width: 100%;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+            box-shadow: var(--shadow);
         }
-        .logo {
-            width: 60px;
-            height: 60px;
-            background: linear-gradient(135deg, #2563eb, #1d4ed8);
-            border-radius: 14px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 30px;
+        .brand-header {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+        .brand-header img.logo-icon {
+            height: 48px;
+            width: auto;
+            object-fit: contain;
+            margin-bottom: 12px;
+        }
+        .brand-header img.logo-wm {
+            height: 24px;
+            width: auto;
+            object-fit: contain;
+            display: block;
+            margin: 0 auto 10px auto;
+        }
+        .brand-header h1 {
+            font-size: 18px;
             font-weight: 900;
-            margin: 0 auto 16px auto;
-            color: #fff;
-            box-shadow: 0 4px 16px var(--blue-glow);
+            color: var(--blue);
+            letter-spacing: -0.01em;
         }
-        h1 { font-size: 24px; font-weight: 800; text-align: center; margin-bottom: 6px; }
-        p { color: #94a3b8; font-size: 14px; text-align: center; margin-bottom: 24px; }
-        .form-group { margin-bottom: 20px; }
-        label { display: block; font-size: 14px; font-weight: 700; color: #cbd5e1; margin-bottom: 8px; }
+        .brand-header p {
+            color: var(--text-sub);
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-top: 4px;
+        }
+        .form-group { margin-bottom: 18px; }
+        label {
+            display: block;
+            font-size: 10px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.10em;
+            color: var(--text-mut);
+            margin-bottom: 6px;
+        }
         input {
             width: 100%;
-            padding: 14px 16px;
-            background: #090e17;
-            border: 2px solid var(--border);
-            border-radius: 10px;
-            color: #fff;
-            font-size: 16px;
+            padding: 12px 14px;
+            background: #f0f6fc;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text);
+            font-size: 14px;
             font-weight: 600;
             outline: none;
-            transition: border-color 0.2s;
+            transition: border-color 0.15s, box-shadow 0.15s;
         }
-        input:focus { border-color: var(--blue); }
+        input:focus {
+            border-color: var(--blue);
+            box-shadow: 0 0 0 3px rgba(17,111,199,0.10);
+        }
         .btn-submit {
             width: 100%;
-            padding: 16px;
-            background: #2563eb;
+            padding: 14px;
+            background: var(--blue);
             color: #fff;
             border: none;
-            border-radius: 10px;
-            font-size: 17px;
+            border-radius: 6px;
+            font-size: 13px;
             font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
             cursor: pointer;
-            box-shadow: 0 4px 16px var(--blue-glow);
-            transition: transform 0.15s;
+            box-shadow: 0 2px 8px rgba(17,111,199,0.25);
+            transition: background 0.15s;
         }
-        .btn-submit:active { transform: scale(0.98); }
+        .btn-submit:hover { background: var(--blue-hover); }
+        .btn-submit:disabled { opacity: 0.5; cursor: not-allowed; }
         .error-msg {
-            background: rgba(239, 68, 68, 0.15);
-            border: 1px solid #ef4444;
-            color: #fca5a5;
-            padding: 12px;
-            border-radius: 8px;
-            font-size: 14px;
+            background: rgba(220, 38, 38, 0.08);
+            border: 1px solid var(--red);
+            color: var(--red);
+            padding: 10px 14px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
             margin-bottom: 16px;
             display: none;
         }
         .login-footer {
             margin-top: 24px;
             text-align: center;
-            font-size: 13px;
-            color: #64748b;
+            font-size: 12px;
+            color: var(--text-mut);
+            line-height: 1.5;
+            padding-top: 16px;
+            border-top: 1px solid var(--border-l);
         }
+        .login-footer a {
+            color: var(--blue);
+            text-decoration: none;
+            font-weight: 700;
+        }
+        .login-footer a:hover { text-decoration: underline; }
     </style>
 </head>
 <body>
 
     <div class="login-box">
-        <div class="logo">🛡️</div>
-        <h1>Management Portal</h1>
-        <p>Mombasa Mall Basement Parking Administration</p>
+        <div class="brand-header">
+            <img src="../assets/img/logo-icon.png" alt="Mombasa Mall" class="logo-icon">
+            <img src="../assets/img/logo-wordmark.png" alt="Mombasa Mall" class="logo-wm">
+            <h1>Management Portal</h1>
+            <p>Supervisor &amp; Administrator Access</p>
+        </div>
 
         <div id="errorBox" class="error-msg"></div>
 
         <form id="loginForm" onsubmit="return false;">
             <div class="form-group">
-                <label>Username</label>
-                <input type="text" id="username" placeholder="e.g. admin or supervisor" required autofocus>
+                <label for="username">Username</label>
+                <input type="text" id="username" placeholder="e.g. admin or supervisor" required autofocus autocomplete="username">
             </div>
 
             <div class="form-group">
-                <label>Password</label>
-                <input type="password" id="password" placeholder="••••••••" required>
+                <label for="password">Password</label>
+                <input type="password" id="password" placeholder="••••••••" required autocomplete="current-password">
             </div>
 
-            <button type="submit" class="btn-submit" id="btnLogin">Sign In →</button>
+            <button type="submit" class="btn-submit" id="btnLogin">Sign In</button>
         </form>
 
         <div class="login-footer">
-            Default credentials: <strong>admin</strong> / <strong>admin123</strong><br>
-            Security guards: Please access via <a href="../guard/" style="color:#38bdf8; text-decoration:none;">Guard Station</a>
+            Admin: <strong>admin</strong> / <strong>admin123</strong> &bull; Supervisor: <strong>supervisor</strong> / <strong>super123</strong><br>
+            Security guards: Please access via <a href="../guard/">Guard Tablet Station</a>
         </div>
     </div>
 
@@ -158,11 +212,11 @@ if (!empty($_SESSION['user_id']) && in_array($_SESSION['role'] ?? '', ['supervis
                 const json = await res.json();
 
                 btn.disabled = false;
-                btn.textContent = 'Sign In →';
+                btn.textContent = 'Sign In';
 
                 if (json.ok && json.data) {
                     if (json.data.role === 'guard') {
-                        errBox.textContent = 'Guards must login using their PIN at the Guard Station.';
+                        errBox.textContent = 'Security Guards must login using PIN at the Guard Tablet Station.';
                         errBox.style.display = 'block';
                         return;
                     }
@@ -173,7 +227,7 @@ if (!empty($_SESSION['user_id']) && in_array($_SESSION['role'] ?? '', ['supervis
                 }
             } catch (err) {
                 btn.disabled = false;
-                btn.textContent = 'Sign In →';
+                btn.textContent = 'Sign In';
                 errBox.textContent = 'Connection error. Ensure XAMPP Apache & MySQL are running.';
                 errBox.style.display = 'block';
             }

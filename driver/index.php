@@ -127,21 +127,49 @@
 
         .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 
-        /* Destination grid */
-        .dest-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+        /* Destination search & floor filter */
+        .dest-filter-bar { display: flex; flex-direction: column; gap: 8px; margin-bottom: 8px; }
+        .dest-search-input {
+            width: 100%; background: #f0f6fc; border: 1px solid var(--border);
+            border-radius: 6px; padding: 9px 12px; font-size: 13px; color: var(--text);
+            font-family: var(--font); outline: none; transition: border-color 0.15s, box-shadow 0.15s;
+        }
+        .dest-search-input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(17,111,199,0.10); }
+        .floor-tabs { display: flex; gap: 4px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
+        .floor-tabs::-webkit-scrollbar { display: none; }
+        .floor-tab {
+            background: #f0f6fc; border: 1px solid var(--border); border-radius: 4px;
+            padding: 5px 10px; font-size: 11px; font-weight: 700; color: var(--text-secondary);
+            cursor: pointer; white-space: nowrap; transition: all 0.15s; font-family: var(--font);
+        }
+        .floor-tab:hover { border-color: var(--blue-mid); color: var(--blue); }
+        .floor-tab.active { background: var(--blue); border-color: var(--blue); color: #fff; }
+        .selected-dest-banner {
+            display: none; background: var(--blue-dim); border: 1px solid var(--blue-mid);
+            border-radius: 6px; padding: 8px 12px; font-size: 12px; font-weight: 700; color: var(--blue); margin-bottom: 8px;
+        }
+        .dest-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 6px;
+            max-height: 250px; overflow-y: auto; padding: 2px;
+        }
         .dest-card {
-            background: #f0f6fc;
-            border: 1px solid var(--border);
-            border-radius: 6px; padding: 11px 10px;
-            text-align: center; font-weight: 700; font-size: 12px;
-            color: var(--text-sub); cursor: pointer;
-            transition: all 0.15s; line-height: 1.3;
+            background: #f0f6fc; border: 1px solid var(--border); border-radius: 6px;
+            padding: 8px 10px; text-align: left; font-weight: 700; font-size: 12px;
+            color: var(--text-sub); cursor: pointer; transition: all 0.15s; line-height: 1.3;
+            display: flex; flex-direction: column; gap: 3px;
         }
         .dest-card:hover { border-color: var(--blue-mid); color: var(--blue); background: var(--blue-dim); }
         .dest-card.selected {
             border-color: var(--blue); background: var(--blue); color: #fff;
             box-shadow: 0 2px 6px rgba(17,111,199,0.25);
         }
+        .dest-card .unit-badge {
+            font-size: 9px; font-weight: 800; letter-spacing: 0.05em; color: var(--blue);
+            background: rgba(17,111,199,0.12); border-radius: 3px; padding: 1px 5px; width: fit-content;
+        }
+        .dest-card.selected .unit-badge { background: rgba(255,255,255,0.25); color: #fff; }
+        .dest-card .dest-category { font-size: 10px; color: var(--text-mut); font-weight: 500; }
+        .dest-card.selected .dest-category { color: rgba(255,255,255,0.85); }
         .dest-error { font-size: 11px; color: var(--red); display: none; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
 
         .consent-row { display: flex; align-items: flex-start; gap: 10px; font-size: 12px; color: var(--text-sub); line-height: 1.5; }
@@ -251,25 +279,32 @@
                         </div>
                     </div>
 
-                    <div class="form-section-label">Destination</div>
+                    <div class="form-section-label">Destination / Store (48 Stores)</div>
+
+                    <!-- Selected store confirmation badge -->
+                    <div id="selectedDestBanner" class="selected-dest-banner">
+                        Selected: <strong id="selectedDestText">None</strong>
+                    </div>
+
+                    <!-- Search and Floor filters -->
+                    <div class="dest-filter-bar">
+                        <input type="text" id="destSearchInput" class="dest-search-input"
+                               placeholder="Search store (e.g. Naivas, NCBA, Lovisa, Gym, Pizza)...">
+                        
+                        <div class="floor-tabs" id="driverFloorTabs">
+                            <button type="button" class="floor-tab active" data-floor="ALL">All (48)</button>
+                            <button type="button" class="floor-tab" data-floor="Ground Floor">Level G (5)</button>
+                            <button type="button" class="floor-tab" data-floor="1st Floor">Level 1 (17)</button>
+                            <button type="button" class="floor-tab" data-floor="2nd Floor">Level 2 (19)</button>
+                            <button type="button" class="floor-tab" data-floor="3rd Floor">Level 3 (4)</button>
+                            <button type="button" class="floor-tab" data-floor="Basement">Basement (3)</button>
+                        </div>
+                    </div>
 
                     <div class="dest-grid" id="driverDestGrid">
-                        <div class="dest-card" onclick="pickDest('Naivas Supermarket', this)">Naivas Supermarket</div>
-                        <div class="dest-card" onclick="pickDest('NCBA Bank', this)">NCBA Bank</div>
-                        <div class="dest-card" onclick="pickDest('Food Court', this)">Food Court</div>
-                        <div class="dest-card" onclick="pickDest('Chicken Inn', this)">Chicken Inn</div>
-                        <div class="dest-card" onclick="pickDest('Gym &amp; Fitness Centre', this)">Gym &amp; Fitness</div>
-                        <div class="dest-card" onclick="pickDest('Gamers Vault', this)">Gamers Vault</div>
-                        <div class="dest-card" onclick="pickDest('Pharmacy / Chemist', this)">Pharmacy</div>
-                        <div class="dest-card" onclick="pickDest('Mobile &amp; Electronics', this)">Mobile &amp; Electronics</div>
-                        <div class="dest-card" onclick="pickDest('Fashion &amp; Clothing', this)">Fashion &amp; Clothing</div>
-                        <div class="dest-card" onclick="pickDest('Salon &amp; Beauty', this)">Salon &amp; Beauty</div>
-                        <div class="dest-card" onclick="pickDest('Kids Play Zone', this)">Kids Play Zone</div>
-                        <div class="dest-card" onclick="pickDest('Mall Administration', this)">Mall Administration</div>
-                        <div class="dest-card" onclick="pickDest('ATM / Cash Point', this)">ATM / Cash Point</div>
-                        <div class="dest-card" onclick="pickDest('Other Retail Stores', this)">Other Stores</div>
+                        <!-- Populated dynamically with all 48 shops by driver.js -->
                     </div>
-                    <span id="destError" class="dest-error">Please select your destination</span>
+                    <span id="destError" class="dest-error">Please select your destination store</span>
 
                     <div class="consent-row">
                         <input type="checkbox" id="chkConsent" checked>

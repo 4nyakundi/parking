@@ -9,7 +9,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../../includes/auth.php';
 require_once __DIR__ . '/../../includes/audit.php';
 
-$user = require_role('admin', true);
+$user = require_role(['supervisor', 'admin'], true);
 
 $action = $_GET['action'] ?? ($_POST['action'] ?? 'list');
 

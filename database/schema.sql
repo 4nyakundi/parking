@@ -102,15 +102,20 @@ CREATE TABLE IF NOT EXISTS `parking_sessions` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------------------
--- 5. DESTINATIONS
+-- 5. DESTINATIONS (Mombasa Mall Shops & Facilities)
 -- --------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS `destinations` (
     `id` INT AUTO_INCREMENT PRIMARY KEY,
-    `name` VARCHAR(100) NOT NULL UNIQUE,
+    `name` VARCHAR(150) NOT NULL UNIQUE,
+    `unit_code` VARCHAR(20) NOT NULL DEFAULT '',
+    `floor_level` VARCHAR(50) NOT NULL DEFAULT 'Ground Floor',
+    `category` VARCHAR(50) NOT NULL DEFAULT 'Retail',
+    `description` VARCHAR(255) NOT NULL DEFAULT '',
     `sort_order` INT NOT NULL DEFAULT 0,
     `is_active` TINYINT(1) NOT NULL DEFAULT 1,
     `icon` VARCHAR(50) NOT NULL DEFAULT 'store',
-    INDEX `idx_dest_sort` (`sort_order`, `is_active`)
+    INDEX `idx_dest_sort` (`sort_order`, `is_active`),
+    INDEX `idx_dest_floor` (`floor_level`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------------------
@@ -270,27 +275,75 @@ INSERT INTO `users` (`id`, `username`, `full_name`, `role`, `pin_hash`, `passwor
 (4, 'guard2', 'Ali Hassan (Gate 2)', 'guard', '$2y$10$.jnnnHKhVwnVMeYgpkbeE.gnrkbvmof1w93Z7A.Df3dK6aFNe6k0a', NULL, '254711000004', 1, 0)
 ON DUPLICATE KEY UPDATE `full_name` = VALUES(`full_name`), `password_hash` = VALUES(`password_hash`), `pin_hash` = VALUES(`pin_hash`);
 
--- 2. Destinations (Mombasa Mall tenants — comprehensive list)
-INSERT INTO `destinations` (`id`, `name`, `sort_order`, `is_active`, `icon`) VALUES
-(1,  'Naivas Supermarket',     1,  1, 'store'),
-(2,  'NCBA Bank',              2,  1, 'bank'),
-(3,  'Food Court',             3,  1, 'restaurant'),
-(4,  'Chicken Inn',            4,  1, 'restaurant'),
-(5,  'Gym & Fitness Centre',   5,  1, 'fitness'),
-(6,  'Gamers Vault',           6,  1, 'gaming'),
-(7,  'Pharmacy / Chemist',     7,  1, 'medical'),
-(8,  'Mobile & Electronics',   8,  1, 'electronics'),
-(9,  'Fashion & Clothing',     9,  1, 'clothing'),
-(10, 'Salon & Beauty',         10, 1, 'beauty'),
-(11, 'Optician / Eyewear',     11, 1, 'eyewear'),
-(12, 'Kids Play Zone',         12, 1, 'kids'),
-(13, 'ATM / Cash Point',       13, 1, 'atm'),
-(14, 'Real Estate Office',     14, 1, 'office'),
-(15, 'Mall Administration',    15, 1, 'admin'),
-(16, 'Security / Management',  16, 1, 'security'),
-(17, 'Other Retail Stores',    17, 1, 'store'),
-(18, 'Loading / Deliveries',   18, 1, 'truck')
-ON DUPLICATE KEY UPDATE `name` = VALUES(`name`), `sort_order` = VALUES(`sort_order`), `icon` = VALUES(`icon`);
+-- 2. Destinations (Mombasa Mall Full Directory: Ground, 1st, 2nd, 3rd Floor & Basement)
+INSERT INTO `destinations` (`id`, `name`, `unit_code`, `floor_level`, `category`, `description`, `sort_order`, `is_active`, `icon`) VALUES
+-- Ground Floor (Level G) — Hypermarket & Fast Food
+(1,  'G-01 Naivas Supermarket',                         'G-01', 'Ground Floor', 'Hypermarket',        '24/7 Anchor Hypermarket (Fresh bakery, organic produce, butchery, pharmacy & liquor store).', 101, 1, 'store'),
+(2,  'G-02 Chicken Inn',                                'G-02', 'Ground Floor', 'Fast Food',          'Fast-casual restaurant serving crispy fried chicken, chips, and family meals.',                102, 1, 'restaurant'),
+(3,  'G-03 Creamy Inn',                                 'G-03', 'Ground Floor', 'Fast Food',          'Soft-serve ice creams, decadent sundaes, thick milkshakes, and waffles.',                      103, 1, 'restaurant'),
+(4,  'G-04 Pizza Inn',                                  'G-04', 'Ground Floor', 'Fast Food',          'Freshly rolled artisan pizzas, classic pepperoni, peri-peri chicken, and pizza specials.',     104, 1, 'restaurant'),
+
+-- 1st Floor (Level 1) — Fashion, Shoes, Tech, Beauty & Banking (17 Stores)
+(5,  'F-01 Naivas First Floor',                         'F-01', '1st Floor',    'Department Store',   'Department store extension (Home appliances, kitchenware, bedding & electronics).',            201, 1, 'store'),
+(6,  'F-02 Hallahulah Game Shop',                       'F-02', '1st Floor',    'Gaming',             'Video game consoles (PS5, Xbox, Nintendo), VR equipment, and gaming gear.',                    202, 1, 'gaming'),
+(7,  'F-03 Daliah Human Wigs',                          'F-03', '1st Floor',    'Beauty',             'Luxury virgin human hair extensions, lace front wigs, and styling products.',                  203, 1, 'beauty'),
+(8,  'F-04 Payless',                                    'F-04', '1st Floor',    'Fashion & Shoes',    'Trendsetting footwear, mobile phones, and family fashion accessories.',                        204, 1, 'clothing'),
+(9,  'F-05 Grand Computer',                             'F-05', '1st Floor',    'Tech & PC',          'Laptops, desktop PCs, monitors, hardware upgrades, and IT repairs.',                           205, 1, 'electronics'),
+(10, 'F-06 Tickles and Giggles',                        'F-06', '1st Floor',    'Kids Apparel',       'Childrens apparel, baby essentials, toys, and school bags.',                                   206, 1, 'kids'),
+(11, 'F-07 Namada Healthcare',                          'F-07', '1st Floor',    'Healthcare',         'Clinical retail pharmacy, diagnostic testing, and health supplements.',                         207, 1, 'medical'),
+(12, 'F-08 Online Holidays',                            'F-08', '1st Floor',    'Travel',             'Holiday travel packages, flight ticketing, safaris, and hotel bookings.',                      208, 1, 'office'),
+(13, 'F-09 West 11',                                    'F-09', '1st Floor',    'Streetwear',         'Coastal streetwear, designer apparel, and lifestyle fashion.',                                 209, 1, 'clothing'),
+(14, 'F-10 7day Mensware',                              'F-10', '1st Floor',    'Menswear',           'Formal suits, blazers, smart-casual shirts, trousers, and mens shoes.',                        210, 1, 'clothing'),
+(15, 'F-11 KG Cosmetics',                              'F-11', '1st Floor',    'Beauty & Perfumes',  'Designer perfumes, makeup, organic skincare, and luxury fragrances.',                          211, 1, 'beauty'),
+(16, 'F-12 Lovisa',                                     'F-12', '1st Floor',    'Jewellery',          'On-trend fashion jewellery, sterling silver, gold-plated earrings, and hair accessories.',     212, 1, 'store'),
+(17, 'F-13 Fakri Timezone',                             'F-13', '1st Floor',    'Watches & Eyewear',  'Wristwatches, chronographs, sunglasses, and optical prescription frames.',                      213, 1, 'eyewear'),
+(18, 'F-14 Dendri (Denri Africa)',                      'F-14', '1st Floor',    'Leather Goods',      'Handcrafted leather handbags, backpacks, duffels, and wallets.',                               214, 1, 'clothing'),
+(19, 'F-15 NCBA Bank',                                  'F-15', '1st Floor',    'Banking',            'Full-service bank branch, forex exchange, loan desks, and 24/7 ATM lobby.',                    215, 1, 'bank'),
+(20, 'F-16 Diamond Tech',                               'F-16', '1st Floor',    'Security Tech',      'CCTV security systems, biometric access control, intercoms, and networking.',                  216, 1, 'electronics'),
+(21, 'F-17 Africa Collectives',                         'F-17', '1st Floor',    'Curios & Artefacts', 'Handwoven African baskets, beaded jewellery, coastal artefacts, and souvenirs.',               217, 1, 'store'),
+
+-- 2nd Floor (Level 2) — Entertainment, Boutiques, Salon Spas & Dining (19 Stores)
+(22, 'S-01 Play On (Game Area)',                        'S-01', '2nd Floor',    'Entertainment',      'Large family entertainment arena (VR simulators, soft play, arcade games & party rooms).',     301, 1, 'gaming'),
+(23, 'S-02 Creamy / Chicken / Pizza Inn Kiosk',         'S-02', '2nd Floor',    'Fast Food',          'Express food counter for fast bites, slices, and ice creams.',                                 302, 1, 'restaurant'),
+(24, 'S-03 Jumia / Skyve Studio / Xtigi Service Center', 'S-03', '2nd Floor',   'Hub & Tech',         'E-commerce parcel hub, photo studio, and device repairs.',                                     303, 1, 'electronics'),
+(25, 'S-04 World Designers',                            'S-04', '2nd Floor',    'Tailoring & Couture','Bespoke tailoring, evening gowns, African prints, and alterations.',                           304, 1, 'clothing'),
+(26, 'S-05 SAS Beauty',                                 'S-05', '2nd Floor',    'Salon & Nails',      'Hair braiding, wig installations, blowouts, manicure, pedicure, and bridal glam.',             305, 1, 'beauty'),
+(27, 'S-06 Novum',                                      'S-06', '2nd Floor',    'Spa Sanctuary',      'Luxury spa sanctuary, facials, deep-tissue massage, nail bar, and lash extensions.',            306, 1, 'beauty'),
+(28, 'S-07 Ident Smile',                                'S-07', '2nd Floor',    'Dental Clinic',      'Modern dental clinic (teeth whitening, orthodontics, cleaning, fillings & root canals).',      307, 1, 'medical'),
+(29, 'S-08 Tawal ICT Solution',                         'S-08', '2nd Floor',    'Enterprise IT',      'Enterprise IT solutions, custom software deployment, and computer accessories.',              308, 1, 'electronics'),
+(30, 'S-09 Mintos Salon Spa Barbershop',                'S-09', '2nd Floor',    'Grooming & Barber',  'Executive mens grooming, hot towel shaves, spa therapies, and beard styling.',                  309, 1, 'beauty'),
+(31, 'S-10 SSB',                                        'S-10', '2nd Floor',    'Womens Boutique',    'Womens boutique fashion, handbags, cosmetics, and lifestyle accessories.',                      310, 1, 'clothing'),
+(32, 'S-11 Rudra',                                      'S-11', '2nd Floor',    'Ethnic Wear',        'Indian ethnic wear, silk sarees, kurtis, embroidered fabrics, and bridal lehengas.',           311, 1, 'clothing'),
+(33, 'S-12 West 11 Sports',                             'S-12', '2nd Floor',    'Sportswear',         'Athletic trainers, sportswear, football jerseys, and gym accessories.',                        312, 1, 'fitness'),
+(34, 'S-13 Osona Yarns',                                'S-13', '2nd Floor',    'Crafts & Yarns',     'Knitting yarns, sewing threads, haberdashery, and DIY craft materials.',                       313, 1, 'store'),
+(35, 'S-14 Afribot Robotics',                           'S-14', '2nd Floor',    'STEM Academy',       'STEM academy offering kids coding, robotics, 3D printing, and AI workshops.',                   314, 1, 'electronics'),
+(36, 'S-15 Luxe Kaftan',                                'S-15', '2nd Floor',    'Bridal & Modest',    'Bridal kaftans, silk abayas, evening gowns, and Swahili royal couture.',                      315, 1, 'clothing'),
+(37, 'S-16 Malkia',                                     'S-16', '2nd Floor',    'Modest Fashion',     'Modest wear, chic abayas, stylish hijabs, and Arabian luxury accessories.',                     316, 1, 'clothing'),
+(38, 'S-17 Michael Boutique',                           'S-17', '2nd Floor',    'Cocktail & Office',  'Sophisticated cocktail dresses, office wear, and designer handbags.',                          317, 1, 'clothing'),
+(39, 'S-18 Oraimo',                                     'S-18', '2nd Floor',    'Smart Accessories',  'Smart accessories (power banks, wireless earbuds, smartwatches & fast chargers).',              318, 1, 'electronics'),
+(40, 'S-19 Keswick',                                    'S-19', '2nd Floor',    'Books & Gifts',      'Christian books, Bibles, motivational literature, stationery, and gifts.',                      319, 1, 'store'),
+
+-- 3rd Floor (Level 3) — Coworking, Gym, Esports & Medical Clinic (4 Anchors)
+(41, 'T-01 Gamers Vault',                               'T-01', '3rd Floor',    'Esports Lounge',     'Flagship esports lounge (PS5 4K stations, high-refresh gaming PCs & tournaments).',             401, 1, 'gaming'),
+(42, 'T-02 Legacy Gym',                                 'T-02', '3rd Floor',    'Gym & Fitness',      'Health and fitness club (free weights, cardio deck, sauna, aerobics & personal training).',    402, 1, 'fitness'),
+(43, 'T-03 Westerwelle Foundation / Startup Haus',      'T-03', '3rd Floor',    'Tech Incubator',     'Tech incubator, coworking desks, meeting suites & event hall.',                                 403, 1, 'office'),
+(44, 'T-04 Equity Afia CBD',                            'T-04', '3rd Floor',    'Medical Center',     'Comprehensive outpatient medical center, doctor consultations, lab & pharmacy.',              404, 1, 'medical'),
+
+-- Basement (Level B1) — Parking & Valet Services (2 Services)
+(45, 'B-01 Valet & Parking Services',                   'B-01', 'Basement',     'Valet Concierge',    'Professional valet concierge desk, ticket validation, and drop-off assistance.',               501, 1, 'truck'),
+(46, 'B-02 Secure Basement Parking Deck',               'B-02', 'Basement',     'Parking',            '400+ secure, well-lit vehicle bays with 24/7 CCTV surveillance and automated access booms.',   502, 1, 'truck'),
+
+-- General Mall Facilities
+(47, 'Mall Administration & Management',                'ADM',  'Ground Floor', 'Management',         'Mombasa Mall central property management, security control, and leasing office.',               601, 1, 'admin'),
+(48, 'Loading Bay & Deliveries',                        'LOG',  'Basement',     'Logistics',          'Dedicated commercial delivery bay, tenant goods receiving, and freight access.',               602, 1, 'truck')
+ON DUPLICATE KEY UPDATE 
+    `name` = VALUES(`name`), 
+    `unit_code` = VALUES(`unit_code`),
+    `floor_level` = VALUES(`floor_level`),
+    `category` = VALUES(`category`),
+    `description` = VALUES(`description`),
+    `sort_order` = VALUES(`sort_order`), 
+    `icon` = VALUES(`icon`);
 
 -- 3. System Settings
 INSERT INTO `system_settings` (`key`, `value`, `description`) VALUES

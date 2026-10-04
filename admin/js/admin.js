@@ -37,6 +37,26 @@ function navigateTo(sectionId) {
         s.classList.toggle('active', s.id === `sec-${sectionId}`);
     });
 
+    const titles = {
+        overview: 'Management Operations Overview',
+        sessions: 'Active & Historical Parking Sessions',
+        visitors: 'Driver Self-Check-in Digital Requests',
+        vehicles: 'Authorized & Blacklisted Vehicle Registry',
+        users: 'Security Personnel & System User Accounts',
+        destinations: 'Mall Tenant & Store Destination Directory',
+        reports: 'Operational Analytics & Dwell Time Reports',
+        audit: 'Permanent Immutable Audit Trail',
+        reconcile: 'Discrepancy Reconciliation & Drift Resolution',
+        settings: 'System Configuration & Hardware Settings',
+        backups: 'Database Backup & Recovery Manager',
+        health: 'Hardware Diagnostics & Service Health',
+        dpa: 'Data Protection & Privacy Compliance'
+    };
+    const titleEl = document.getElementById('topNavTitle');
+    if (titleEl && titles[sectionId]) {
+        titleEl.textContent = titles[sectionId];
+    }
+
     // Load data for section
     switch (sectionId) {
         case 'overview':
@@ -117,18 +137,18 @@ async function loadHourlyChart() {
                     labels: json.data.labels,
                     datasets: [
                         {
-                            label: 'Cars Entered',
+                            label: 'Vehicles Entered',
                             data: json.data.entries,
-                            backgroundColor: 'rgba(16, 185, 129, 0.7)',
-                            borderColor: '#10b981',
-                            borderRadius: 6,
+                            backgroundColor: '#116FC7',
+                            borderColor: '#0d5ca8',
+                            borderRadius: 4,
                         },
                         {
-                            label: 'Cars Exited',
+                            label: 'Vehicles Exited',
                             data: json.data.exits,
-                            backgroundColor: 'rgba(249, 115, 22, 0.7)',
-                            borderColor: '#f97316',
-                            borderRadius: 6,
+                            backgroundColor: '#609FDA',
+                            borderColor: '#3a87d0',
+                            borderRadius: 4,
                         }
                     ]
                 },
@@ -136,11 +156,20 @@ async function loadHourlyChart() {
                     responsive: true,
                     maintainAspectRatio: false,
                     scales: {
-                        y: { beginAtZero: true, grid: { color: '#1e293b' } },
-                        x: { grid: { color: 'transparent' } }
+                        y: { 
+                            beginAtZero: true, 
+                            grid: { color: '#d0e5f5' },
+                            ticks: { color: '#2e5c8a', font: { weight: '600' } }
+                        },
+                        x: { 
+                            grid: { color: 'transparent' },
+                            ticks: { color: '#2e5c8a', font: { weight: '600' } }
+                        }
                     },
                     plugins: {
-                        legend: { labels: { color: '#94a3b8' } }
+                        legend: { 
+                            labels: { color: '#0d2b4e', font: { weight: '700' } } 
+                        }
                     }
                 }
             });
@@ -180,15 +209,15 @@ async function loadSessions(page = 1) {
         json.data.sessions.forEach(s => {
             const tr = document.createElement('tr');
             tr.innerHTML = `
-                <td><strong>${s.ticket_id}</strong></td>
-                <td><span style="font-weight:900; color:#fbbf24;">${s.formatted_plate}</span></td>
+                <td><strong style="color:var(--blue);">${s.ticket_id}</strong></td>
+                <td><span style="display:inline-block; font-family:monospace; font-size:12px; font-weight:800; background:#eef5fc; color:#0d2b4e; border:1px solid #b0cfec; border-radius:4px; padding:2px 8px; letter-spacing:0.04em;">${s.formatted_plate}</span></td>
                 <td>${s.driver_name}</td>
                 <td>${s.destination}</td>
                 <td>${s.entry_time}</td>
-                <td>${s.exit_time || '<span style="color:#10b981;">Inside</span>'}</td>
+                <td>${s.exit_time || '<span class="badge active">Inside</span>'}</td>
                 <td><span class="badge ${s.status === 'ACTIVE' ? 'active' : 'completed'}">${s.status}</span></td>
                 <td>
-                    <button class="btn-primary" style="padding:6px 12px; font-size:13px;" onclick="viewSessionDetail(${s.id})">🔍 View</button>
+                    <button class="btn-primary" style="padding:5px 12px; font-size:12px;" onclick="viewSessionDetail(${s.id})">View</button>
                 </td>
             `;
             tbody.appendChild(tr);
@@ -284,7 +313,7 @@ async function loadVisitors(page = 1) {
         json.data.visitors.forEach(v => {
             const tr = document.createElement('tr');
             tr.innerHTML = `
-                <td><strong>${v.formatted_plate}</strong></td>
+                <td><span style="display:inline-block; font-family:monospace; font-size:12px; font-weight:800; background:#eef5fc; color:#0d2b4e; border:1px solid #b0cfec; border-radius:4px; padding:2px 8px; letter-spacing:0.04em;">${v.formatted_plate}</span></td>
                 <td>${v.driver_name}</td>
                 <td>${v.driver_phone}</td>
                 <td>${v.destination}</td>
@@ -313,10 +342,10 @@ async function loadVehicles() {
         json.data.forEach(v => {
             const tr = document.createElement('tr');
             tr.innerHTML = `
-                <td><strong style="color:#fbbf24;">${v.formatted_plate}</strong></td>
+                <td><span style="display:inline-block; font-family:monospace; font-size:12px; font-weight:800; background:#eef5fc; color:#0d2b4e; border:1px solid #b0cfec; border-radius:4px; padding:2px 8px; letter-spacing:0.04em;">${v.formatted_plate}</span></td>
                 <td>${v.owner_name || 'N/A'}</td>
                 <td>${v.phone || 'N/A'}</td>
-                <td><span class="badge ${v.category}">${v.category}</span></td>
+                <td><span class="badge ${v.category}">${v.category.toUpperCase()}</span></td>
                 <td>${v.notes || ''}</td>
                 <td>
                     <button class="btn-primary" style="padding:4px 10px; font-size:12px;" onclick="openVehicleModal(${JSON.stringify(v).replace(/"/g, '&quot;')})">Edit</button>
@@ -395,22 +424,25 @@ async function loadUsers() {
         const tbody = document.getElementById('usersTableBody');
         if (!tbody) return;
 
+        const isAdmin = document.body.dataset.userRole === 'admin';
         tbody.innerHTML = '';
         json.data.forEach(u => {
             const tr = document.createElement('tr');
+            const actionsHtml = isAdmin ? `
+                <button class="btn-primary" style="padding:4px 10px; font-size:12px;" onclick="openUserModal(${JSON.stringify(u).replace(/"/g, '&quot;')})">Edit / PIN</button>
+                <button class="btn-primary ${u.is_active ? 'btn-danger' : 'btn-success'}" style="padding:4px 10px; font-size:12px; margin-left:4px;" onclick="toggleUserActive(${u.id})">
+                    ${u.is_active ? 'Deactivate' : 'Activate'}
+                </button>
+            ` : `<span style="color:var(--text-mut); font-size:12px; font-weight:600;">Admin Managed</span>`;
+
             tr.innerHTML = `
                 <td><strong>${u.full_name}</strong></td>
                 <td>${u.username || '<span style="color:#64748b;">(PIN only)</span>'}</td>
-                <td><span class="badge ${u.role === 'admin' ? 'vip' : 'active'}">${u.role}</span></td>
+                <td><span class="badge ${u.role === 'admin' ? 'vip' : 'active'}">${u.role.toUpperCase()}</span></td>
                 <td>${u.phone || 'N/A'}</td>
-                <td>${u.is_active ? '<span style="color:#10b981;">Active</span>' : '<span style="color:#ef4444;">Inactive</span>'}</td>
+                <td>${u.is_active ? '<span class="badge active" style="font-size:11px;">Active</span>' : '<span class="badge danger" style="font-size:11px;">Inactive</span>'}</td>
                 <td>${u.last_login_at || 'Never'}</td>
-                <td>
-                    <button class="btn-primary" style="padding:4px 10px; font-size:12px;" onclick="openUserModal(${JSON.stringify(u).replace(/"/g, '&quot;')})">Edit / Reset PIN</button>
-                    <button class="btn-primary ${u.is_active ? 'btn-danger' : 'btn-success'}" style="padding:4px 10px; font-size:12px; margin-left:4px;" onclick="toggleUserActive(${u.id})">
-                        ${u.is_active ? 'Deactivate' : 'Activate'}
-                    </button>
-                </td>
+                <td>${actionsHtml}</td>
             `;
             tbody.appendChild(tr);
         });
@@ -487,12 +519,16 @@ async function loadDestinations() {
         json.data.forEach(d => {
             const tr = document.createElement('tr');
             tr.innerHTML = `
-                <td><strong>${d.name}</strong></td>
-                <td>Order #${d.sort_order}</td>
-                <td>${d.icon}</td>
-                <td>${d.is_active ? '<span style="color:#10b981;">Active</span>' : '<span style="color:#64748b;">Disabled</span>'}</td>
                 <td>
-                    <button class="btn-primary" style="padding:4px 10px; font-size:12px;" onclick="toggleDestActive(${d.id})">
+                    ${d.unit_code ? `<span class="badge" style="background:#eef5fc; color:#116FC7; border:1px solid #b0cfec; margin-right:6px;">${d.unit_code}</span>` : ''}
+                    <strong>${d.name}</strong>
+                </td>
+                <td><span class="badge" style="background:#f0f6fc; color:#2e5c8a; border:1px solid #b0cfec;">${d.floor_level || 'Ground Floor'}</span></td>
+                <td><span style="color:#6b92b8; font-size:12px;">${d.category || 'Retail'}</span></td>
+                <td>Order #${d.sort_order}</td>
+                <td>${d.is_active ? '<span class="badge active">Active</span>' : '<span class="badge" style="background:#f1f5f9; color:#94a3b8; border:1px solid #cbd5e1;">Disabled</span>'}</td>
+                <td>
+                    <button class="btn-primary" style="padding:4px 10px; font-size:11px;" onclick="toggleDestActive(${d.id})">
                         ${d.is_active ? 'Disable' : 'Enable'}
                     </button>
                 </td>
@@ -539,12 +575,19 @@ async function loadReports() {
                             labels: json.data.destinations.map(d => d.destination),
                             datasets: [{
                                 data: json.data.destinations.map(d => d.count),
-                                backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#64748b']
+                                backgroundColor: ['#116FC7', '#609FDA', '#0a6b43', '#d97706', '#6d28d9', '#2e5c8a', '#B0CFEC'],
+                                borderWidth: 2,
+                                borderColor: '#ffffff'
                             }]
                         },
                         options: {
                             responsive: true,
-                            plugins: { legend: { labels: { color: '#94a3b8' } } }
+                            plugins: { 
+                                legend: { 
+                                    position: 'bottom',
+                                    labels: { color: '#0d2b4e', font: { weight: '600' } } 
+                                } 
+                            }
                         }
                     });
                 }
@@ -561,9 +604,9 @@ async function loadReports() {
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
                     <td><strong>${g.guard_name}</strong></td>
-                    <td style="color:#10b981; font-weight:800;">${g.entries_approved}</td>
-                    <td style="color:#f97316; font-weight:800;">${g.exits_cleared}</td>
-                    <td style="color:#ef4444;">${g.rejections}</td>
+                    <td style="color:var(--green-lt); font-weight:800;">${g.entries_approved}</td>
+                    <td style="color:var(--blue); font-weight:800;">${g.exits_cleared}</td>
+                    <td style="color:var(--red-lt); font-weight:800;">${g.rejections}</td>
                 `;
                 tbody.appendChild(tr);
             });
@@ -591,7 +634,7 @@ async function loadAuditLogs(page = 1) {
                 <td><strong>${l.user_name}</strong> (${l.user_role})</td>
                 <td><span class="badge active">${l.action}</span></td>
                 <td>${l.entity} (#${l.entity_id || '-'})</td>
-                <td><code style="font-size:12px; color:#38bdf8;">${JSON.stringify(l.new_value || l.old_value || {})}</code></td>
+                <td><code style="font-size:12px; color:var(--text-sub); background:#eef5fc; padding:2px 6px; border-radius:4px; border:1px solid #b0cfec;">${JSON.stringify(l.new_value || l.old_value || {})}</code></td>
                 <td>${l.ip}</td>
             `;
             tbody.appendChild(tr);
@@ -610,7 +653,7 @@ async function loadReconcileList() {
         if (!tbody) return;
 
         if (!json.ok || json.data.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:30px; color:#10b981;">✓ All active sessions are within normal duration. Zero mismatches found!</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:30px; color:var(--green-lt); font-weight:600;">All active sessions are within normal duration. Zero mismatches found.</td></tr>`;
             return;
         }
 
@@ -618,13 +661,13 @@ async function loadReconcileList() {
         json.data.forEach(s => {
             const tr = document.createElement('tr');
             tr.innerHTML = `
-                <td><strong>${s.formatted_plate}</strong></td>
-                <td>${s.ticket_id}</td>
+                <td><span style="display:inline-block; font-family:monospace; font-size:12px; font-weight:800; background:#eef5fc; color:#0d2b4e; border:1px solid #b0cfec; border-radius:4px; padding:2px 8px; letter-spacing:0.04em;">${s.formatted_plate}</span></td>
+                <td><strong style="color:var(--blue);">${s.ticket_id}</strong></td>
                 <td>${s.driver_name}</td>
                 <td>${s.entry_time}</td>
-                <td style="color:#ef4444; font-weight:900;">${s.hours_active} hours</td>
+                <td><span class="badge danger">${s.hours_active} hours</span></td>
                 <td>
-                    <button class="btn-primary btn-warning" style="padding:6px 12px; font-size:13px;" onclick="forceReconcileSession(${s.id})">Force Close & Clear</button>
+                    <button class="btn-primary btn-warning" style="padding:5px 12px; font-size:12px;" onclick="forceReconcileSession(${s.id})">Force Close & Clear</button>
                 </td>
             `;
             tbody.appendChild(tr);
@@ -734,11 +777,13 @@ async function triggerBackupNow() {
     btn.disabled = true;
     btn.textContent = 'Creating Backup...';
 
+    const defaultBtnHtml = '<svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" fill="none" stroke-width="2" style="vertical-align:-2px; margin-right:4px;"><polyline points="8 17 12 21 16 17"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.88 18.09A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.29"/></svg>Backup Database Now';
+
     try {
         const res = await fetch('../api/admin/backups.php?action=create', { method: 'POST' });
         const json = await res.json();
         btn.disabled = false;
-        btn.textContent = '💾 Backup Now';
+        btn.innerHTML = defaultBtnHtml;
 
         if (json.ok) {
             alert(json.data.message);
@@ -748,7 +793,7 @@ async function triggerBackupNow() {
         }
     } catch (e) {
         btn.disabled = false;
-        btn.textContent = '💾 Backup Now';
+        btn.innerHTML = defaultBtnHtml;
         alert('Failed to trigger backup.');
     }
 }

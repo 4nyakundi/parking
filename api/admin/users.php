@@ -12,7 +12,7 @@ require_once __DIR__ . '/../../includes/auth.php';
 require_once __DIR__ . '/../../includes/audit.php';
 require_once __DIR__ . '/../../includes/phone_helper.php';
 
-$currUser = require_role('admin', true);
+$currUser = require_role(['supervisor', 'admin'], true);
 
 $raw = file_get_contents('php://input');
 $input = json_decode($raw, true) ?? $_POST;
@@ -53,8 +53,12 @@ try {
         exit;
     }
 
-    // 2. CREATE / UPDATE USER
+    // 2. CREATE / UPDATE USER (Admin only)
     if ($action === 'save') {
+        if ($currUser['role'] !== 'admin') {
+            echo json_encode(['ok' => false, 'error' => 'Only administrators can create or edit system user accounts.']);
+            exit;
+        }
         $userId   = (int)($input['id'] ?? 0);
         $username = trim((string)($input['username'] ?? ''));
         $fullName = trim((string)($input['full_name'] ?? ''));
