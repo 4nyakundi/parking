@@ -175,8 +175,9 @@ while (true) {
 
                 if (!empty($matchedPlate)) {
                     $matchedPlate = trim($matchedPlate);
-                    // Filter out empty or "NoPlate"
-                    if (!in_array(strtoupper($matchedPlate), ['NOPLATE', 'UNKNOWN', 'NONE', '000000', ''], true)) {
+                    $cleanUpper = strtoupper(preg_replace('/[^A-Z0-9]/', '', $matchedPlate));
+                    // Filter out empty, null, or invalid strings
+                    if (strlen($cleanUpper) >= 4 && !in_array($cleanUpper, ['NOPLATE', 'UNKNOWN', 'NONE', '000000', 'NULL'], true)) {
                         log_msg("Extracted Plate: {$matchedPlate}");
                         $currentPlate = $matchedPlate;
 
