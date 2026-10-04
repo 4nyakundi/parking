@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Printable Billboard Poster - Mombasa Mall Parking QR</title>
+    <style>
+        @page {
+            size: A3 portrait;
+            margin: 10mm;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
+        body {
+            background: #fff;
+            color: #0f172a;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+            min-height: 100vh;
+            padding: 30px;
+            text-align: center;
+        }
+        .header-badge {
+            background: #2563eb;
+            color: #fff;
+            padding: 12px 36px;
+            border-radius: 40px;
+            font-size: 28px;
+            font-weight: 900;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            display: inline-block;
+            margin-bottom: 20px;
+        }
+        h1 {
+            font-size: 64px;
+            font-weight: 900;
+            line-height: 1.1;
+            color: #0f172a;
+            text-transform: uppercase;
+        }
+        .free-banner {
+            background: #10b981;
+            color: #fff;
+            font-size: 42px;
+            font-weight: 900;
+            padding: 14px 40px;
+            border-radius: 16px;
+            margin: 20px 0;
+            display: inline-block;
+            letter-spacing: 1px;
+        }
+        .qr-frame {
+            border: 12px solid #0f172a;
+            border-radius: 32px;
+            padding: 30px;
+            background: #fff;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+            display: inline-block;
+            margin: 20px 0;
+        }
+        #qrcode canvas, #qrcode img {
+            width: 380px !important;
+            height: 380px !important;
+            display: block;
+        }
+        .scan-cta {
+            font-size: 38px;
+            font-weight: 900;
+            color: #1e293b;
+            margin-top: 10px;
+        }
+        .scan-sub {
+            font-size: 26px;
+            color: #475569;
+            font-weight: 700;
+            margin-top: 6px;
+        }
+        .steps-container {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 24px;
+            width: 100%;
+            max-width: 1100px;
+            margin: 30px 0;
+            text-align: left;
+        }
+        .step-box {
+            background: #f8fafc;
+            border: 4px solid #e2e8f0;
+            border-radius: 20px;
+            padding: 24px;
+        }
+        .step-num {
+            font-size: 44px;
+            font-weight: 900;
+            color: #2563eb;
+            line-height: 1;
+            margin-bottom: 8px;
+        }
+        .step-title {
+            font-size: 24px;
+            font-weight: 800;
+            color: #0f172a;
+            margin-bottom: 6px;
+        }
+        .step-sw {
+            font-size: 18px;
+            color: #64748b;
+            font-weight: 600;
+        }
+        .footer-note {
+            font-size: 20px;
+            font-weight: 700;
+            color: #64748b;
+            border-top: 2px solid #e2e8f0;
+            padding-top: 16px;
+            width: 100%;
+        }
+
+        /* Non-printing URL configuration bar */
+        @media screen {
+            .config-bar {
+                background: #0f172a;
+                color: #fff;
+                padding: 12px 20px;
+                border-radius: 8px;
+                margin-bottom: 20px;
+                display: flex;
+                gap: 12px;
+                align-items: center;
+            }
+            .config-bar input {
+                padding: 8px 14px;
+                font-size: 16px;
+                border-radius: 6px;
+                border: 1px solid #334155;
+                width: 380px;
+            }
+            .config-bar button {
+                padding: 8px 16px;
+                font-size: 16px;
+                font-weight: 700;
+                background: #10b981;
+                color: #fff;
+                border: none;
+                border-radius: 6px;
+                cursor: pointer;
+            }
+        }
+        @media print {
+            .config-bar { display: none !important; }
+            body { padding: 0; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="config-bar">
+        <span>Target URL for QR:</span>
+        <input type="text" id="targetUrlInput" value="http://192.168.0.50/parking/driver/">
+        <button onclick="renderQr()">Update QR Code</button>
+        <button onclick="window.print()" style="background:#2563eb;">🖨️ Print Billboard (A3/A4)</button>
+    </div>
+
+    <div>
+        <div class="header-badge">Mombasa Mall Security</div>
+        <h1>Basement Parking (60 Slots)</h1>
+        <div class="free-banner">FREE CUSTOMER PARKING</div>
+    </div>
+
+    <div class="qr-frame">
+        <div id="qrcode"></div>
+    </div>
+
+    <div>
+        <div class="scan-cta">SCAN WITH YOUR PHONE CAMERA</div>
+        <div class="scan-sub">Changanua kwa Kamera ya Simu Yako Ujiandikishe</div>
+    </div>
+
+    <div class="steps-container">
+        <div class="step-box">
+            <div class="step-num">1</div>
+            <div class="step-title">Scan QR Code</div>
+            <div class="step-sw">Changanua picha ya QR kwa kamera ya simu.</div>
+        </div>
+        <div class="step-box">
+            <div class="step-num">2</div>
+            <div class="step-title">Enter Plate Number</div>
+            <div class="step-sw">Weka nambari ya gari lako na duka unalotembelea.</div>
+        </div>
+        <div class="step-box">
+            <div class="step-num">3</div>
+            <div class="step-title">Collect Ticket</div>
+            <div class="step-sw">Chukua tikiti ya bure kwa mlinzi langoni.</div>
+        </div>
+    </div>
+
+    <div class="footer-note">
+        Connect to Mall Free Wi-Fi: <strong>MombasaMall-Guest</strong> • Powered by Mombasa Mall Security
+    </div>
+
+    <script src="../assets/vendor/qrcode/qrcode.min.js"></script>
+    <script>
+        let qrcodeInstance = null;
+
+        function renderQr() {
+            const url = document.getElementById('targetUrlInput').value;
+            const container = document.getElementById('qrcode');
+            container.innerHTML = '';
+            qrcodeInstance = new QRCode(container, {
+                text: url,
+                width: 380,
+                height: 380,
+                colorDark : "#000000",
+                colorLight : "#ffffff",
+                correctLevel : QRCode.CorrectLevel.H
+            });
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            // Auto-detect IP/Host if accessible on local network
+            if (location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+                const detected = `${location.protocol}//${location.host}/parking/driver/`;
+                document.getElementById('targetUrlInput').value = detected;
+            }
+            renderQr();
+        });
+    </script>
+</body>
+</html>

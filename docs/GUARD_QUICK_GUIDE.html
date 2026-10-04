@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Security Guard Quick Guide - Mombasa Mall Parking</title>
+    <style>
+        @page {
+            size: A4 portrait;
+            margin: 8mm;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
+        body {
+            background: #fff;
+            color: #0f172a;
+            padding: 16px;
+        }
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 4px solid #2563eb;
+            padding-bottom: 12px;
+            margin-bottom: 16px;
+        }
+        .header h1 { font-size: 26px; font-weight: 900; text-transform: uppercase; color: #1e3a8a; }
+        .header p { font-size: 14px; font-weight: 700; color: #64748b; }
+        .badge-mall { background: #2563eb; color: #fff; padding: 6px 14px; border-radius: 8px; font-weight: 900; }
+
+        .grid-steps {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+        }
+        .step-card {
+            border: 2px solid #cbd5e1;
+            border-radius: 12px;
+            padding: 14px;
+            background: #f8fafc;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        .step-top {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 8px;
+        }
+        .step-num {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            background: #2563eb;
+            color: #fff;
+            font-size: 20px;
+            font-weight: 900;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .step-num.green { background: #10b981; }
+        .step-num.orange { background: #f97316; }
+        .step-num.purple { background: #8b5cf6; }
+        .step-num.red { background: #ef4444; }
+
+        .step-title { font-size: 17px; font-weight: 800; color: #0f172a; }
+        .step-sw { font-size: 13px; color: #64748b; font-weight: 600; margin-bottom: 8px; }
+        .step-desc { font-size: 14px; line-height: 1.4; color: #334155; }
+        .step-desc strong { color: #0f172a; }
+
+        .footer-banner {
+            margin-top: 16px;
+            border-top: 2px solid #cbd5e1;
+            padding-top: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 13px;
+            font-weight: 700;
+            color: #475569;
+        }
+        @media print {
+            .no-print { display: none; }
+            body { padding: 0; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="no-print" style="margin-bottom: 12px; text-align: right;">
+        <button onclick="window.print()" style="padding: 8px 16px; background: #2563eb; color: #fff; font-weight: 800; border: none; border-radius: 6px; cursor: pointer;">
+            🖨️ Print Quick Guide (A4)
+        </button>
+    </div>
+
+    <div class="header">
+        <div>
+            <h1>Guard Quick Operation Guide</h1>
+            <p>Mombasa Mall Basement Parking (60 Slots) • Mwongozo wa Walinzi</p>
+        </div>
+        <div class="badge-mall">GATE STATION</div>
+    </div>
+
+    <div class="grid-steps">
+        <!-- Step 1 -->
+        <div class="step-card">
+            <div class="step-top">
+                <div class="step-num">1</div>
+                <div>
+                    <div class="step-title">Login with Your 4-Digit PIN</div>
+                    <div class="step-sw">Ingia kwa Nambari Yako ya Siri (PIN)</div>
+                </div>
+            </div>
+            <div class="step-desc">
+                When you start your shift, tap your <strong>4-digit PIN</strong> on the screen keypad. Your name will appear at the top right corner. The tablet stays active for your full shift.
+            </div>
+        </div>
+
+        <!-- Step 2 -->
+        <div class="step-card">
+            <div class="step-top">
+                <div class="step-num green">2</div>
+                <div>
+                    <div class="step-title">Driver Scans Billboard QR</div>
+                    <div class="step-sw">Dereva Achanganua QR Kuingia</div>
+                </div>
+            </div>
+            <div class="step-desc">
+                Driver scans the ramp billboard QR code with their phone. They enter their plate number and store name. The tablet will play a <strong>chime sound</strong> and display their card.
+            </div>
+        </div>
+
+        <!-- Step 3 -->
+        <div class="step-card">
+            <div class="step-top">
+                <div class="step-num green">3</div>
+                <div>
+                    <div class="step-title">Tap "ACCEPT & PRINT"</div>
+                    <div class="step-sw">Bonyeza "ACCEPT & PRINT" Kutoa Tikiti</div>
+                </div>
+            </div>
+            <div class="step-desc">
+                Check that the plate number on screen matches the car. Tap the big green <strong>ACCEPT & PRINT</strong> button. Hand the thermal ticket to the driver. Parking is <strong>FREE</strong>.
+            </div>
+        </div>
+
+        <!-- Step 4 -->
+        <div class="step-card">
+            <div class="step-top">
+                <div class="step-num purple">4</div>
+                <div>
+                    <div class="step-title">Driver Has No Smartphone?</div>
+                    <div class="step-sw">Dereva Hana Simu? Andikisha kwa Mkono</div>
+                </div>
+            </div>
+            <div class="step-desc">
+                Tap the big green <strong>"+ ADD CAR MANUALLY"</strong> button. Type the plate (or tap <em>Use Camera Plate</em>), select their store (Naivas, Gym, etc.), and confirm. The ticket prints instantly.
+            </div>
+        </div>
+
+        <!-- Step 5 -->
+        <div class="step-card">
+            <div class="step-top">
+                <div class="step-num orange">5</div>
+                <div>
+                    <div class="step-title">Cars Leaving: Tap "CLEAR EXIT"</div>
+                    <div class="step-sw">Magari Yanapotoka: Bonyeza "CLEAR EXIT"</div>
+                </div>
+            </div>
+            <div class="step-desc">
+                Switch to <strong>CARS LEAVING</strong> tab. The exit camera will suggest the departing car. Verify the driver's ticket or search their plate, then tap the giant orange <strong>CLEAR EXIT</strong> button.
+            </div>
+        </div>
+
+        <!-- Step 6 -->
+        <div class="step-card">
+            <div class="step-top">
+                <div class="step-num red">6</div>
+                <div>
+                    <div class="step-title">Printer Jam / Lost Ticket?</div>
+                    <div class="step-sw">Karatasi Imekwama au Tikiti Imepotea?</div>
+                </div>
+            </div>
+            <div class="step-desc">
+                • <strong>Paper Jam:</strong> Refill roll and tap <strong>REPRINT TICKET</strong>.<br>
+                • <strong>Lost Ticket:</strong> Search plate in Cars Leaving tab.<br>
+                • <strong>Unknown Car:</strong> Ask Supervisor for emergency override PIN.
+            </div>
+        </div>
+    </div>
+
+    <div class="footer-banner">
+        <span>Security Supervisor Contact: <strong>0700 000 002</strong></span>
+        <span>Mall CCTV Control Room: <strong>Ext. 101 / 102</strong></span>
+        <span>Mombasa Mall Security Dept</span>
+    </div>
+
+</body>
+</html>

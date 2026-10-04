@@ -1,0 +1,13 @@
+{
+    "name": "mombasa-mall/parking-system",
+    "description": "Automated Parking Management System for Mombasa Mall Basement Parking",
+    "type": "project",
+    "require": {
+        "php": ">=8.1",
+        "mike42/escpos-php": "^4.0"
+    },
+    "config": {
+        "optimize-autoloader": true,
+        "allow-plugins": {}
+    }
+}

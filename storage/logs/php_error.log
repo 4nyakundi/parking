@@ -1,0 +1,6 @@
+[03-Oct-2026 04:05:17 Africa/Nairobi] Thermal printer error: Class "IntlBreakIterator" not found
+[03-Oct-2026 04:05:17 Africa/Nairobi] PHP Notice:  Print connector was not finalized. Did you forget to close the printer? in C:\xampp\htdocs\Mombas Mall Basement Sys\vendor\mike42\escpos-php\src\Mike42\Escpos\PrintConnectors\WindowsPrintConnector.php on line 167
+[03-Oct-2026 04:05:33 Africa/Nairobi] Thermal printer error: Class "IntlBreakIterator" not found
+[03-Oct-2026 04:05:33 Africa/Nairobi] PHP Notice:  Print connector was not finalized. Did you forget to close the printer? in C:\xampp\htdocs\Mombas Mall Basement Sys\vendor\mike42\escpos-php\src\Mike42\Escpos\PrintConnectors\WindowsPrintConnector.php on line 167
+[03-Oct-2026 04:05:37 Africa/Nairobi] Thermal printer error: Class "IntlBreakIterator" not found
+[03-Oct-2026 04:05:37 Africa/Nairobi] PHP Notice:  Print connector was not finalized. Did you forget to close the printer? in C:\xampp\htdocs\Mombas Mall Basement Sys\vendor\mike42\escpos-php\src\Mike42\Escpos\PrintConnectors\WindowsPrintConnector.php on line 167

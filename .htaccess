@@ -1,0 +1,21 @@
+# Mombasa Mall Basement Parking - Apache Security & Routing Configuration
+ServerSignature Off
+
+# Prevent directory listings
+Options -Indexes
+
+# Security Headers
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+    Header set X-Frame-Options "SAMEORIGIN"
+    Header set X-XSS-Protection "1; mode=block"
+    Header set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>
+
+# Protect sensitive directories from direct browser access
+RewriteEngine On
+RewriteRule ^(config|database|includes|scripts|vendor|storage/logs|storage/backups)/ - [F,L,NC]
+RewriteRule ^(\.git|\.env|composer\.(json|lock|phar)|requirements\.txt) - [F,L,NC]
+
+# UTF-8 Encoding default
+AddDefaultCharset UTF-8
