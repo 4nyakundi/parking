@@ -53,7 +53,7 @@ CREATE TABLE IF NOT EXISTS `visitors` (
     `driver_name` VARCHAR(100) NOT NULL,
     `driver_phone` VARCHAR(20) NOT NULL,
     `destination` VARCHAR(100) NOT NULL,
-    `source` ENUM('self_signin','manual_guard','alpr_only') NOT NULL DEFAULT 'self_signin',
+    `source` ENUM('self_signin','manual_guard','alpr_only','alpr_camera') NOT NULL DEFAULT 'self_signin',
     `status` ENUM('PENDING','APPROVED','REJECTED','EXPIRED') NOT NULL DEFAULT 'PENDING',
     `reject_reason` VARCHAR(255) NULL,
     `alpr_verified` TINYINT(1) NOT NULL DEFAULT 0,

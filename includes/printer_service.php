@@ -11,6 +11,45 @@ require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/plate_helper.php';
 
+// Polyfills for PHP environments without php_intl extension enabled
+if (!class_exists('Normalizer', false)) {
+    class Normalizer {
+        public const FORM_C = 1;
+        public static function normalize(string $string, int $form = self::FORM_C): string {
+            return $string;
+        }
+    }
+}
+
+if (!class_exists('IntlBreakIterator', false)) {
+    class IntlBreakIterator {
+        public const DONE = -1;
+        private array $chars = [];
+        private int $index = -1;
+
+        public static function createCodePointInstance(): self {
+            return new self();
+        }
+
+        public function setText(string $text): void {
+            $this->chars = preg_split('//u', $text, -1, PREG_SPLIT_NO_EMPTY) ?: [];
+            $this->index = -1;
+        }
+
+        public function next(): int {
+            $this->index++;
+            return ($this->index < count($this->chars)) ? $this->index : self::DONE;
+        }
+
+        public function getLastCodePoint(): int {
+            if ($this->index >= 0 && $this->index < count($this->chars)) {
+                return mb_ord($this->chars[$this->index], 'UTF-8') ?: 0;
+            }
+            return 0;
+        }
+    }
+}
+
 use Mike42\Escpos\Printer;
 use Mike42\Escpos\PrintConnectors\WindowsPrintConnector;
 use Mike42\Escpos\PrintConnectors\NetworkPrintConnector;
@@ -41,9 +80,14 @@ class PrinterService
         try {
             // 1. Establish printer connector based on mode
             if ($mode === 'windows') {
-                $connector = new WindowsPrintConnector($printerName);
+                try {
+                    $connector = new WindowsPrintConnector($printerName);
+                } catch (Throwable $e) {
+                    $connector = new DummyPrintConnector();
+                    self::updateHealth('WARNING', "Printer '{$printerName}' connector fallback: " . $e->getMessage());
+                }
             } elseif ($mode === 'network') {
-                $connector = new NetworkPrintConnector($networkIp, $networkPort, 3);
+                $connector = new NetworkPrintConnector($networkIp, $networkPort, 2);
             } else {
                 // Fallback / dummy test mode
                 $connector = new DummyPrintConnector();

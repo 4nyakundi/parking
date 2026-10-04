@@ -84,8 +84,8 @@ return [
     // Thermal Receipt Printer (ESC/POS)
     // ---------------------------------------------------------
     'printer' => [
-        // Mode options: 'windows' (WindowsPrintConnector), 'network' (NetworkPrintConnector), 'file' (Dummy/test)
-        'mode'         => 'windows',
+        // Mode options: 'windows' (WindowsPrintConnector), 'network' (NetworkPrintConnector), 'dummy' (Safe test mode)
+        'mode'         => 'dummy',
         // Windows shared printer name e.g. "POS80" or "smb://localhost/POS80"
         'printer_name' => 'POS80',
         'network_ip'   => '192.168.0.200',

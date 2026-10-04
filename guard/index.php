@@ -238,6 +238,18 @@
 
         <!-- VIEW 1: VEHICLES ENTERING -->
         <section id="viewEntering">
+            <!-- Action Bar: Fetch Live Camera Plate -->
+            <div class="entering-action-bar">
+                <button class="btn-fetch-camera" id="btnFetchCameraPlate" onclick="triggerCameraPlateFetch()">
+                    <svg class="i-icon" viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                    <span id="btnFetchCamText">Fetch Camera Plate Now</span>
+                </button>
+                <div class="cam-status-pill">
+                    <span class="pulse-dot"></span>
+                    <span id="camEntranceStatusLabel">Entrance Camera (192.168.1.230): Online</span>
+                </div>
+            </div>
+
             <!-- ALPR Live Detection Banner -->
             <div id="alprEntranceBanner" class="alpr-live-banner" style="display:none;">
                 <div class="alpr-banner-left">
@@ -361,8 +373,14 @@
 
             <div class="form-field field-full">
                 <label for="wizPlateInput">Vehicle Number Plate</label>
-                <input type="text" id="wizPlateInput" class="plate-style"
-                       placeholder="KDA 123A" maxlength="12" autocomplete="off" spellcheck="false">
+                <div style="display:flex; gap:8px;">
+                    <input type="text" id="wizPlateInput" class="plate-style" style="flex:1;"
+                           placeholder="KDA 123A" maxlength="12" autocomplete="off" spellcheck="false">
+                    <button type="button" class="btn-cam-scan-inline" onclick="scanCameraIntoWizard()">
+                        <svg class="i-icon" viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                        Scan Camera
+                    </button>
+                </div>
             </div>
 
             <div class="form-field">

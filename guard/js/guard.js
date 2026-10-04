@@ -535,60 +535,147 @@ function prependPendingCard(item) {
     }
 }
 
+function escapeHtml(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
 function createPendingCardElement(item) {
     const card = document.createElement('div');
+    const reqId = item.id || item.request_id;
     card.className = `car-card ${item.alpr_verified ? 'verified' : ''} ${item.category === 'blacklisted' ? 'blacklisted' : ''} ${item.category === 'vip' ? 'vip' : ''}`;
-    card.id = `req-card-${item.id || item.request_id}`;
+    card.id = `req-card-${reqId}`;
     card.setAttribute('data-plate', item.plate_number);
 
     let alertBadge = '';
     if (item.category === 'blacklisted') {
-        alertBadge = `<div class="badge-alert">⚠️ ${t('blacklisted_alert')}: ${item.category_notes || 'DO NOT ADMIT'}</div>`;
+        alertBadge = `<div class="badge-alert">⚠️ ${t('blacklisted_alert')}: ${escapeHtml(item.category_notes || 'DO NOT ADMIT')}</div>`;
     } else if (item.category === 'vip') {
         alertBadge = `<div class="badge-alert" style="background:#7c3aed;">⭐ ${t('vip_alert')}</div>`;
     }
 
-    const reqId = item.id || item.request_id;
+    const currentDriver = (item.driver_name && item.driver_name !== 'Visitor') ? item.driver_name : 'Visitor';
+    const currentPhone  = item.raw_phone || item.driver_phone || '';
+    const currentDest   = item.destination || 'Mombasa Mall';
+
+    // Snapshot preview thumbnail if available
+    let snapHtml = '';
+    if (item.snapshot_url) {
+        snapHtml = `<img src="../${item.snapshot_url}" class="card-snap-thumb" alt="Camera Snapshot" title="Click to view full photo" onclick="window.open('../${item.snapshot_url}', '_blank')">`;
+    }
+
+    // Prepare destination options from loaded mall store directory
+    const allDests = (STATE.destinations && STATE.destinations.length > 0) ? STATE.destinations : [
+        { name: 'Naivas Supermarket', floor_level: 'Ground Floor' },
+        { name: 'NCBA Bank', floor_level: 'Ground Floor' },
+        { name: 'Java House', floor_level: '1st Floor' },
+        { name: 'Food Court', floor_level: '2nd Floor' },
+        { name: 'Level 1 Retail', floor_level: '1st Floor' },
+        { name: 'Level 2 Retail', floor_level: '2nd Floor' },
+        { name: 'Basement Parking', floor_level: 'Basement' }
+    ];
+
+    let destOptionsHtml = `<option value="Mombasa Mall">Mombasa Mall (General)</option>`;
+    allDests.forEach(d => {
+        const isSel = (currentDest.toLowerCase() === d.name.toLowerCase());
+        destOptionsHtml += `<option value="${escapeHtml(d.name)}" ${isSel ? 'selected' : ''}>${escapeHtml(d.name)}</option>`;
+    });
 
     card.innerHTML = `
         <div class="card-header">
-            <div>
-                <div class="card-plate">${item.formatted_plate}</div>
-                ${alertBadge}
+            <div style="display:flex; align-items:center; gap:10px;">
+                ${snapHtml}
+                <div>
+                    <div class="card-plate">${item.formatted_plate}</div>
+                    ${alertBadge}
+                </div>
             </div>
-            ${item.alpr_verified ? `<div class="badge-verified">✓ ${t('verified_badge')}</div>` : `<div style="font-size:14px; color:#94a3b8;">${item.wait_text || 'Just now'}</div>`}
+            <div style="text-align:right;">
+                ${item.source === 'alpr_camera' ? `<div class="cam-source-badge">📷 CAMERA</div>` : ''}
+                ${item.alpr_verified ? `<div class="badge-verified" style="margin-top:4px;">✓ ${t('verified_badge')}</div>` : `<div style="font-size:12px; color:var(--text-muted); margin-top:4px;">${item.wait_text || 'Just now'}</div>`}
+            </div>
         </div>
 
-        <div class="card-body">
-            <div class="card-info-item">
-                <span class="info-label">${t('driver')}</span>
-                <span class="info-val">${item.driver_name || 'Visitor'}</span>
+        <div class="card-quick-fill">
+            <div class="card-input-row">
+                <div class="card-field-group">
+                    <span class="card-field-label">Driver Name</span>
+                    <input type="text" class="card-quick-input" id="cardName_${reqId}" 
+                           value="${escapeHtml(currentDriver)}" placeholder="Driver Name (e.g. John)" autocomplete="off">
+                </div>
+                <div class="card-field-group">
+                    <span class="card-field-label">Mobile Number</span>
+                    <input type="tel" class="card-quick-input" id="cardPhone_${reqId}" 
+                           value="${escapeHtml(currentPhone)}" placeholder="07XX XXX XXX (Optional)" autocomplete="off">
+                </div>
             </div>
-            <div class="card-info-item">
-                <span class="info-label">${t('destination')}</span>
-                <span class="info-val">${item.destination}</span>
-            </div>
-            <div class="card-info-item">
-                <span class="info-label">Phone</span>
-                <span class="info-val">${item.driver_phone || 'None'}</span>
-            </div>
-            <div class="card-info-item">
-                <span class="info-label">Source</span>
-                <span class="info-val" style="font-size:15px; text-transform:capitalize;">${(item.source || 'self_signin').replace('_', ' ')}</span>
+
+            <div class="card-field-group">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <span class="card-field-label">Destination</span>
+                    <span style="font-size:10px; color:var(--text-muted); font-weight:700;">Tap quick pill or select:</span>
+                </div>
+                <div class="dest-pills-row">
+                    <button type="button" class="dest-pill-btn ${currentDest.includes('Naivas') ? 'active' : ''}" 
+                            onclick="selectCardPill(${reqId}, 'Naivas Supermarket', this)">🛒 Naivas</button>
+                    <button type="button" class="dest-pill-btn ${currentDest.includes('Bank') || currentDest.includes('NCBA') ? 'active' : ''}" 
+                            onclick="selectCardPill(${reqId}, 'NCBA Bank', this)">🏦 Bank / ATM</button>
+                    <button type="button" class="dest-pill-btn ${currentDest.includes('Food') ? 'active' : ''}" 
+                            onclick="selectCardPill(${reqId}, 'Food Court', this)">🍔 Food Court</button>
+                    <button type="button" class="dest-pill-btn" 
+                            onclick="selectCardPill(${reqId}, 'Level 1 Retail', this)">Level 1</button>
+                    <button type="button" class="dest-pill-btn" 
+                            onclick="selectCardPill(${reqId}, 'Level 2 Retail', this)">Level 2</button>
+                    <button type="button" class="dest-pill-btn ${currentDest === 'Mombasa Mall' ? 'active' : ''}" 
+                            onclick="selectCardPill(${reqId}, 'Mombasa Mall', this)">Other</button>
+                </div>
+                <select id="cardDest_${reqId}" class="card-dest-select" style="margin-top:5px;">
+                    ${destOptionsHtml}
+                </select>
             </div>
         </div>
 
         <div class="card-actions">
-            <button class="btn-card-accept" onclick="acceptAndPrint(${reqId})">
-                🖨️ ${t('btn_accept_print')}
+            <button class="btn-card-accept" onclick="acceptWithQuickDetails(${reqId})">
+                <svg class="i-icon" viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                ACCEPT &amp; PRINT TICKET
             </button>
             <button class="btn-card-reject" onclick="openRejectDialog(${reqId})">
-                ✕ ${t('btn_reject')}
+                ✕ Decline
             </button>
         </div>
     `;
 
     return card;
+}
+
+function selectCardPill(reqId, destName, btnEl) {
+    const card = document.getElementById(`req-card-${reqId}`);
+    if (card) {
+        card.querySelectorAll('.dest-pill-btn').forEach(b => b.classList.remove('active'));
+        if (btnEl) btnEl.classList.add('active');
+
+        const sel = document.getElementById(`cardDest_${reqId}`);
+        if (sel) {
+            let found = false;
+            for (let i = 0; i < sel.options.length; i++) {
+                if (sel.options[i].value === destName) {
+                    sel.selectedIndex = i;
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                const opt = new Option(destName, destName, true, true);
+                sel.add(opt);
+            }
+        }
+    }
 }
 
 function markCardVerified(reqId) {
@@ -624,21 +711,40 @@ function removePendingCard(plate) {
 }
 
 // --------------------------------------------------------------------
-// Accept & Print Action
+// Accept & Print Action with Guard Details
 // --------------------------------------------------------------------
-async function acceptAndPrint(requestId) {
+async function acceptWithQuickDetails(requestId) {
+    const nameIn  = document.getElementById(`cardName_${requestId}`);
+    const phoneIn = document.getElementById(`cardPhone_${requestId}`);
+    const destIn  = document.getElementById(`cardDest_${requestId}`);
+
+    const name  = nameIn ? nameIn.value.trim() : '';
+    const phone = phoneIn ? phoneIn.value.trim() : '';
+    const dest  = destIn ? destIn.value.trim() : 'Mombasa Mall';
+
+    const card = document.getElementById(`req-card-${requestId}`);
+    const acceptBtn = card ? card.querySelector('.btn-card-accept') : null;
+    if (acceptBtn) {
+        acceptBtn.disabled = true;
+        acceptBtn.innerHTML = 'Printing Ticket...';
+    }
+
     try {
         const res = await fetch('../api/gate/approve-session.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ request_id: requestId }),
+            body: JSON.stringify({
+                request_id: requestId,
+                driver_name: name || 'Visitor',
+                driver_phone: phone,
+                destination: dest || 'Mombasa Mall',
+            }),
         });
         const json = await res.json();
 
         if (json.ok) {
             playSuccessChime();
 
-            // Trigger Canvas Confetti
             if (window.confetti) {
                 confetti({
                     particleCount: 60,
@@ -650,19 +756,111 @@ async function acceptAndPrint(requestId) {
             if (json.data.print_status === 'printed') {
                 showToast(`✓ Ticket #${json.data.ticket_id} Printed for ${json.data.formatted_plate}`);
             } else {
-                showToast(`⚠️ Session saved, but thermal printer failed.`, true, json.data.session_id);
+                showToast(`✓ Ticket #${json.data.ticket_id} Saved (${json.data.formatted_plate})`, true, json.data.session_id);
             }
 
             removePendingCard(json.data.plate_number);
         } else {
-            if (json.is_duplicate) {
-                showToast(json.error);
-            } else {
-                showToast(json.error || 'Failed to approve session.');
+            if (acceptBtn) {
+                acceptBtn.disabled = false;
+                acceptBtn.innerHTML = `<svg class="i-icon" viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg> ACCEPT &amp; PRINT TICKET`;
             }
+            showToast(json.error || 'Failed to approve session.');
         }
     } catch (e) {
+        if (acceptBtn) {
+            acceptBtn.disabled = false;
+            acceptBtn.innerHTML = `<svg class="i-icon" viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg> ACCEPT &amp; PRINT TICKET`;
+        }
         showToast('Network error while approving ticket.');
+    }
+}
+
+// Legacy alias
+function acceptAndPrint(requestId) {
+    acceptWithQuickDetails(requestId);
+}
+
+// --------------------------------------------------------------------
+// On-Demand Camera Plate Fetcher
+// --------------------------------------------------------------------
+async function triggerCameraPlateFetch() {
+    const btn = document.getElementById('btnFetchCameraPlate');
+    const btnText = document.getElementById('btnFetchCamText');
+    const origText = btnText ? btnText.textContent : 'Fetch Camera Plate Now';
+
+    if (btn) {
+        btn.disabled = true;
+        if (btnText) btnText.textContent = 'Scanning Camera...';
+    }
+
+    try {
+        const res = await fetch('../api/gate/fetch-camera-plate.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({}),
+        });
+        const json = await res.json();
+
+        if (json.ok) {
+            if (json.plate_found && json.data) {
+                playDingSound();
+                showToast(`✓ Camera detected plate: ${json.data.formatted_plate}`);
+                await loadPendingRequests();
+                setTimeout(() => {
+                    const newCardInput = document.getElementById(`cardName_${json.data.request_id}`);
+                    if (newCardInput) {
+                        newCardInput.focus();
+                        newCardInput.select();
+                    }
+                }, 300);
+            } else if (json.is_duplicate) {
+                showToast(`⚠️ Vehicle ${json.formatted_plate} is already inside.`);
+            } else {
+                showToast(json.message || 'Camera is live. Ready for approaching vehicle.');
+            }
+
+            const statusLabel = document.getElementById('camEntranceStatusLabel');
+            if (statusLabel) {
+                statusLabel.textContent = json.camera_online 
+                    ? 'Entrance Camera (192.168.1.230): Online' 
+                    : 'Entrance Camera: Connecting...';
+            }
+        } else {
+            showToast(json.error || 'Failed to fetch camera plate.');
+        }
+    } catch (e) {
+        showToast('Could not reach entrance camera endpoint.');
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            if (btnText) btnText.textContent = origText;
+        }
+    }
+}
+
+async function scanCameraIntoWizard() {
+    const plateInput = document.getElementById('wizPlateInput');
+    const nameInput  = document.getElementById('wizNameInput');
+
+    try {
+        const res = await fetch('../api/gate/fetch-camera-plate.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({}),
+        });
+        const json = await res.json();
+
+        if (json.ok && json.data && json.data.formatted_plate) {
+            playDingSound();
+            if (plateInput) plateInput.value = json.data.formatted_plate;
+            if (nameInput) nameInput.focus();
+            showToast(`✓ Camera scanned: ${json.data.formatted_plate}`);
+        } else {
+            showToast('Camera live snapshot captured. Enter plate to register.');
+        }
+    } catch (e) {
+        showToast('Camera scan error.');
     }
 }
 

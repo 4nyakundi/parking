@@ -764,3 +764,183 @@ body {
     .destinations-grid { grid-template-columns: repeat(2,1fr); }
     .mode-tab { padding: 0 12px; font-size: 10px; }
 }
+
+/* ====================================================================
+   CAMERA INTEGRATION & GUARD QUICK-FILL STYLES
+   ==================================================================== */
+.entering-action-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 10px 14px;
+    margin-bottom: 12px;
+    box-shadow: 0 1px 3px rgba(17,111,199,0.05);
+}
+.btn-fetch-camera {
+    background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius-sm);
+    padding: 8px 16px;
+    font-size: 12px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.15s ease;
+    box-shadow: 0 2px 6px rgba(2,132,199,0.25);
+    font-family: var(--font);
+}
+.btn-fetch-camera:hover {
+    background: linear-gradient(135deg, #0369a1 0%, #075985 100%);
+    box-shadow: 0 4px 10px rgba(2,132,199,0.35);
+}
+.btn-fetch-camera:active {
+    transform: translateY(1px);
+}
+.cam-status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--blue-dim);
+    border: 1px solid var(--blue-mid);
+    color: var(--blue);
+    font-size: 11px;
+    font-weight: 700;
+    padding: 5px 12px;
+    border-radius: 20px;
+    letter-spacing: 0.03em;
+}
+.cam-source-badge {
+    background: #0284c7;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 800;
+    padding: 2px 7px;
+    border-radius: 3px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+.card-snap-thumb {
+    width: 68px;
+    height: 48px;
+    border-radius: 4px;
+    object-fit: cover;
+    border: 1px solid var(--border);
+    cursor: pointer;
+    background: #000;
+}
+.card-quick-fill {
+    padding: 10px 14px;
+    background: #f8fafc;
+    border-top: 1px solid var(--border-lite);
+    border-bottom: 1px solid var(--border-lite);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.card-input-row {
+    display: grid;
+    grid-template-columns: 1.2fr 1fr;
+    gap: 8px;
+}
+.card-field-group {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+.card-field-label {
+    font-size: 9px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+}
+.card-quick-input {
+    width: 100%;
+    padding: 7px 10px;
+    font-size: 13px;
+    font-weight: 600;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: #fff;
+    color: var(--text-primary);
+    outline: none;
+    box-sizing: border-box;
+    font-family: var(--font);
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+.card-quick-input:focus {
+    border-color: var(--blue);
+    box-shadow: 0 0 0 2px rgba(17,111,199,0.12);
+}
+.dest-pills-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 4px;
+}
+.dest-pill-btn {
+    background: #fff;
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    padding: 3px 9px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: var(--font);
+}
+.dest-pill-btn:hover {
+    background: var(--blue-dim);
+    border-color: var(--blue-mid);
+    color: var(--blue);
+}
+.dest-pill-btn.active {
+    background: var(--blue);
+    border-color: var(--blue);
+    color: #fff;
+}
+.card-dest-select {
+    width: 100%;
+    padding: 6px 8px;
+    font-size: 12px;
+    font-weight: 600;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: #fff;
+    color: var(--text-primary);
+    outline: none;
+    cursor: pointer;
+    font-family: var(--font);
+}
+.btn-cam-scan-inline {
+    background: #0284c7;
+    color: #fff;
+    border: none;
+    border-radius: var(--radius-sm);
+    padding: 6px 12px;
+    font-size: 11px;
+    font-weight: 800;
+    text-transform: uppercase;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    transition: background 0.15s;
+    font-family: var(--font);
+}
+.btn-cam-scan-inline:hover {
+    background: #0369a1;
+}
+

@@ -97,15 +97,74 @@ try {
                 'snapshot_url'    => $relSnapshotPath,
             ]);
         } else {
-            // General banner alert: camera saw a vehicle arrive at gate
-            fire_event('alpr_banner_entrance', [
-                'camera'          => 'entrance',
-                'plate_number'    => $cleanPlate,
-                'formatted_plate' => $displayPlate,
-                'confidence'      => $confidence,
-                'snapshot_url'    => $relSnapshotPath,
-                'time'            => date('H:i:s'),
-            ]);
+            // Check if vehicle is already actively inside
+            $actStmt = $db->prepare('SELECT id, ticket_id, entry_time FROM parking_sessions WHERE plate_number = :plate AND status = "ACTIVE" LIMIT 1');
+            $actStmt->execute([':plate' => $cleanPlate]);
+            $activeInside = $actStmt->fetch();
+
+            if ($activeInside) {
+                // Vehicle is already parked inside
+                fire_event('alpr_banner_entrance', [
+                    'camera'          => 'entrance',
+                    'plate_number'    => $cleanPlate,
+                    'formatted_plate' => $displayPlate,
+                    'confidence'      => $confidence,
+                    'snapshot_url'    => $relSnapshotPath,
+                    'time'            => date('H:i:s'),
+                    'is_duplicate'    => true,
+                    'ticket_id'       => $activeInside['ticket_id'],
+                ]);
+            } else {
+                // Check if vehicle is registered (VIP / Staff / Blacklisted)
+                $regStmt = $db->prepare('SELECT owner_name, phone, category, notes FROM registered_vehicles WHERE plate_number = :plate AND is_active = 1 LIMIT 1');
+                $regStmt->execute([':plate' => $cleanPlate]);
+                $regVehicle = $regStmt->fetch();
+
+                $driverName = !empty($regVehicle['owner_name']) ? $regVehicle['owner_name'] : 'Visitor';
+                $driverPhone = !empty($regVehicle['phone']) ? $regVehicle['phone'] : '';
+                $category = $regVehicle['category'] ?? 'regular';
+                $categoryNotes = $regVehicle['notes'] ?? '';
+
+                // Insert into visitors table as PENDING so it appears on Guard Dashboard immediately
+                $insVis = $db->prepare('
+                    INSERT INTO visitors (plate_number, driver_name, driver_phone, destination, source, status, alpr_verified, created_at)
+                    VALUES (:plate, :driver, :phone, "Mombasa Mall", "alpr_camera", "PENDING", 1, NOW())
+                ');
+                $insVis->execute([
+                    ':plate'  => $cleanPlate,
+                    ':driver' => $driverName,
+                    ':phone'  => $driverPhone,
+                ]);
+                $matchedRequestId = (int)$db->lastInsertId();
+
+                // Fire new_request event so guard tablet chimes and displays the card immediately
+                fire_event('new_request', [
+                    'id'              => $matchedRequestId,
+                    'request_id'      => $matchedRequestId,
+                    'plate_number'    => $cleanPlate,
+                    'formatted_plate' => $displayPlate,
+                    'driver_name'     => $driverName,
+                    'driver_phone'    => PhoneHelper::formatDisplay($driverPhone),
+                    'destination'     => 'Mombasa Mall',
+                    'source'          => 'alpr_camera',
+                    'alpr_verified'   => true,
+                    'snapshot_url'    => $relSnapshotPath,
+                    'wait_seconds'    => 0,
+                    'wait_text'       => 'Just now',
+                    'category'        => $category,
+                    'category_notes'  => $categoryNotes,
+                ]);
+
+                // Also fire camera banner
+                fire_event('alpr_banner_entrance', [
+                    'camera'          => 'entrance',
+                    'plate_number'    => $cleanPlate,
+                    'formatted_plate' => $displayPlate,
+                    'confidence'      => $confidence,
+                    'snapshot_url'    => $relSnapshotPath,
+                    'time'            => date('H:i:s'),
+                ]);
+            }
         }
     } else {
         // Exit camera: Find ACTIVE session for this vehicle

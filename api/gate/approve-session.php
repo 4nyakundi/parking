@@ -51,10 +51,18 @@ try {
         }
 
         $plateNumber = $req['plate_number'];
-        $driverName  = $req['driver_name'];
-        $driverPhone = $req['driver_phone'];
-        $destination = $req['destination'];
-        $entryMethod = $req['source'] ?? 'self_signin';
+
+        // Guard may fill in or override name, phone, and destination
+        $driverName  = trim((string)($input['driver_name'] ?? '')) ?: ($req['driver_name'] ?: 'Visitor');
+        $driverPhone = !empty($input['driver_phone']) ? PhoneHelper::normalize((string)$input['driver_phone']) : ($req['driver_phone'] ?: '');
+        $destination = trim((string)($input['destination'] ?? '')) ?: ($req['destination'] ?: 'Mombasa Mall');
+
+        $source = $req['source'] ?? 'self_signin';
+        $entryMethod = in_array($source, ['alpr_camera', 'alpr_only', 'alpr'], true) ? 'alpr' : ($source === 'manual_guard' ? 'manual' : 'self_signin');
+
+        // Update the visitor request with filled details
+        $db->prepare('UPDATE visitors SET driver_name = :name, driver_phone = :phone, destination = :dest WHERE id = :id')
+           ->execute([':name' => $driverName, ':phone' => $driverPhone, ':dest' => $destination, ':id' => $requestId]);
     } else {
         $plateNumber = PlateHelper::clean((string)($input['plate_number'] ?? ''));
         $driverName  = trim((string)($input['driver_name'] ?? ''));

@@ -33,7 +33,8 @@ try {
             TIMESTAMPDIFF(SECOND, v.created_at, NOW()) AS wait_seconds,
             d.icon AS destination_icon,
             rv.category AS vehicle_category,
-            rv.notes AS category_notes
+            rv.notes AS category_notes,
+            (SELECT snapshot_path FROM alpr_detections WHERE plate_clean = v.plate_number AND camera = "entrance" ORDER BY id DESC LIMIT 1) AS snapshot_url
         FROM visitors v
         LEFT JOIN destinations d ON d.name = v.destination
         LEFT JOIN registered_vehicles rv ON rv.plate_number = v.plate_number AND rv.is_active = 1
@@ -61,6 +62,7 @@ try {
             'destination_icon' => $row['destination_icon'] ?? 'store',
             'source'           => $row['source'],
             'alpr_verified'    => (bool)$row['alpr_verified'],
+            'snapshot_url'     => $row['snapshot_url'] ?? null,
             'wait_seconds'     => $waitSeconds,
             'wait_text'        => $waitText,
             'category'         => $row['vehicle_category'] ?? 'regular',
