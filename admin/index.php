@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Mombasa Mall Basement Parking - Admin & Supervisor Management Dashboard
  */
@@ -16,7 +16,7 @@ $user = require_role(['supervisor', 'admin'], false);
     <title>Admin Dashboard - Mombasa Mall Parking</title>
     <link rel="stylesheet" href="css/admin.css">
 </head>
-<body>
+<body data-user-role="<?= htmlspecialchars($user['role']) ?>">
 
     <!-- Sidebar Navigation -->
     <aside class="sidebar">
@@ -26,6 +26,7 @@ $user = require_role(['supervisor', 'admin'], false);
                 <h2>Mombasa Mall</h2>
                 <p>Basement Parking Admin</p>
             </div>
+        </div>
 
         <div class="sidebar-wordmark">
             <img src="../assets/img/logo-wordmark.png" alt="Mombasa Mall">
@@ -104,7 +105,7 @@ $user = require_role(['supervisor', 'admin'], false);
         </div>
     </aside>
 
-    <!-- Main Content Stage -->    <!-- Main Content Stage -->
+    <!-- Main Content Stage -->
     <main class="main-content">
         <header class="top-nav">
             <h2 id="topNavTitle" style="font-size:20px; font-weight:800;">Management Control Center</h2>
@@ -178,8 +179,12 @@ $user = require_role(['supervisor', 'admin'], false);
                 </select>
                 <input type="date" id="filterDateFrom" class="filter-input">
                 <input type="date" id="filterDateTo" class="filter-input">
-                <button class="btn-primary" onclick="loadSessions(1)">🔍 Filter</button>
-                <button class="btn-primary btn-success" onclick="exportSessionsCsv()">📥 Export CSV</button>
+                <button class="btn-primary" onclick="loadSessions(1)">
+                    <svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" fill="none" stroke-width="2" style="vertical-align:-2px; margin-right:4px;"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>Filter
+                </button>
+                <button class="btn-primary btn-success" onclick="exportSessionsCsv()">
+                    <svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" fill="none" stroke-width="2" style="vertical-align:-2px; margin-right:4px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Export CSV
+                </button>
             </div>
 
             <div class="table-card">
@@ -231,9 +236,11 @@ $user = require_role(['supervisor', 'admin'], false);
         <!-- 4. VEHICLES REGISTER -->
         <!-- ============================================================== -->
         <section id="sec-vehicles" class="section-content">
-            <div style="display:flex; justify-content:space-between; margin-bottom:20px;">
-                <p style="color:#94a3b8;">Manage VIPs, Mall Staff, Tenants, and Blacklisted security vehicles.</p>
-                <button class="btn-primary btn-success" onclick="openVehicleModal()">➕ Register Vehicle</button>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                <p style="color:var(--text-sub);">Manage VIPs, Mall Staff, Tenants, and Blacklisted security vehicles.</p>
+                <button class="btn-primary btn-success" onclick="openVehicleModal()">
+                    <svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" fill="none" stroke-width="2" style="vertical-align:-2px; margin-right:4px;"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Register Vehicle
+                </button>
             </div>
 
             <div class="table-card">
@@ -257,9 +264,15 @@ $user = require_role(['supervisor', 'admin'], false);
         <!-- 5. USERS & ROLES -->
         <!-- ============================================================== -->
         <section id="sec-users" class="section-content">
-            <div style="display:flex; justify-content:space-between; margin-bottom:20px;">
-                <p style="color:#94a3b8;">Create and manage security guards (PIN login) and management users.</p>
-                <button class="btn-primary btn-success" onclick="openUserModal()">➕ Add Security User</button>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                <p style="color:var(--text-sub);">Create and manage security guards (PIN login) and management users.</p>
+                <?php if ($user['role'] === 'admin'): ?>
+                <button class="btn-primary btn-success" onclick="openUserModal()">
+                    <svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" fill="none" stroke-width="2" style="vertical-align:-2px; margin-right:4px;"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Add Security User
+                </button>
+                <?php else: ?>
+                <span class="badge" style="background:#eef5fc; color:#2e5c8a; border:1px solid #b0cfec; padding:6px 12px; font-weight:700;">Supervisor View Only</span>
+                <?php endif; ?>
             </div>
 
             <div class="table-card">
@@ -291,9 +304,10 @@ $user = require_role(['supervisor', 'admin'], false);
                 <table class="data-table">
                     <thead>
                         <tr>
-                            <th>Store / Venue</th>
+                            <th>Unit / Store</th>
+                            <th>Floor Level</th>
+                            <th>Category</th>
                             <th>Sort Order</th>
-                            <th>Icon</th>
                             <th>Status</th>
                             <th>Actions</th>
                         </tr>
@@ -434,7 +448,13 @@ $user = require_role(['supervisor', 'admin'], false);
                         <input type="text" id="setCloudUrl" class="filter-input" style="width:100%;">
                     </div>
                 </div>
+                <?php if ($user['role'] === 'admin'): ?>
                 <button class="btn-primary btn-success" style="margin-top:24px;" onclick="saveSettings()">Save All Settings</button>
+                <?php else: ?>
+                <div style="margin-top:20px; padding:12px 16px; background:#eef5fc; border:1px solid #b0cfec; border-radius:6px; color:#2e5c8a; font-size:13px; font-weight:600;">
+                    Viewing system configuration in Supervisor Mode. Modification of hardware parameters and core settings requires Administrator privileges.
+                </div>
+                <?php endif; ?>
             </div>
         </section>
 
@@ -443,8 +463,10 @@ $user = require_role(['supervisor', 'admin'], false);
         <!-- ============================================================== -->
         <section id="sec-backups" class="section-content">
             <div style="display:flex; justify-content:space-between; margin-bottom:20px;">
-                <p style="color:#94a3b8;">Permanent automated backups. Every backup is preserved permanently with zero auto-deletion.</p>
-                <button id="btnBackupNow" class="btn-primary btn-success" onclick="triggerBackupNow()">💾 Backup Now</button>
+                <p style="color:var(--text-sub);">Permanent automated backups. Every backup is preserved permanently with zero auto-deletion.</p>
+                <button id="btnBackupNow" class="btn-primary btn-success" onclick="triggerBackupNow()">
+                    <svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" fill="none" stroke-width="2" style="vertical-align:-2px; margin-right:4px;"><polyline points="8 17 12 21 16 17"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.88 18.09A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.29"/></svg>Backup Database Now
+                </button>
             </div>
 
             <div class="table-card">

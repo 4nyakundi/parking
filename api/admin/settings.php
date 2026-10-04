@@ -10,7 +10,7 @@ header('Content-Type: application/json; charset=utf-8');
 require_once __DIR__ . '/../../includes/auth.php';
 require_once __DIR__ . '/../../includes/audit.php';
 
-$user = require_role('admin', true);
+$user = require_role(['supervisor', 'admin'], true);
 
 $raw = file_get_contents('php://input');
 $input = json_decode($raw, true) ?? $_POST;
@@ -33,8 +33,12 @@ try {
         exit;
     }
 
-    // 2. UPDATE SETTINGS
+    // 2. UPDATE SETTINGS (Admin only)
     if ($action === 'update') {
+        if ($user['role'] !== 'admin') {
+            echo json_encode(['ok' => false, 'error' => 'Only administrators can modify system settings.']);
+            exit;
+        }
         $allowedKeys = [
             'capacity', 'overstay_hours', 'mall_name',
             'printer_type', 'printer_name', 'printer_paper_width',

@@ -376,8 +376,23 @@
             </div>
 
             <div class="form-field field-full">
-                <label>Destination / Area</label>
-                <div id="wizDestinationsGrid" class="destinations-grid">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                    <label style="margin:0;">Destination Store (<span id="wizSelectedDestLabel" style="color:var(--blue); font-weight:800;">None</span>)</label>
+                    <span style="font-size:10px; color:var(--text-muted); font-weight:700;">48 Stores</span>
+                </div>
+                <div style="display:flex; gap:6px; margin-bottom:6px;">
+                    <input type="text" id="wizDestSearch" placeholder="Filter store (e.g. Naivas, NCBA, Gym, Pizza)..."
+                           style="flex:1; padding:7px 10px; font-size:12px; border:1px solid var(--border); border-radius:4px; outline:none; background:var(--bg-input);">
+                </div>
+                <div class="floor-pill-tabs" id="wizFloorTabs" style="display:flex; gap:4px; flex-wrap:wrap; margin-bottom:6px;">
+                    <button type="button" class="floor-pill active" data-floor="ALL">All (48)</button>
+                    <button type="button" class="floor-pill" data-floor="Ground Floor">Level G</button>
+                    <button type="button" class="floor-pill" data-floor="1st Floor">Level 1</button>
+                    <button type="button" class="floor-pill" data-floor="2nd Floor">Level 2</button>
+                    <button type="button" class="floor-pill" data-floor="3rd Floor">Level 3</button>
+                    <button type="button" class="floor-pill" data-floor="Basement">Basement</button>
+                </div>
+                <div id="wizDestinationsGrid" class="destinations-grid" style="max-height:180px; overflow-y:auto; padding:2px;">
                     <!-- Populated by guard.js loadDestinations() -->
                 </div>
             </div>

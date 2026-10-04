@@ -13,7 +13,7 @@ require_once __DIR__ . '/../../includes/audit.php';
 require_once __DIR__ . '/../../includes/plate_helper.php';
 require_once __DIR__ . '/../../includes/phone_helper.php';
 
-$user = require_role('admin', true);
+$user = require_role(['supervisor', 'admin'], true);
 
 $query = trim((string)($_GET['q'] ?? ''));
 

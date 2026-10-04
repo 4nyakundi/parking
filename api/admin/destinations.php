@@ -28,11 +28,15 @@ try {
 
     // 2. SAVE
     if ($action === 'save') {
-        $id        = (int)($input['id'] ?? 0);
-        $name      = trim((string)($input['name'] ?? ''));
-        $sortOrder = (int)($input['sort_order'] ?? 0);
-        $icon      = trim((string)($input['icon'] ?? 'store'));
-        $isActive  = isset($input['is_active']) ? (int)(bool)$input['is_active'] : 1;
+        $id          = (int)($input['id'] ?? 0);
+        $name        = trim((string)($input['name'] ?? ''));
+        $unitCode    = trim((string)($input['unit_code'] ?? ''));
+        $floorLevel  = trim((string)($input['floor_level'] ?? 'Ground Floor'));
+        $category    = trim((string)($input['category'] ?? 'Retail'));
+        $description = trim((string)($input['description'] ?? ''));
+        $sortOrder   = (int)($input['sort_order'] ?? 0);
+        $icon        = trim((string)($input['icon'] ?? 'store'));
+        $isActive    = isset($input['is_active']) ? (int)(bool)$input['is_active'] : 1;
 
         if (empty($name)) {
             echo json_encode(['ok' => false, 'error' => 'Destination name cannot be blank.']);
@@ -40,12 +44,45 @@ try {
         }
 
         if ($id > 0) {
-            $stmt = $db->prepare('UPDATE destinations SET name = :name, sort_order = :sort, icon = :icon, is_active = :act WHERE id = :id');
-            $stmt->execute([':name' => $name, ':sort' => $sortOrder, ':icon' => $icon, ':act' => $isActive, ':id' => $id]);
+            $stmt = $db->prepare('
+                UPDATE destinations 
+                SET name = :name, 
+                    unit_code = :uc, 
+                    floor_level = :fl, 
+                    category = :cat, 
+                    description = :desc, 
+                    sort_order = :sort, 
+                    icon = :icon, 
+                    is_active = :act 
+                WHERE id = :id
+            ');
+            $stmt->execute([
+                ':name' => $name,
+                ':uc'   => $unitCode,
+                ':fl'   => $floorLevel,
+                ':cat'  => $category,
+                ':desc' => $description,
+                ':sort' => $sortOrder,
+                ':icon' => $icon,
+                ':act'  => $isActive,
+                ':id'   => $id
+            ]);
             audit_log($user['id'], 'UPDATE_DESTINATION', 'destinations', (string)$id, null, ['name' => $name]);
         } else {
-            $stmt = $db->prepare('INSERT INTO destinations (name, sort_order, icon, is_active) VALUES (:name, :sort, :icon, :act)');
-            $stmt->execute([':name' => $name, ':sort' => $sortOrder, ':icon' => $icon, ':act' => $isActive]);
+            $stmt = $db->prepare('
+                INSERT INTO destinations (name, unit_code, floor_level, category, description, sort_order, icon, is_active) 
+                VALUES (:name, :uc, :fl, :cat, :desc, :sort, :icon, :act)
+            ');
+            $stmt->execute([
+                ':name' => $name,
+                ':uc'   => $unitCode,
+                ':fl'   => $floorLevel,
+                ':cat'  => $category,
+                ':desc' => $description,
+                ':sort' => $sortOrder,
+                ':icon' => $icon,
+                ':act'  => $isActive
+            ]);
             $newId = (int)$db->lastInsertId();
             audit_log($user['id'], 'ADD_DESTINATION', 'destinations', (string)$newId, null, ['name' => $name]);
         }
