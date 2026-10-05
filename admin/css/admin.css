@@ -289,3 +289,122 @@ body {
     border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-bottom: 18px;
 }
 .modal-header h3 { font-size: 16px; font-weight: 800; color: var(--text-main); }
+
+/* ====================================================================
+   RESPONSIVE DESIGN (Tablets & Mobile Phones)
+   ==================================================================== */
+.sidebar-toggle-btn {
+    display: none;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-main);
+    width: 36px;
+    height: 36px;
+    border-radius: 6px;
+    font-size: 18px;
+    cursor: pointer;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s;
+}
+.sidebar-toggle-btn:hover { background: var(--bg-card-alt); }
+
+.btn-nav-short { display: none; }
+.btn-nav-full  { display: inline; }
+
+.sidebar-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(2px);
+    z-index: 999;
+}
+.sidebar-backdrop.active { display: block; }
+
+@media (max-width: 992px) {
+    .sidebar-toggle-btn { display: inline-flex; }
+    .sidebar {
+        transform: translateX(-100%);
+        transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+        z-index: 1000;
+        box-shadow: 4px 0 25px rgba(0,0,0,0.3);
+    }
+    .sidebar.open {
+        transform: translateX(0);
+    }
+    .main-content {
+        margin-left: 0;
+        width: 100%;
+    }
+    .top-nav {
+        padding: 0 14px;
+        height: 52px;
+    }
+    .top-nav h2 {
+        font-size: 15px !important;
+    }
+    .btn-nav-full { display: none; }
+    .btn-nav-short { display: inline; }
+    
+    .section-content {
+        padding: 14px 10px;
+    }
+    .kpi-grid {
+        grid-template-columns: repeat(auto-fit, minmax(135px, 1fr));
+        gap: 10px;
+        margin-bottom: 16px;
+    }
+    .kpi-card {
+        padding: 12px 14px;
+    }
+    .kpi-val {
+        font-size: 22px;
+    }
+    .table-card {
+        padding: 14px 10px !important;
+    }
+    .table-wrapper {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    .data-table {
+        min-width: 580px;
+    }
+    .admin-modal {
+        width: 96%;
+        padding: 16px 12px;
+    }
+}
+
+@media (max-width: 540px) {
+    .kpi-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+    }
+    .kpi-card {
+        padding: 10px 12px;
+    }
+    .kpi-title {
+        font-size: 8px;
+    }
+    .kpi-val {
+        font-size: 20px;
+    }
+    .kpi-sub {
+        font-size: 9.5px;
+    }
+    .filter-bar {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+    }
+    .filter-input {
+        width: 100%;
+    }
+    .btn-primary {
+        width: 100%;
+        justify-content: center;
+        height: 44px;
+    }
+}

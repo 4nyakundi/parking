@@ -105,12 +105,20 @@ $user = require_role(['supervisor', 'admin'], false);
         </div>
     </aside>
 
+    <!-- Sidebar Backdrop for Mobile -->
+    <div id="sidebarBackdrop" class="sidebar-backdrop" onclick="closeSidebarMobile()"></div>
+
     <!-- Main Content Stage -->
     <main class="main-content">
         <header class="top-nav">
-            <h2 id="topNavTitle" style="font-size:20px; font-weight:800;">Management Control Center</h2>
+            <div style="display:flex; align-items:center; gap:10px;">
+                <button type="button" id="btnSidebarToggle" class="sidebar-toggle-btn" onclick="toggleSidebarMobile()" aria-label="Toggle menu">&#9776;</button>
+                <h2 id="topNavTitle" style="font-size:18px; font-weight:800;">Management Control Center</h2>
+            </div>
             <div style="display:flex; gap:12px; align-items:center;">
-                <a href="../guard/" target="_blank" class="btn-primary btn-success" style="text-decoration:none; padding:8px 16px;">Open Guard Station
+                <a href="../guard/" target="_blank" class="btn-primary btn-success" style="text-decoration:none; padding:8px 14px;">
+                    <span class="btn-nav-full">Open Guard Station</span>
+                    <span class="btn-nav-short">Guard</span>
                 </a>
             </div>
         </header>
@@ -630,5 +638,22 @@ $user = require_role(['supervisor', 'admin'], false);
     
     <!-- Admin Controller -->
     <script src="js/admin.js"></script>
+    <script>
+        function toggleSidebarMobile() {
+            const sb = document.querySelector('.sidebar');
+            const bd = document.getElementById('sidebarBackdrop');
+            if (sb) sb.classList.toggle('open');
+            if (bd) bd.classList.toggle('active');
+        }
+        function closeSidebarMobile() {
+            const sb = document.querySelector('.sidebar');
+            const bd = document.getElementById('sidebarBackdrop');
+            if (sb) sb.classList.remove('open');
+            if (bd) bd.classList.remove('active');
+        }
+        document.querySelectorAll('.sidebar-nav .nav-link').forEach(link => {
+            link.addEventListener('click', closeSidebarMobile);
+        });
+    </script>
 </body>
 </html>

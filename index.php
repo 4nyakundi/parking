@@ -171,6 +171,50 @@ $isMobile = str_contains($ua, 'mobile') || str_contains($ua, 'android') || str_c
             font-weight: 600;
         }
         .sys-footer img { height: 18px; width: auto; object-fit: contain; opacity: 0.5; }
+
+        @media (max-width: 640px) {
+            .sys-bar {
+                padding: 0 14px;
+                height: 50px;
+            }
+            .sys-bar-brand img.wm { display: none; }
+            .divider-v { display: none; }
+            .sys-bar-title { font-size: 10px; }
+            .sys-bar-right span:first-child { display: none; }
+            .sys-badge { font-size: 9px; padding: 2px 7px; }
+
+            .portal-body { padding: 18px 12px; }
+            .portal-hero {
+                flex-direction: column;
+                text-align: center;
+                padding: 18px 16px;
+                gap: 12px;
+                margin-bottom: 20px;
+            }
+            .portal-hero img.hero-logo { height: 48px; }
+            .portal-hero-text h1 { font-size: 17px; }
+            .portal-hero-text p { font-size: 11px; }
+            .sys-status-strip {
+                flex-wrap: wrap;
+                justify-content: center;
+                gap: 8px;
+            }
+            .portal-group { margin-bottom: 18px; }
+            .portal-link {
+                padding: 12px 14px;
+                gap: 10px;
+            }
+            .portal-link-title { font-size: 13px; }
+            .portal-link-sub { font-size: 10.5px; }
+
+            .sys-footer {
+                padding: 10px 14px;
+                flex-direction: column;
+                gap: 6px;
+                text-align: center;
+                font-size: 10px;
+            }
+        }
     </style>
 </head>
 <body>

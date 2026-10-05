@@ -227,6 +227,37 @@
             font-size: 11px; color: var(--text-mut); font-weight: 600;
             flex-shrink: 0;
         }
+
+        @media (max-width: 540px) {
+            .sys-header { padding: 0 12px; height: 48px; gap: 8px; }
+            .sys-header img.icon { height: 24px; }
+            .sys-header img.wm { display: none; }
+            .divider-v { display: none; }
+            .sys-header-label { font-size: 9.5px; }
+
+            .main { padding: 12px 10px 24px; }
+            .form-card { border-radius: 8px; }
+            .form-card-header { padding: 14px 16px; gap: 10px; }
+            .form-card-header img { height: 28px; }
+            .form-card-header-text h2 { font-size: 14.5px; }
+            .form-card-header-text p { font-size: 9.5px; }
+            .form-body { padding: 16px 14px; gap: 12px; }
+
+            .field-row { grid-template-columns: 1fr; gap: 12px; }
+            .field input { font-size: 16px; padding: 10px 12px; }
+            .field input.plate {
+                font-size: 22px;
+                letter-spacing: 2px;
+                padding: 8px 10px;
+            }
+            .dest-grid {
+                grid-template-columns: 1fr;
+                gap: 5px;
+                max-height: 220px;
+            }
+            .btn-submit { height: 48px; font-size: 12.5px; }
+            .success-plate { font-size: 22px; letter-spacing: 2px; padding: 4px 14px; }
+        }
     </style>
 </head>
 <body>

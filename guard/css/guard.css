@@ -844,23 +844,368 @@ body {
 }
 
 /* ====================================================================
-   RESPONSIVE
+   RESPONSIVE & MOBILE-PERFECT LAYOUT
    ==================================================================== */
-@media (max-width: 1200px) { .health-status-bar { display: none; } }
+@media (max-width: 1200px) {
+    .health-status-bar { display: none; }
+}
+
 @media (max-width: 900px) {
     .guard-two-col { grid-template-columns: 1fr; }
     .left-panel { display: none; }
-    .occupancy-dashboard { grid-template-columns: 1fr 1fr; }
-    .occupancy-actions { grid-column: 1/-1; }
-    .btn-manual-add { width: 100%; justify-content: center; }
-    .destinations-grid { grid-template-columns: repeat(3,1fr); }
+    .occupancy-dashboard {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+        padding: 10px 14px;
+    }
+    .occupancy-actions { grid-column: 1 / -1; margin-top: 2px; }
+    .btn-manual-add { width: 100%; justify-content: center; height: 46px; }
+    .destinations-grid { grid-template-columns: repeat(3, 1fr); }
 }
+
 @media (max-width: 640px) {
-    .cards-grid { grid-template-columns: 1fr; }
-    .manual-form-grid { grid-template-columns: 1fr; }
-    .field-full { grid-column: 1; }
-    .destinations-grid { grid-template-columns: repeat(2,1fr); }
-    .mode-tab { padding: 0 12px; font-size: 10px; }
+    /* Top Bar Mobile Optimization */
+    .top-bar {
+        padding: 0 10px;
+        height: 52px;
+    }
+    .brand-section { gap: 8px; }
+    .brand-wordmark-img,
+    .brand-divider { display: none; }
+    .brand-logo-img { height: 28px; }
+    .brand-text h1 { font-size: 11px; letter-spacing: 0.05em; }
+    .brand-text p { display: none; }
+    
+    .user-clock-section { gap: 5px; }
+    .live-clock { font-size: 14px; }
+    .guard-pill {
+        padding: 3px 6px;
+        font-size: 11px;
+        gap: 4px;
+    }
+    #guardNameDisplay {
+        max-width: 72px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .btn-lbl { display: none; }
+    .icon-btn {
+        padding: 0 7px;
+        height: 32px;
+        min-width: 32px;
+        justify-content: center;
+    }
+
+    /* Occupancy Strip */
+    .occupancy-dashboard {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 6px;
+        padding: 8px 10px;
+    }
+    .metric-card {
+        padding: 8px 4px;
+        border-radius: var(--radius-sm);
+    }
+    .metric-label {
+        font-size: 8px;
+        letter-spacing: 0.05em;
+        margin-bottom: 2px;
+    }
+    .metric-number {
+        font-size: 22px;
+    }
+    .occupancy-actions {
+        grid-column: 1 / -1;
+        margin-top: 2px;
+    }
+    .btn-manual-add {
+        font-size: 11.5px;
+        height: 44px;
+        width: 100%;
+        justify-content: center;
+    }
+
+    /* Scrollable Mode Tabs */
+    .mode-tabs-container {
+        overflow-x: auto;
+        white-space: nowrap;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        padding: 0 6px;
+        border-bottom: 1px solid var(--border);
+    }
+    .mode-tabs-container::-webkit-scrollbar { display: none; }
+    .mode-tab {
+        padding: 0 10px;
+        height: 38px;
+        font-size: 10px;
+        flex-shrink: 0;
+        gap: 5px;
+    }
+    .mode-tab .i-icon { width: 12px; height: 12px; }
+    .tab-badge {
+        font-size: 9px;
+        min-width: 16px;
+        height: 16px;
+        line-height: 16px;
+        padding: 0 4px;
+    }
+
+    /* Main Container Content */
+    .right-content-area {
+        padding: 10px 8px;
+    }
+
+    /* Camera Ingestion Bar */
+    .entering-action-bar {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+        padding: 10px;
+    }
+    .cam-status-pill {
+        width: 100%;
+        justify-content: center;
+        font-size: 10.5px;
+        padding: 6px 10px;
+    }
+    .btn-fetch-camera {
+        width: 100%;
+        justify-content: center;
+        height: 44px;
+        font-size: 11.5px;
+    }
+
+    /* Cards Grid & Car Cards */
+    .cards-grid {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+    .car-card {
+        border-radius: var(--radius-md);
+    }
+    .card-header {
+        padding: 10px 12px;
+        gap: 10px;
+    }
+    .card-snap-thumb {
+        width: 66px;
+        height: 48px;
+    }
+    .card-plate {
+        font-size: 18px;
+        letter-spacing: 1.5px;
+        padding: 2px 8px;
+    }
+    .card-body {
+        grid-template-columns: 1fr 1fr;
+        padding: 10px 12px;
+        gap: 6px;
+    }
+    .card-actions {
+        padding: 8px 12px;
+        gap: 6px;
+    }
+    .btn-card-accept, .btn-card-reject {
+        min-height: 44px;
+        font-size: 11px;
+    }
+
+    /* Modals Mobile Sizing */
+    .modal-overlay {
+        padding: 8px;
+        align-items: flex-end;
+    }
+    .modal-box,
+    .intake-modal-box,
+    .receipt-dialog-box {
+        width: 100%;
+        max-width: 100%;
+        padding: 14px 10px;
+        max-height: 94vh;
+        border-radius: 14px 14px 0 0;
+    }
+
+    /* Vehicle Intake Modal Mobile */
+    .intake-header {
+        padding-bottom: 10px;
+        gap: 8px;
+    }
+    .intake-header-left {
+        gap: 10px;
+    }
+    .intake-snap-thumb {
+        width: 66px;
+        height: 48px;
+    }
+    .intake-plate-badge {
+        font-size: 19px;
+        letter-spacing: 1.5px;
+        padding: 2px 8px;
+    }
+    .intake-grid-2 {
+        grid-template-columns: 1fr;
+        gap: 8px;
+    }
+    .intake-input {
+        font-size: 16px; /* Prevents iOS auto-zoom on input focus */
+        padding: 10px 12px;
+    }
+    .intake-floor-tabs {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 4px;
+    }
+    .intake-floor-tab {
+        min-width: 0;
+        padding: 7px 2px;
+        font-size: 10px;
+        text-align: center;
+    }
+    .intake-shops-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 5px;
+        max-height: 155px;
+        padding: 4px;
+    }
+    .intake-shop-btn {
+        padding: 6px 7px;
+    }
+    .intake-shop-btn .shop-name-text {
+        font-size: 11px;
+    }
+    .intake-actions-footer {
+        gap: 6px;
+        padding-top: 8px;
+    }
+    .btn-intake-accept {
+        min-height: 48px;
+        font-size: 12px;
+    }
+    .btn-intake-decline {
+        min-height: 48px;
+        font-size: 11px;
+    }
+
+    /* Manual Wizard Modal Mobile */
+    .manual-form-grid {
+        grid-template-columns: 1fr;
+        gap: 8px;
+    }
+    .form-field input {
+        font-size: 16px;
+        padding: 10px 12px;
+    }
+    #wizFloorTabs {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 4px;
+    }
+    .floor-pill {
+        padding: 6px 3px;
+        font-size: 10px;
+        text-align: center;
+    }
+    .destinations-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 5px;
+        max-height: 150px;
+    }
+
+    /* Thermal Receipt Modal Mobile */
+    .receipt-dialog-box {
+        padding: 12px 8px;
+    }
+    .thermal-slip {
+        padding: 12px 8px;
+        border-radius: 6px;
+    }
+    .slip-brand { font-size: 16px; }
+    .slip-plate {
+        font-size: 18px;
+        padding: 4px 10px;
+        letter-spacing: 1.5px;
+    }
+    .slip-details { font-size: 10.5px; }
+    .slip-timing-box {
+        padding: 8px;
+        margin: 8px 0;
+    }
+    .timing-callout-row {
+        font-size: 11px;
+        padding: 2px 0;
+    }
+    .receipt-dialog-actions {
+        gap: 6px;
+        margin-top: 10px;
+    }
+    .btn-print-slip {
+        min-height: 46px;
+        font-size: 12px;
+    }
+    .btn-dismiss-slip {
+        min-height: 46px;
+        font-size: 11.5px;
+    }
+
+    /* Leaving Tab Mobile */
+    .exit-card {
+        padding: 12px 10px;
+        gap: 10px;
+    }
+    .exit-card > div:first-child > div:first-child > div {
+        font-size: 26px !important;
+        padding: 4px 12px !important;
+        margin-top: 4px !important;
+    }
+    .exit-card > div:nth-child(2) {
+        grid-template-columns: 1fr !important;
+        gap: 8px !important;
+        padding: 10px !important;
+    }
+    .btn-clear-exit-giant {
+        height: 48px;
+        font-size: 12px;
+    }
+    .search-bar-large {
+        height: 44px;
+        padding: 0 10px;
+        gap: 8px;
+    }
+    .search-input-large {
+        font-size: 13px;
+    }
+
+    /* Table Mobile Horizontal Scroll */
+    .table-responsive {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        background: #fff;
+    }
+    .cars-table {
+        min-width: 580px;
+        font-size: 12px;
+    }
+    .cars-table th, .cars-table td {
+        padding: 8px 10px;
+    }
+}
+
+@media (max-width: 380px) {
+    .metric-number { font-size: 20px; }
+    .intake-plate-badge {
+        font-size: 17px;
+        letter-spacing: 0.5px;
+        padding: 2px 6px;
+    }
+    #guardRoleTag { display: none; }
+    .live-clock { font-size: 12px; }
+    .intake-shops-grid {
+        grid-template-columns: 1fr;
+    }
 }
 
 /* ====================================================================
