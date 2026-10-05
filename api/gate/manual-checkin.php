@@ -105,14 +105,19 @@ try {
     $db->commit();
 
     // Print thermal ticket
+    $now = time();
+    $entryTime = date('Y-m-d H:i:s', $now);
+    $expectedExitTime = date('Y-m-d H:i:s', $now + (150 * 60)); // 2.5 hours = 150 minutes
+
     $sessionPayload = [
-        'session_id'   => $sessionId,
-        'ticket_id'    => $ticketId,
-        'plate_number' => $cleanPlate,
-        'driver_name'  => $driverName,
-        'destination'  => $destination,
-        'entry_time'   => date('Y-m-d H:i:s'),
-        'guard_name'   => $user['full_name'],
+        'session_id'         => $sessionId,
+        'ticket_id'          => $ticketId,
+        'plate_number'       => $cleanPlate,
+        'driver_name'        => $driverName,
+        'destination'        => $destination,
+        'entry_time'         => $entryTime,
+        'expected_exit_time' => $expectedExitTime,
+        'guard_name'         => $user['full_name'],
     ];
 
     $printResult = PrinterService::printTicket($sessionPayload);
@@ -145,6 +150,8 @@ try {
         'formatted_plate' => $displayPlate,
         'driver_name'     => $driverName,
         'destination'     => $destination,
+        'entry_time'      => $entryTime,
+        'expected_exit'   => $expectedExitTime,
         'print_status'    => $printStatus,
         'whatsapp_status' => $waStatus,
         'handled_by'      => $user['full_name'],
@@ -154,15 +161,22 @@ try {
     echo json_encode([
         'ok'   => true,
         'data' => [
-            'session_id'      => $sessionId,
-            'ticket_id'       => $ticketId,
-            'plate_number'    => $cleanPlate,
-            'formatted_plate' => $displayPlate,
-            'driver_name'     => $driverName,
-            'destination'     => $destination,
-            'print_status'    => $printStatus,
-            'print_message'   => $printResult['message'],
-            'whatsapp_status' => $waStatus,
+            'session_id'         => $sessionId,
+            'ticket_id'          => $ticketId,
+            'plate_number'       => $cleanPlate,
+            'formatted_plate'    => $displayPlate,
+            'driver_name'        => $driverName,
+            'driver_phone'       => $cleanPhone,
+            'destination'        => $destination,
+            'entry_time'         => $entryTime,
+            'entry_time_fmt'     => date('H:i:s - d/m/Y', $now),
+            'expected_exit_time' => $expectedExitTime,
+            'expected_exit_fmt'  => date('H:i:s - d/m/Y', $now + (150 * 60)),
+            'max_hours'          => 2.5,
+            'guard_name'         => $user['full_name'],
+            'print_status'       => $printStatus,
+            'print_message'      => $printResult['message'],
+            'whatsapp_status'    => $waStatus,
         ],
     ]);
 } catch (Throwable $e) {

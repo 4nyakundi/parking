@@ -574,7 +574,102 @@
 </div>
 
 <!-- ================================================================
-     MODAL 5: OPERATION GUIDE
+     MODAL 5: THERMAL PARKING RECEIPT PREVIEW & PRINT
+     ================================================================ -->
+<div id="receiptPreviewModal" class="modal-overlay">
+    <div class="receipt-dialog-box">
+        <button type="button" onclick="closeReceiptModal()" class="receipt-close-btn" title="Close">&#x2715;</button>
+
+        <!-- Printable Thermal Slip -->
+        <div class="thermal-slip" id="printableReceipt">
+            <div class="slip-header">
+                <div class="slip-brand">MOMBASA MALL</div>
+                <div class="slip-sub-brand">BASEMENT PARKING &bull; 60 SLOTS</div>
+                <div class="slip-contact">Tel: +254 700 000 000 | 24/7 Security</div>
+                <div class="slip-dash-line">================================</div>
+            </div>
+
+            <div class="slip-ticket-section">
+                <div class="slip-title">ENTRY PARKING TICKET</div>
+                <div class="slip-ticket-id" id="rcptTicketId">MM-20261005-0001</div>
+                <div class="slip-barcode">
+                    <span class="barcode-graphic">|||| | ||| |||| | |||||| || | |||| ||</span>
+                    <span class="barcode-caption" id="rcptBarcodeNum">MM-20261005-0001</span>
+                </div>
+            </div>
+
+            <!-- Big Kenyan License Plate -->
+            <div class="slip-plate-wrap">
+                <div class="slip-plate" id="rcptPlate">KDM 687V</div>
+            </div>
+
+            <div class="slip-dash-line">--------------------------------</div>
+
+            <div class="slip-details">
+                <div class="slip-row">
+                    <span class="slip-label">DRIVER:</span>
+                    <span class="slip-val" id="rcptDriver">Visitor</span>
+                </div>
+                <div class="slip-row" id="rcptPhoneRow">
+                    <span class="slip-label">MOBILE:</span>
+                    <span class="slip-val" id="rcptPhone">--</span>
+                </div>
+                <div class="slip-row">
+                    <span class="slip-label">STORE:</span>
+                    <span class="slip-val" id="rcptDestination">G-01 Naivas Supermarket</span>
+                </div>
+                <div class="slip-row">
+                    <span class="slip-label">GATE GUARD:</span>
+                    <span class="slip-val" id="rcptGuard">John Omondi (Gate 1)</span>
+                </div>
+            </div>
+
+            <div class="slip-dash-line">--------------------------------</div>
+
+            <!-- 2.5 HOURS HIGHLIGHT BOX -->
+            <div class="slip-timing-box">
+                <div class="timing-callout-row time-in">
+                    <span class="t-label">TIME IN:</span>
+                    <span class="t-value" id="rcptTimeIn">13:08:05 &bull; 05/10/2026</span>
+                </div>
+                <div class="timing-callout-row stay-limit">
+                    <span class="t-label">PERMITTED STAY:</span>
+                    <span class="t-value">2.5 Hours (150 Mins)</span>
+                </div>
+                <div class="timing-callout-row time-out">
+                    <span class="t-label">EXPECTED OUT:</span>
+                    <span class="t-value" id="rcptTimeOut">15:38:05 &bull; 05/10/2026</span>
+                </div>
+                <div class="timing-notice">
+                    ★ FREE customer parking within 2.5 hours limit.
+                </div>
+            </div>
+
+            <div class="slip-dash-line">================================</div>
+
+            <div class="slip-footer">
+                <div class="slip-warning">KEEP THIS TICKET SAFE</div>
+                <div>Customer permitted 2.5 hrs within mall.</div>
+                <div>Present ticket to security guard upon exit.</div>
+                <div class="slip-thanks">Asante kwa Kutembelea Mombasa Mall!</div>
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="receipt-dialog-actions">
+            <button type="button" class="btn-print-slip" onclick="printReceiptDirect()">
+                <svg class="i-icon" viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                Print Receipt
+            </button>
+            <button type="button" class="btn-dismiss-slip" onclick="closeReceiptModal()">
+                Done (Close)
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ================================================================
+     MODAL 6: OPERATION GUIDE
      ================================================================ -->
 <div id="helpModal" class="modal-overlay">
     <div class="modal-box" style="max-width:680px;">
@@ -625,7 +720,6 @@
 <!-- Bundled Local Libraries (NO CDN) -->
 <script src="../assets/vendor/gsap/gsap.min.js"></script>
 <script src="../assets/vendor/gsap/Flip.min.js"></script>
-<script src="../assets/vendor/confetti/confetti.browser.min.js"></script>
 
 <!-- Application Scripts -->
 <script src="js/guard_i18n.js"></script>

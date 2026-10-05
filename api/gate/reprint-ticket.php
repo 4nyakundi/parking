@@ -11,6 +11,7 @@ header('Content-Type: application/json; charset=utf-8');
 
 require_once __DIR__ . '/../../includes/auth.php';
 require_once __DIR__ . '/../../includes/audit.php';
+require_once __DIR__ . '/../../includes/plate_helper.php';
 require_once __DIR__ . '/../../includes/printer_service.php';
 
 $user = require_auth(true);
@@ -39,14 +40,21 @@ try {
     }
 
     // Attempt reprint
+    $entryTs = !empty($session['entry_time']) ? strtotime($session['entry_time']) : time();
     $sessionPayload = [
-        'session_id'   => $session['id'],
-        'ticket_id'    => $session['ticket_id'],
-        'plate_number' => $session['plate_number'],
-        'driver_name'  => $session['driver_name'],
-        'destination'  => $session['destination'],
-        'entry_time'   => $session['entry_time'],
-        'guard_name'   => $user['full_name'],
+        'session_id'         => $session['id'],
+        'ticket_id'          => $session['ticket_id'],
+        'plate_number'       => $session['plate_number'],
+        'formatted_plate'    => PlateHelper::format($session['plate_number']),
+        'driver_name'        => $session['driver_name'],
+        'driver_phone'       => $session['driver_phone'] ?? '',
+        'destination'        => $session['destination'],
+        'entry_time'         => $session['entry_time'],
+        'entry_time_fmt'     => date('H:i:s - d/m/Y', $entryTs),
+        'expected_exit_time' => date('Y-m-d H:i:s', $entryTs + (150 * 60)),
+        'expected_exit_fmt'  => date('H:i:s - d/m/Y', $entryTs + (150 * 60)),
+        'max_hours'          => 2.5,
+        'guard_name'         => $user['full_name'],
     ];
 
     $printResult = PrinterService::printTicket($sessionPayload);
@@ -67,6 +75,7 @@ try {
         'ok'           => $printResult['success'],
         'print_status' => $newStatus,
         'message'      => $printResult['message'],
+        'session'      => $sessionPayload,
     ]);
 } catch (Throwable $e) {
     error_log('REPRINT TICKET ERROR: ' . $e->getMessage());

@@ -186,9 +186,22 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    const rcptModal = document.getElementById('receiptPreviewModal');
+    if (rcptModal) {
+        rcptModal.addEventListener('click', (e) => {
+            if (e.target === rcptModal) {
+                closeReceiptModal();
+            }
+        });
+    }
+
     // Global ESC key listener to dismiss open modals
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
+            if (rcptModal && rcptModal.classList.contains('open')) {
+                closeReceiptModal();
+                return;
+            }
             if (intakeModal && intakeModal.classList.contains('open')) {
                 closeVehicleIntakeModal();
             }
@@ -909,14 +922,6 @@ async function submitIntakeFromModal() {
         if (json.ok) {
             playSuccessChime();
 
-            if (window.confetti) {
-                confetti({
-                    particleCount: 65,
-                    spread: 75,
-                    origin: { y: 0.6 }
-                });
-            }
-
             closeVehicleIntakeModal();
 
             if (json.data.print_status === 'printed') {
@@ -932,6 +937,9 @@ async function submitIntakeFromModal() {
 
             // Update stats
             runPoll();
+
+            // Display on-screen printable thermal receipt with 2.5-hour stay limit
+            showReceiptModal(json.data);
         } else {
             if (btnAccept) btnAccept.disabled = false;
             if (btnText) btnText.textContent = 'ACCEPT & PRINT TICKET';
@@ -985,6 +993,92 @@ function acceptWithQuickDetails(requestId) {
 
 function acceptAndPrint(requestId) {
     openVehicleIntakeModal(requestId);
+}
+
+// --------------------------------------------------------------------
+// Thermal Receipt Modal & Printing (2.5 Hours Free Stay)
+// --------------------------------------------------------------------
+function showReceiptModal(data) {
+    if (!data) return;
+
+    const rcptTicketId    = document.getElementById('rcptTicketId');
+    const rcptBarcodeNum  = document.getElementById('rcptBarcodeNum');
+    const rcptPlate       = document.getElementById('rcptPlate');
+    const rcptDriver      = document.getElementById('rcptDriver');
+    const rcptPhone       = document.getElementById('rcptPhone');
+    const rcptPhoneRow    = document.getElementById('rcptPhoneRow');
+    const rcptDestination = document.getElementById('rcptDestination');
+    const rcptGuard       = document.getElementById('rcptGuard');
+    const rcptTimeIn      = document.getElementById('rcptTimeIn');
+    const rcptTimeOut     = document.getElementById('rcptTimeOut');
+
+    const ticketId = data.ticket_id || 'MM-TICKET';
+    const plate    = data.formatted_plate || data.plate_number || 'KDM 687V';
+    const driver   = data.driver_name || 'Visitor';
+    const phone    = data.driver_phone || '';
+    const dest     = data.destination || 'Mombasa Mall';
+    const guard    = data.guard_name ? `${data.guard_name} (Gate 1)` : (STATE.user ? `${STATE.user.full_name} (Gate 1)` : 'Security Officer (Gate 1)');
+
+    // Format times
+    let timeInText = data.entry_time_fmt;
+    if (!timeInText) {
+        const inDate = data.entry_time ? new Date(data.entry_time.replace(' ', 'T')) : new Date();
+        timeInText = formatReceiptTime(inDate);
+    }
+
+    let timeOutText = data.expected_exit_fmt;
+    if (!timeOutText) {
+        if (data.expected_exit_time) {
+            const outDate = new Date(data.expected_exit_time.replace(' ', 'T'));
+            timeOutText = formatReceiptTime(outDate);
+        } else {
+            const inDate = data.entry_time ? new Date(data.entry_time.replace(' ', 'T')) : new Date();
+            const outDate = new Date(inDate.getTime() + (150 * 60 * 1000));
+            timeOutText = formatReceiptTime(outDate);
+        }
+    }
+
+    if (rcptTicketId)    rcptTicketId.textContent   = ticketId;
+    if (rcptBarcodeNum)  rcptBarcodeNum.textContent = ticketId;
+    if (rcptPlate)       rcptPlate.textContent      = plate;
+    if (rcptDriver)      rcptDriver.textContent     = driver;
+    if (rcptDestination) rcptDestination.textContent= dest;
+    if (rcptGuard)       rcptGuard.textContent      = guard;
+    if (rcptTimeIn)      rcptTimeIn.textContent     = timeInText;
+    if (rcptTimeOut)     rcptTimeOut.textContent    = timeOutText;
+
+    if (rcptPhoneRow) {
+        if (phone && phone.trim() !== '') {
+            rcptPhoneRow.style.display = 'flex';
+            if (rcptPhone) rcptPhone.textContent = phone;
+        } else {
+            rcptPhoneRow.style.display = 'none';
+        }
+    }
+
+    const modal = document.getElementById('receiptPreviewModal');
+    if (modal) {
+        modal.classList.add('open');
+    }
+}
+
+function formatReceiptTime(d) {
+    if (!d || isNaN(d.getTime())) d = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    const time = `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+    const date = `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`;
+    return `${time} • ${date}`;
+}
+
+function closeReceiptModal() {
+    const modal = document.getElementById('receiptPreviewModal');
+    if (modal) {
+        modal.classList.remove('open');
+    }
+}
+
+function printReceiptDirect() {
+    window.print();
 }
 
 // --------------------------------------------------------------------
@@ -1476,6 +1570,7 @@ async function submitManualWizard() {
             playSuccessChime();
             showToast(`✓ Ticket #${json.data.ticket_id} Printed — ${json.data.formatted_plate}`);
             closeWizard();
+            showReceiptModal(json.data);
         } else {
             alert(json.error || 'Failed to register vehicle.');
         }
@@ -1557,6 +1652,9 @@ async function reprintTicket(sessionId) {
         if (json.ok) {
             playDingSound();
             showToast('✓ Ticket reprint sent to printer');
+            if (json.session) {
+                showReceiptModal(json.session);
+            }
         } else {
             showToast('Reprint failed. Check printer power & paper spool.', true, sessionId);
         }

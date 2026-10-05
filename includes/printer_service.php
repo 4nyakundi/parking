@@ -131,12 +131,17 @@ class PrinterService
             $printer->text("--------------------------------\n");
 
             // Key Session Details
+            $entryTs = !empty($session['entry_time']) ? strtotime($session['entry_time']) : time();
+            $expectedOutTs = $entryTs + (150 * 60); // 2.5 hours = 150 minutes
+
             $printer->setJustification(Printer::JUSTIFY_LEFT);
-            $printer->text("Driver      : " . $session['driver_name'] . "\n");
-            $printer->text("Destination : " . $session['destination'] . "\n");
-            $printer->text("Entry Time  : " . date('d/m/Y H:i:s', strtotime($session['entry_time'])) . "\n");
-            $printer->text("Gate Guard  : " . ($session['guard_name'] ?? 'Gate Officer') . "\n");
-            $printer->text("Parking Fee : FREE (Mall Customers)\n");
+            $printer->text("Driver       : " . $session['driver_name'] . "\n");
+            $printer->text("Destination  : " . $session['destination'] . "\n");
+            $printer->text("TIME IN      : " . date('d/m/Y H:i:s', $entryTs) . "\n");
+            $printer->text("MAX STAY     : 2.5 Hours (150 Mins)\n");
+            $printer->text("EXPECTED OUT : " . date('d/m/Y H:i:s', $expectedOutTs) . "\n");
+            $printer->text("Gate Guard   : " . ($session['guard_name'] ?? 'Gate Officer') . "\n");
+            $printer->text("Parking Fee  : FREE (Within 2.5 Hrs)\n");
             $printer->text("--------------------------------\n");
 
             // Footer instructions
@@ -144,8 +149,8 @@ class PrinterService
             $printer->setEmphasis(true);
             $printer->text("KEEP THIS TICKET SAFE\n");
             $printer->setEmphasis(false);
-            $printer->text("Show ticket to guard when exiting.\n");
-            $printer->text("Overstay > 8h is reported to mall security.\n");
+            $printer->text("Customer permitted 2.5 hrs within mall.\n");
+            $printer->text("Present ticket to security upon exit.\n");
             $printer->text("Asante kwa Kutembelea Mombasa Mall!\n\n");
 
             // Cut paper
