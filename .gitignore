@@ -2,6 +2,7 @@
 *.env.local
 
 # Logs
+*.log
 storage/logs/*.log
 storage/logs/*.txt
 

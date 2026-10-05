@@ -121,16 +121,24 @@ try {
     $existingPending = $pendingStmt->fetch();
 
     if ($existingPending) {
+        $createdTimestamp = !empty($existingPending['created_at']) ? strtotime($existingPending['created_at']) : time();
+        $timeInFormatted = date('H:i:s • d/m/Y', $createdTimestamp);
+        $expectedTimeOut = date('H:i:s • d/m/Y', $createdTimestamp + (120 * 60));
+
         echo json_encode([
             'ok'   => true,
             'data' => [
-                'request_id'      => (int)$existingPending['id'],
-                'plate_number'    => $cleanPlate,
-                'formatted_plate' => $displayPlate,
-                'driver_name'     => $driverName,
-                'destination'     => $destination,
-                'already_queued'  => true,
-                'message'         => 'Your sign-in is already waiting for the guard. Please drive to the gate.',
+                'request_id'        => (int)$existingPending['id'],
+                'plate_number'      => $cleanPlate,
+                'formatted_plate'   => $displayPlate,
+                'driver_name'       => $driverName,
+                'driver_phone'      => PhoneHelper::formatDisplay($cleanPhone),
+                'destination'       => $destination,
+                'time_in'           => $timeInFormatted,
+                'expected_time_out' => $expectedTimeOut,
+                'parking_limit'     => '2 Hours (120 Mins) — Free',
+                'already_queued'    => true,
+                'message'           => 'Your sign-in is already waiting for the guard. Please drive to the gate.',
             ],
         ]);
         exit;
@@ -190,21 +198,30 @@ try {
         'driver_name'     => $driverName,
         'driver_phone'    => PhoneHelper::formatDisplay($cleanPhone),
         'destination'     => $destination,
+        'source'          => 'self_signin',
         'alpr_verified'   => $alprVerified === 1,
         'category'        => $category,
         'category_note'   => $regVehicle['notes'] ?? '',
         'created_at'      => date('H:i:s'),
     ]);
 
+    $timeInTimestamp = time();
+    $timeInFormatted = date('H:i:s • d/m/Y', $timeInTimestamp);
+    $expectedTimeOut = date('H:i:s • d/m/Y', $timeInTimestamp + (120 * 60)); // 2 hours = 120 mins
+
     echo json_encode([
         'ok'   => true,
         'data' => [
-            'request_id'      => $requestId,
-            'plate_number'    => $cleanPlate,
-            'formatted_plate' => $displayPlate,
-            'driver_name'     => $driverName,
-            'destination'     => $destination,
-            'message'         => 'Sign-in successful! Please drive forward to the guard booth to collect your parking ticket.',
+            'request_id'        => $requestId,
+            'plate_number'      => $cleanPlate,
+            'formatted_plate'   => $displayPlate,
+            'driver_name'       => $driverName,
+            'driver_phone'      => PhoneHelper::formatDisplay($cleanPhone),
+            'destination'       => $destination,
+            'time_in'           => $timeInFormatted,
+            'expected_time_out' => $expectedTimeOut,
+            'parking_limit'     => '2 Hours (120 Mins) — Free',
+            'message'           => 'Sign-in successful! Please drive forward to the guard booth to collect your parking ticket.',
         ],
     ]);
 } catch (Throwable $e) {

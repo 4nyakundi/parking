@@ -664,7 +664,9 @@ function createPendingCardElement(item) {
     STATE.pendingRequestsMap = STATE.pendingRequestsMap || {};
     STATE.pendingRequestsMap[reqId] = item;
 
-    card.className = `car-card ${item.alpr_verified ? 'verified' : ''} ${item.category === 'blacklisted' ? 'blacklisted' : ''} ${item.category === 'vip' ? 'vip' : ''}`;
+    const isSelfCheckin = (item.source === 'self_signin' || item.source === 'cloud_mobile' || item.source === 'firebase_web');
+
+    card.className = `car-card ${item.alpr_verified ? 'verified' : ''} ${item.category === 'blacklisted' ? 'blacklisted' : ''} ${item.category === 'vip' ? 'vip' : ''} ${isSelfCheckin ? 'self-checkin' : ''}`;
     card.id = `req-card-${reqId}`;
     card.setAttribute('data-plate', item.plate_number);
     card.setAttribute('data-req-id', reqId);
@@ -696,19 +698,39 @@ function createPendingCardElement(item) {
         </div>`;
     }
 
-    card.innerHTML = `
-        <div class="car-card-main">
-            ${snapHtml}
-            <div class="card-plate-col">
-                <div class="card-plate">${escapeHtml(item.formatted_plate)}</div>
-                <div class="card-meta-row">
-                    ${item.source === 'alpr_camera' ? `<span class="cam-source-badge">📷 CAMERA</span>` : ''}
-                    ${(item.source === 'cloud_mobile' || item.source === 'firebase_web') ? `<span class="cam-source-badge" style="background:#0284c7;color:#fff;">☁️ MOBILE SIGN-IN</span>` : ''}
-                    ${item.alpr_verified ? `<span class="badge-verified">✓ ${t('verified_badge')}</span>` : ''}
+    // Source badge
+    let sourceBadge = '';
+    if (isSelfCheckin) {
+        sourceBadge = `<span class="cam-source-badge" style="background:#059669;color:#fff;font-weight:900;letter-spacing:0.04em;">📱 DRIVER SELF CHECK-IN</span>`;
+    } else if (item.source === 'alpr_camera') {
+        sourceBadge = `<span class="cam-source-badge">📷 CAMERA</span>`;
+    }
+
+    // Driver details tag on the card
+    let driverTag = '';
+    if (isSelfCheckin || (item.driver_name && item.driver_name !== 'Visitor')) {
+        driverTag = `
+            <div class="card-driver-tag" style="margin-top:5px; font-size:12px; color:var(--text); line-height:1.35; background:var(--card-alt, #f8fafc); padding:5px 8px; border-radius:6px; border:1px solid var(--border-l, #e2e8f0);">
+                <div style="font-weight:800; color:#0f172a; display:flex; align-items:center; gap:5px;">
+                    <span>👤 ${escapeHtml(item.driver_name || 'Driver')}</span>
+                    ${item.driver_phone ? `<span style="color:#64748b; font-weight:600; font-size:11px;">(${escapeHtml(item.driver_phone)})</span>` : ''}
                 </div>
-                ${alertBadge}
+                <div style="color:#116FC7; font-weight:700; font-size:11.5px; margin-top:2px;">
+                    📍 ${escapeHtml(item.destination || 'Mombasa Mall')}
+                </div>
             </div>
+        `;
+    }
+
+    // Footer strip
+    const footerStrip = isSelfCheckin ? `
+        <div class="card-footer-strip" style="background:rgba(5,150,105,0.08); border-top:1px solid rgba(5,150,105,0.2);">
+            <span class="card-wait-text" style="color:#047857; font-weight:700;">⏱️ ${escapeHtml(item.wait_text || 'Just now')}</span>
+            <span class="card-tap-cta" style="background:#059669; color:#fff; font-weight:800; border-radius:4px; padding:3px 9px;">
+                ✓ Approve Entry ➔
+            </span>
         </div>
+    ` : `
         <div class="card-footer-strip">
             <span class="card-wait-text">⏱️ ${escapeHtml(item.wait_text || 'Just now')}</span>
             <span class="card-tap-cta">
@@ -716,6 +738,22 @@ function createPendingCardElement(item) {
                 <svg class="i-icon" style="width:12px;height:12px;display:inline;" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
             </span>
         </div>
+    `;
+
+    card.innerHTML = `
+        <div class="car-card-main">
+            ${snapHtml}
+            <div class="card-plate-col">
+                <div class="card-plate">${escapeHtml(item.formatted_plate)}</div>
+                <div class="card-meta-row">
+                    ${sourceBadge}
+                    ${item.alpr_verified ? `<span class="badge-verified">✓ ${t('verified_badge')}</span>` : ''}
+                </div>
+                ${driverTag}
+                ${alertBadge}
+            </div>
+        </div>
+        ${footerStrip}
     `;
 
     return card;
@@ -734,6 +772,7 @@ function openVehicleIntakeModal(requestId) {
     }
 
     STATE.currentIntakeReqId = requestId;
+    const isSelfCheckin = (item.source === 'self_signin' || item.source === 'cloud_mobile' || item.source === 'firebase_web');
 
     // Set plate
     const plateEl = document.getElementById('intakePlateDisplay');
@@ -751,15 +790,43 @@ function openVehicleIntakeModal(requestId) {
         }
     }
 
+    // Set Self-Check-in Banner
+    const selfBanner = document.getElementById('intakeSelfCheckinBanner');
+    if (selfBanner) {
+        selfBanner.style.display = isSelfCheckin ? 'flex' : 'none';
+    }
+
     // Set badges
     const srcBadge = document.getElementById('intakeSourceBadge');
-    if (srcBadge) srcBadge.style.display = (item.source === 'alpr_camera') ? 'inline-flex' : 'none';
+    if (srcBadge) {
+        if (isSelfCheckin) {
+            srcBadge.style.display = 'inline-flex';
+            srcBadge.style.background = '#059669';
+            srcBadge.style.color = '#fff';
+            srcBadge.textContent = '📱 DRIVER SELF CHECK-IN';
+        } else if (item.source === 'alpr_camera') {
+            srcBadge.style.display = 'inline-flex';
+            srcBadge.style.background = '';
+            srcBadge.style.color = '';
+            srcBadge.textContent = '📷 CAMERA';
+        } else {
+            srcBadge.style.display = 'none';
+        }
+    }
 
     const verBadge = document.getElementById('intakeVerifiedBadge');
     if (verBadge) verBadge.style.display = item.alpr_verified ? 'inline-block' : 'none';
 
     const timeAgo = document.getElementById('intakeTimeAgo');
     if (timeAgo) timeAgo.textContent = item.wait_text || 'Just now';
+
+    // Update Accept Button Text to emphasize approval & shopping
+    const btnText = document.getElementById('btnIntakeAcceptText');
+    if (btnText) {
+        btnText.textContent = isSelfCheckin
+            ? 'APPROVE & PRINT TICKET (PROCEED TO SHOPPING)'
+            : 'ACCEPT & PRINT TICKET';
+    }
 
     // Alerts
     const alertEl = document.getElementById('intakeAlertBanner');

@@ -336,15 +336,21 @@ async function submitDriverSignIn() {
         const plate_display = responseData?.formatted_plate || plate;
         document.getElementById('successPlate').textContent = plate_display;
 
-        // Populate Driver & Destination Details
-        const sName = document.getElementById('successDriverName');
-        if (sName) sName.textContent = name || '--';
-        const sPhone = document.getElementById('successDriverPhone');
-        if (sPhone) sPhone.textContent = phone || '--';
-        const sDest = document.getElementById('successDestination');
-        if (sDest) sDest.textContent = selectedDestination || '--';
+        // Populate Driver & Destination Details from Server System response or inputs
+        const finalName  = responseData?.driver_name || name || localStorage.getItem('mm_last_name') || 'Visitor';
+        const finalPhone = responseData?.driver_phone || phone || localStorage.getItem('mm_last_phone') || '--';
+        const finalDest  = responseData?.destination || selectedDestination || 'Mombasa Mall';
 
-        // Calculate & Populate 2-Hour Timings
+        const sName = document.getElementById('successDriverName');
+        if (sName) sName.textContent = finalName;
+
+        const sPhone = document.getElementById('successDriverPhone');
+        if (sPhone) sPhone.textContent = finalPhone;
+
+        const sDest = document.getElementById('successDestination');
+        if (sDest) sDest.textContent = finalDest;
+
+        // Pick system time in and predicted 2-hour time out
         const now = new Date();
         const outDate = new Date(now.getTime() + (120 * 60 * 1000)); // 2 hours = 120 mins
 
@@ -353,9 +359,10 @@ async function submitDriverSignIn() {
         const fmtDate = (d) => `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`;
 
         const sTimeIn = document.getElementById('successTimeIn');
-        if (sTimeIn) sTimeIn.textContent = `${fmtTime(now)} • ${fmtDate(now)}`;
+        if (sTimeIn) sTimeIn.textContent = responseData?.time_in || `${fmtTime(now)} • ${fmtDate(now)}`;
+
         const sTimeOut = document.getElementById('successTimeOut');
-        if (sTimeOut) sTimeOut.textContent = `${fmtTime(outDate)} • ${fmtDate(outDate)}`;
+        if (sTimeOut) sTimeOut.textContent = responseData?.expected_time_out || `${fmtTime(outDate)} • ${fmtDate(outDate)}`;
 
         // Hide form and pre-submission banner
         document.getElementById('driverForm').style.display = 'none';

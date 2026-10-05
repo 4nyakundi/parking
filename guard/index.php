@@ -451,6 +451,20 @@
 
         <div id="intakeAlertBanner" style="display:none;" class="badge-alert"></div>
 
+        <!-- Driver Self-Check-in Notification Banner -->
+        <div id="intakeSelfCheckinBanner" style="display:none; background:#ecfdf5; border:1px solid #10b981; border-radius:8px; padding:10px 14px; margin-bottom:12px; align-items:center; gap:10px;">
+            <span style="font-size:22px; flex-shrink:0;">📱</span>
+            <div style="flex:1;">
+                <div style="font-size:12.5px; font-weight:900; color:#065f46; letter-spacing:0.02em;">
+                    DRIVER COMPLETED SELF CHECK-IN
+                </div>
+                <div style="font-size:11px; color:#047857; margin-top:2px;">
+                    Driver has pre-filled vehicle &amp; visit details on mobile. Tap <strong>APPROVE &amp; PRINT TICKET</strong> below so driver can proceed to shop.
+                </div>
+            </div>
+            <span style="background:#10b981; color:#fff; font-size:10px; font-weight:800; padding:4px 8px; border-radius:12px; text-transform:uppercase; letter-spacing:0.05em; flex-shrink:0;">Mobile Verified</span>
+        </div>
+
         <!-- Form fields: Name, Phone, Destination -->
         <div class="intake-form-body">
             <div class="intake-grid-2">
