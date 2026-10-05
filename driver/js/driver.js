@@ -301,7 +301,33 @@ async function submitDriverSignIn() {
             // Show the success screen
             const plate_display = json.data?.formatted_plate || plate;
             document.getElementById('successPlate').textContent = plate_display;
+
+            // Populate Driver & Destination Details
+            const sName = document.getElementById('successDriverName');
+            if (sName) sName.textContent = name || '--';
+            const sPhone = document.getElementById('successDriverPhone');
+            if (sPhone) sPhone.textContent = phone || '--';
+            const sDest = document.getElementById('successDestination');
+            if (sDest) sDest.textContent = selectedDestination || '--';
+
+            // Calculate & Populate 2-Hour Timings
+            const now = new Date();
+            const outDate = new Date(now.getTime() + (120 * 60 * 1000)); // 2 hours = 120 mins
+
+            const pad = (n) => String(n).padStart(2, '0');
+            const fmtTime = (d) => `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+            const fmtDate = (d) => `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`;
+
+            const sTimeIn = document.getElementById('successTimeIn');
+            if (sTimeIn) sTimeIn.textContent = `${fmtTime(now)} • ${fmtDate(now)}`;
+            const sTimeOut = document.getElementById('successTimeOut');
+            if (sTimeOut) sTimeOut.textContent = `${fmtTime(outDate)} • ${fmtDate(outDate)}`;
+
+            // Hide form and pre-submission banner
             document.getElementById('driverForm').style.display = 'none';
+            const policyBanner = document.getElementById('parkingPolicyBanner');
+            if (policyBanner) policyBanner.style.display = 'none';
+
             const box = document.getElementById('successBox');
             if (box) {
                 box.classList.add('show');
@@ -337,6 +363,9 @@ function resetForm() {
 
     const banner = document.getElementById('selectedDestBanner');
     if (banner) banner.style.display = 'none';
+
+    const policyBanner = document.getElementById('parkingPolicyBanner');
+    if (policyBanner) policyBanner.style.display = 'flex';
 
     const searchInput = document.getElementById('destSearchInput');
     if (searchInput) searchInput.value = '';

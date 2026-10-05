@@ -307,10 +307,7 @@ $isMobile = str_contains($ua, 'mobile') || str_contains($ua, 'android') || str_c
     </main>
 
     <footer class="sys-footer">
-        <div>
-            <span>Mombasa Mall Basement Parking v4.0 &mdash; Jomo Kenyatta Avenue, Mombasa, Kenya</span>
-            <span style="margin-left:12px; color:var(--text-sub);">System Powered by <a href="https://dpinc.top" target="_blank" rel="noopener" style="color:var(--blue); text-decoration:none; font-weight:700;">DataPort.inc (dpinc.top)</a></span>
-        </div>
+        <span>Mombasa Mall Basement Parking v4.0 &mdash; Jomo Kenyatta Avenue, Mombasa, Kenya</span>
         <img src="assets/img/logo-icon.png" alt="Mombasa Mall">
     </footer>
 

@@ -157,7 +157,7 @@ try {
     // 5. Thermal Print execution (Non-blocking: session is already safely saved)
     $now = time();
     $entryTime = date('Y-m-d H:i:s', $now);
-    $expectedExitTime = date('Y-m-d H:i:s', $now + (150 * 60)); // 2.5 hours = 150 minutes
+    $expectedExitTime = date('Y-m-d H:i:s', $now + (120 * 60)); // 2 hours = 120 minutes
 
     $sessionPayload = [
         'session_id'         => $sessionId,
@@ -223,8 +223,8 @@ try {
             'entry_time'         => $entryTime,
             'entry_time_fmt'     => date('H:i:s - d/m/Y', $now),
             'expected_exit_time' => $expectedExitTime,
-            'expected_exit_fmt'  => date('H:i:s - d/m/Y', $now + (150 * 60)),
-            'max_hours'          => 2.5,
+            'expected_exit_fmt'  => date('H:i:s - d/m/Y', $now + (120 * 60)),
+            'max_hours'          => 2.0,
             'guard_name'         => $user['full_name'],
             'print_status'       => $printStatus,
             'print_message'      => $printResult['message'],

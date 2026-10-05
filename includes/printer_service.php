@@ -132,17 +132,17 @@ class PrinterService
 
             // Key Session Details
             $entryTs = !empty($session['entry_time']) ? strtotime($session['entry_time']) : time();
-            $expectedOutTs = $entryTs + (150 * 60); // 2.5 hours = 150 minutes
+            $expectedOutTs = $entryTs + (120 * 60); // 2 hours = 120 minutes
 
             $printer->setJustification(Printer::JUSTIFY_LEFT);
             $printer->text("Driver       : " . $session['driver_name'] . "\n");
             $printer->text("Destination  : " . $session['destination'] . "\n");
             $printer->text("TIME IN      : " . date('d/m/Y H:i:s', $entryTs) . "\n");
-            $printer->text("MAX STAY     : 2.5 Hours (150 Mins)\n");
+            $printer->text("MAX STAY     : 2 Hours (120 Mins)\n");
             $printer->text("EXPECTED OUT : " . date('d/m/Y H:i:s', $expectedOutTs) . "\n");
             $printer->text("Gate Guard   : " . ($session['guard_name'] ?? 'Gate Officer') . "\n");
-            $printer->text("Parking Fee  : FREE (Within 2.5 Hrs)\n");
-            $printer->text("OVERSTAY     : Penalty applies > 2.5h\n");
+            $printer->text("Parking Fee  : FREE (Within 2 Hrs)\n");
+            $printer->text("OVERSTAY     : Penalty applies > 2h\n");
             $printer->text("--------------------------------\n");
 
             // Footer instructions
@@ -150,12 +150,10 @@ class PrinterService
             $printer->setEmphasis(true);
             $printer->text("KEEP THIS TICKET SAFE\n");
             $printer->setEmphasis(false);
-            $printer->text("Customer permitted 2.5 hrs within mall.\n");
-            $printer->text("Extension beyond 2.5h attracts penalty!\n");
+            $printer->text("Customer permitted 2 hrs within mall.\n");
+            $printer->text("Extension beyond 2h attracts penalty!\n");
             $printer->text("Present ticket to security upon exit.\n");
-            $printer->text("Asante kwa Kutembelea Mombasa Mall!\n");
-            $printer->text("--------------------------------\n");
-            $printer->text("Powered by DataPort.inc (dpinc.top)\n\n");
+            $printer->text("Asante kwa Kutembelea Mombasa Mall!\n\n");
 
             // Cut paper
             $printer->cut();

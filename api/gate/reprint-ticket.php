@@ -51,9 +51,9 @@ try {
         'destination'        => $session['destination'],
         'entry_time'         => $session['entry_time'],
         'entry_time_fmt'     => date('H:i:s - d/m/Y', $entryTs),
-        'expected_exit_time' => date('Y-m-d H:i:s', $entryTs + (150 * 60)),
-        'expected_exit_fmt'  => date('H:i:s - d/m/Y', $entryTs + (150 * 60)),
-        'max_hours'          => 2.5,
+        'expected_exit_time' => date('Y-m-d H:i:s', $entryTs + (120 * 60)),
+        'expected_exit_fmt'  => date('H:i:s - d/m/Y', $entryTs + (120 * 60)),
+        'max_hours'          => 2.0,
         'guard_name'         => $user['full_name'],
     ];
 

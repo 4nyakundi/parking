@@ -1033,7 +1033,7 @@ function showReceiptModal(data) {
             timeOutText = formatReceiptTime(outDate);
         } else {
             const inDate = data.entry_time ? new Date(data.entry_time.replace(' ', 'T')) : new Date();
-            const outDate = new Date(inDate.getTime() + (150 * 60 * 1000));
+            const outDate = new Date(inDate.getTime() + (120 * 60 * 1000)); // 2 hours (120 mins)
             timeOutText = formatReceiptTime(outDate);
         }
     }
