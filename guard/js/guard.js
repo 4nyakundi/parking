@@ -164,12 +164,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // 10. Vehicle Intake Modal Listeners
-    const intakeDestSelect = document.getElementById('intakeDestSelect');
-    if (intakeDestSelect) {
-        intakeDestSelect.addEventListener('change', () => {
-            syncIntakePillsHighlight(intakeDestSelect.value);
-        });
-    }
 
     ['intakeDriverName', 'intakeDriverPhone'].forEach(id => {
         const inputEl = document.getElementById(id);
@@ -721,8 +715,31 @@ function openVehicleIntakeModal(requestId) {
         phoneIn.value = item.raw_phone || item.driver_phone || '';
     }
 
-    // Destinations
-    populateIntakeDestinations(item.destination || 'Naivas Supermarket');
+    // Destinations setup (Floor tabs & outlined shops)
+    let initialDest = item.destination || 'G-01 Naivas Supermarket';
+    if (STATE.destinations && STATE.destinations.length > 0) {
+        const found = STATE.destinations.find(d => 
+            d.name.toLowerCase() === initialDest.toLowerCase() ||
+            d.name.toLowerCase().includes(initialDest.toLowerCase())
+        );
+        if (found) {
+            initialDest = found.name;
+            STATE.intakeActiveFloor = found.floor_level || 'Ground Floor';
+        } else {
+            STATE.intakeActiveFloor = 'Ground Floor';
+        }
+    } else {
+        STATE.intakeActiveFloor = 'Ground Floor';
+    }
+
+    STATE.intakeSelectedDest = initialDest;
+    const destValIn = document.getElementById('intakeDestinationValue');
+    if (destValIn) destValIn.value = initialDest;
+
+    const destLabelEl = document.getElementById('intakeSelectedDestLabel');
+    if (destLabelEl) destLabelEl.textContent = initialDest;
+
+    switchIntakeFloor(STATE.intakeActiveFloor);
 
     // Reset button state
     const btnAccept = document.getElementById('btnIntakeAccept');
@@ -751,88 +768,93 @@ function openVehicleIntakeModal(requestId) {
     }
 }
 
-function populateIntakeDestinations(selectedDest) {
-    const sel = document.getElementById('intakeDestSelect');
-    if (!sel) return;
+function normalizeFloorLevel(fl) {
+    if (!fl) return 'Ground Floor';
+    const s = String(fl).toLowerCase().trim();
+    if (s.includes('ground') || s === 'g') return 'Ground Floor';
+    if (s.includes('1') || s.includes('first')) return '1st Floor';
+    if (s.includes('2') || s.includes('second')) return '2nd Floor';
+    if (s.includes('3') || s.includes('third')) return '3rd Floor';
+    if (s.includes('base') || s === 'b') return 'Basement';
+    return 'Ground Floor';
+}
+
+function switchIntakeFloor(floorLevel, btnEl) {
+    const norm = normalizeFloorLevel(floorLevel);
+    STATE.intakeActiveFloor = norm;
+
+    const tabsContainer = document.getElementById('intakeFloorTabs');
+    if (tabsContainer) {
+        tabsContainer.querySelectorAll('.intake-floor-tab').forEach(b => {
+            const bFloor = normalizeFloorLevel(b.getAttribute('data-floor'));
+            if (bFloor === norm) {
+                b.classList.add('active');
+            } else {
+                b.classList.remove('active');
+            }
+        });
+    }
+
+    renderIntakeShops();
+}
+
+function renderIntakeShops() {
+    const grid = document.getElementById('intakeShopsGrid');
+    if (!grid) return;
+
+    grid.innerHTML = '';
+    const activeFloor = STATE.intakeActiveFloor || 'Ground Floor';
+    const normActive = normalizeFloorLevel(activeFloor);
 
     const allDests = (STATE.destinations && STATE.destinations.length > 0) ? STATE.destinations : [
-        { name: 'Naivas Supermarket', floor_level: 'Ground Floor' },
-        { name: 'NCBA Bank', floor_level: 'Ground Floor' },
-        { name: 'Java House', floor_level: '1st Floor' },
-        { name: 'Food Court', floor_level: '2nd Floor' },
-        { name: 'Level 1 Retail', floor_level: '1st Floor' },
-        { name: 'Level 2 Retail', floor_level: '2nd Floor' },
-        { name: 'Basement Parking', floor_level: 'Basement' }
+        { name: 'G-01 Naivas Supermarket', unit_code: 'G-01', floor_level: 'Ground Floor', category: 'Hypermarket' },
+        { name: 'G-02 Chicken Inn', unit_code: 'G-02', floor_level: 'Ground Floor', category: 'Fast Food' },
+        { name: 'G-03 Creamy Inn', unit_code: 'G-03', floor_level: 'Ground Floor', category: 'Fast Food' },
+        { name: 'G-04 Pizza Inn', unit_code: 'G-04', floor_level: 'Ground Floor', category: 'Fast Food' },
+        { name: 'Mall Administration', unit_code: 'ADM', floor_level: 'Ground Floor', category: 'Management' },
     ];
 
-    sel.innerHTML = `<option value="Mombasa Mall">Mombasa Mall (General)</option>`;
-    let matched = false;
-    allDests.forEach(d => {
-        const isSel = (selectedDest && selectedDest.toLowerCase() === d.name.toLowerCase());
-        if (isSel) matched = true;
-        const opt = document.createElement('option');
-        opt.value = d.name;
-        opt.textContent = `${d.name} (${d.floor_level || 'Store'})`;
-        opt.selected = isSel;
-        sel.appendChild(opt);
-    });
+    const shops = allDests.filter(d => normalizeFloorLevel(d.floor_level) === normActive);
 
-    if (selectedDest && !matched && selectedDest !== 'Mombasa Mall') {
-        const customOpt = new Option(selectedDest, selectedDest, true, true);
-        sel.add(customOpt);
+    if (shops.length === 0) {
+        grid.innerHTML = `<div style="grid-column:1/-1; padding:20px; text-align:center; color:var(--text-muted); font-size:12px;">No shops found on ${escapeHtml(activeFloor)}.</div>`;
+        return;
     }
 
-    // Sync quick pills
-    syncIntakePillsHighlight(selectedDest);
-}
+    shops.forEach(d => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        const isSel = (STATE.intakeSelectedDest && (STATE.intakeSelectedDest.toLowerCase() === d.name.toLowerCase() || STATE.intakeSelectedDest.toLowerCase().includes(d.name.toLowerCase())));
+        btn.className = `intake-shop-btn ${isSel ? 'active' : ''}`;
+        btn.setAttribute('data-name', d.name);
+        btn.onclick = () => selectIntakeShop(d.name, btn);
 
-function syncIntakePillsHighlight(destName) {
-    const container = document.getElementById('intakePillsContainer');
-    if (!container) return;
-    const destLower = (destName || '').toLowerCase();
-    container.querySelectorAll('.dest-pill-btn').forEach(btn => {
-        btn.classList.remove('active');
-        const pillText = btn.textContent.toLowerCase();
-        if (destLower.includes('naivas') && pillText.includes('naivas')) {
-            btn.classList.add('active');
-        } else if ((destLower.includes('bank') || destLower.includes('ncba')) && (pillText.includes('bank') || pillText.includes('ncba'))) {
-            btn.classList.add('active');
-        } else if (destLower.includes('food') && pillText.includes('food')) {
-            btn.classList.add('active');
-        } else if (destLower.includes('java') && pillText.includes('java')) {
-            btn.classList.add('active');
-        } else if (destLower.includes('level 1') && pillText.includes('level 1')) {
-            btn.classList.add('active');
-        } else if (destLower.includes('level 2') && pillText.includes('level 2')) {
-            btn.classList.add('active');
-        } else if ((destLower === 'mombasa mall' || destLower.includes('other')) && pillText.includes('other')) {
-            btn.classList.add('active');
-        }
+        const unitTag = d.unit_code ? `<span class="shop-unit-tag">${escapeHtml(d.unit_code)}</span>` : '';
+        const catTag  = d.category  ? `<span class="shop-cat-text">${escapeHtml(d.category)}</span>` : '';
+
+        btn.innerHTML = `
+            ${unitTag}
+            <span class="shop-name-text">${escapeHtml(d.name)}</span>
+            ${catTag}
+        `;
+        grid.appendChild(btn);
     });
 }
 
-function selectIntakePill(destName, btnEl) {
-    const container = document.getElementById('intakePillsContainer');
-    if (container) {
-        container.querySelectorAll('.dest-pill-btn').forEach(b => b.classList.remove('active'));
+function selectIntakeShop(storeName, btnEl) {
+    STATE.intakeSelectedDest = storeName;
+
+    const destValIn = document.getElementById('intakeDestinationValue');
+    if (destValIn) destValIn.value = storeName;
+
+    const destLabelEl = document.getElementById('intakeSelectedDestLabel');
+    if (destLabelEl) destLabelEl.textContent = storeName;
+
+    const grid = document.getElementById('intakeShopsGrid');
+    if (grid) {
+        grid.querySelectorAll('.intake-shop-btn').forEach(b => b.classList.remove('active'));
     }
     if (btnEl) btnEl.classList.add('active');
-
-    const sel = document.getElementById('intakeDestSelect');
-    if (sel) {
-        let found = false;
-        for (let i = 0; i < sel.options.length; i++) {
-            if (sel.options[i].value === destName) {
-                sel.selectedIndex = i;
-                found = true;
-                break;
-            }
-        }
-        if (!found) {
-            const opt = new Option(destName, destName, true, true);
-            sel.add(opt);
-        }
-    }
 }
 
 function closeVehicleIntakeModal() {
@@ -860,11 +882,11 @@ async function submitIntakeFromModal() {
 
     const nameIn  = document.getElementById('intakeDriverName');
     const phoneIn = document.getElementById('intakeDriverPhone');
-    const destIn  = document.getElementById('intakeDestSelect');
+    const destIn  = document.getElementById('intakeDestinationValue');
 
     const name  = nameIn ? nameIn.value.trim() : 'Visitor';
     const phone = phoneIn ? phoneIn.value.trim() : '';
-    const dest  = destIn ? destIn.value.trim() : 'Mombasa Mall';
+    const dest  = (destIn && destIn.value.trim()) ? destIn.value.trim() : (STATE.intakeSelectedDest || 'G-01 Naivas Supermarket');
 
     const btnAccept = document.getElementById('btnIntakeAccept');
     const btnText   = document.getElementById('btnIntakeAcceptText');
@@ -1471,6 +1493,7 @@ async function loadDestinations() {
         if (json.ok && json.data) {
             STATE.destinations = json.data;
             renderGuardDestGrid();
+            renderIntakeShops();
         }
 
         // Setup guard floor filter tabs

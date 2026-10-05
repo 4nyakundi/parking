@@ -466,25 +466,38 @@
                 </div>
             </div>
 
-            <div class="form-field">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-                    <label style="margin:0;">Destination Store / Floor</label>
-                    <span style="font-size:10px; color:var(--text-muted); font-weight:700;">Tap quick pill:</span>
+            <div class="form-field field-full">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                    <label style="margin:0; font-size:11px; font-weight:800; color:var(--text-primary);">
+                        Destination Store (<span id="intakeSelectedDestLabel" style="color:var(--blue); font-weight:900;">G-01 Naivas Supermarket</span>)
+                    </label>
+                    <input type="hidden" id="intakeDestinationValue" value="G-01 Naivas Supermarket">
+                    <span style="font-size:10px; color:var(--text-muted); font-weight:700;">Tap floor then shop:</span>
                 </div>
-                <!-- 1-Tap Quick Pills -->
-                <div class="intake-pills-row" id="intakePillsContainer">
-                    <button type="button" class="dest-pill-btn" onclick="selectIntakePill('Naivas Supermarket', this)">🛒 Naivas</button>
-                    <button type="button" class="dest-pill-btn" onclick="selectIntakePill('NCBA Bank', this)">🏦 Bank / ATM</button>
-                    <button type="button" class="dest-pill-btn" onclick="selectIntakePill('Food Court', this)">🍔 Food Court</button>
-                    <button type="button" class="dest-pill-btn" onclick="selectIntakePill('Java House', this)">☕ Java House</button>
-                    <button type="button" class="dest-pill-btn" onclick="selectIntakePill('Level 1 Retail', this)">Level 1</button>
-                    <button type="button" class="dest-pill-btn" onclick="selectIntakePill('Level 2 Retail', this)">Level 2</button>
-                    <button type="button" class="dest-pill-btn" onclick="selectIntakePill('Mombasa Mall', this)">Other</button>
+
+                <!-- Floor Level Tabs: Ground, 1st, 2nd, 3rd, Basement -->
+                <div class="intake-floor-tabs" id="intakeFloorTabs">
+                    <button type="button" class="intake-floor-tab active" data-floor="Ground Floor" onclick="switchIntakeFloor('Ground Floor', this)">
+                        Ground Floor
+                    </button>
+                    <button type="button" class="intake-floor-tab" data-floor="1st Floor" onclick="switchIntakeFloor('1st Floor', this)">
+                        1st Floor
+                    </button>
+                    <button type="button" class="intake-floor-tab" data-floor="2nd Floor" onclick="switchIntakeFloor('2nd Floor', this)">
+                        2nd Floor
+                    </button>
+                    <button type="button" class="intake-floor-tab" data-floor="3rd Floor" onclick="switchIntakeFloor('3rd Floor', this)">
+                        3rd Floor
+                    </button>
+                    <button type="button" class="intake-floor-tab" data-floor="Basement" onclick="switchIntakeFloor('Basement', this)">
+                        Basement
+                    </button>
                 </div>
-                <!-- Dropdown for all mall stores -->
-                <select id="intakeDestSelect" class="card-dest-select" style="margin-top:8px;">
-                    <!-- Populated dynamically -->
-                </select>
+
+                <!-- Outlined Shops Available on Clicked Floor -->
+                <div class="intake-shops-grid" id="intakeShopsGrid">
+                    <!-- Populated dynamically upon clicking floor -->
+                </div>
             </div>
         </div>
 
