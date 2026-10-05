@@ -103,6 +103,9 @@ $user = require_role(['supervisor', 'admin'], false);
                 <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
             </a>
         </div>
+        <div style="padding:10px 14px; font-size:10px; color:#64748b; text-align:center; border-top:1px solid #1e293b;">
+            System Powered by <a href="https://dpinc.top" target="_blank" rel="noopener" style="color:#38bdf8; text-decoration:none; font-weight:700;">DataPort.inc (dpinc.top)</a>
+        </div>
     </aside>
 
     <!-- Sidebar Backdrop for Mobile -->

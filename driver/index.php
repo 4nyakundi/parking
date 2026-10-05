@@ -186,30 +186,175 @@
         .btn-submit:hover    { background: var(--blue-hover); }
         .btn-submit:disabled { opacity: 0.45; cursor: not-allowed; }
 
+        /* Parking Policy Banner on Form */
+        .parking-policy-banner {
+            margin: 14px 20px 0;
+            background: #fffdf5;
+            border: 1px solid #fed7aa;
+            border-left: 4px solid #ea580c;
+            border-radius: 6px;
+            padding: 12px 14px;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            text-align: left;
+        }
+        .policy-badge-icon {
+            color: #ea580c;
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+        .policy-badge-icon svg { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 2.2; }
+        .policy-text-area { flex: 1; min-width: 0; }
+        .policy-text-area .policy-title {
+            font-size: 12px;
+            font-weight: 800;
+            color: #9a3412;
+            letter-spacing: 0.02em;
+            margin-bottom: 2px;
+        }
+        .policy-text-area .policy-desc {
+            font-size: 11.5px;
+            color: #7c2d12;
+            line-height: 1.45;
+            margin: 0;
+        }
+
         /* Success screen */
-        .success-panel { display: none; padding: 32px 24px; text-align: center; }
+        .success-panel { display: none; padding: 28px 22px; text-align: center; }
         .success-panel.show { display: block; }
         .success-icon {
-            width: 58px; height: 58px; border-radius: 50%;
+            width: 56px; height: 56px; border-radius: 50%;
             border: 2px solid var(--green-lt); background: var(--green-dim);
             color: var(--green-lt); display: inline-flex;
-            align-items: center; justify-content: center; margin-bottom: 14px;
+            align-items: center; justify-content: center; margin-bottom: 12px;
         }
         .success-icon svg { width: 28px; height: 28px; stroke: var(--green-lt); fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+        .success-title {
+            font-size: 13px; font-weight: 800; text-transform: uppercase;
+            letter-spacing: 0.1em; color: var(--green-lt); margin-bottom: 6px;
+        }
         .success-plate {
             font-size: 26px; font-weight: 900; color: var(--blue);
             background: #eef5fc; padding: 4px 18px;
             border-radius: 6px; letter-spacing: 3px;
             border: 2px solid var(--blue-mid); display: inline-block;
-            margin: 10px 0 16px; font-family: 'Courier New', monospace;
+            margin: 8px 0 16px; font-family: 'Courier New', monospace;
         }
         .info-block {
             background: #f0f6fc; border: 1px solid var(--border);
             border-left: 3px solid var(--blue); border-radius: 0 6px 6px 0;
-            padding: 14px 16px; text-align: left; margin-bottom: 20px;
+            padding: 12px 14px; text-align: left; margin-bottom: 14px;
         }
-        .info-block .label { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.12em; color: var(--text-mut); margin-bottom: 4px; }
-        .info-block p { font-size: 13px; color: var(--text); font-weight: 600; line-height: 1.5; }
+        .info-block .label { font-size: 9.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.12em; color: var(--blue); margin-bottom: 4px; display: flex; align-items: center; gap: 6px; }
+        .info-block p { font-size: 12.5px; color: var(--text); font-weight: 600; line-height: 1.5; margin: 0; }
+
+        /* Policy & Penalty Warning Card */
+        .policy-card {
+            background: #fffdf5;
+            border: 1px solid #fed7aa;
+            border-left: 4px solid #ea580c;
+            border-radius: 6px;
+            padding: 12px 14px;
+            text-align: left;
+            margin-bottom: 14px;
+        }
+        .policy-card-title {
+            font-size: 11px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: #c2410c;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 8px;
+        }
+        .policy-card-title svg { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 2.2; flex-shrink: 0; }
+        .policy-rules-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 7px;
+        }
+        .policy-rules-list li {
+            font-size: 12px;
+            color: #431407;
+            line-height: 1.45;
+            position: relative;
+            padding-left: 16px;
+        }
+        .policy-rules-list li::before {
+            content: "•";
+            position: absolute;
+            left: 2px;
+            top: -1px;
+            font-size: 16px;
+            color: #ea580c;
+            font-weight: 900;
+        }
+        .policy-rules-list li strong {
+            color: #9a3412;
+            font-weight: 700;
+        }
+
+        /* Facility / Additional Info Card */
+        .facility-info-card {
+            background: #f8fafc;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 10px 14px;
+            text-align: left;
+            margin-bottom: 14px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+        .fac-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 11px;
+            color: var(--text-sub);
+            font-weight: 600;
+        }
+        .fac-item svg {
+            width: 14px; height: 14px; stroke: var(--blue); fill: none; stroke-width: 2; flex-shrink: 0;
+        }
+
+        /* Powered by badge */
+        .powered-by-box {
+            background: linear-gradient(135deg, #f8fafc 0%, #edf2f7 100%);
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            padding: 9px 14px;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            font-size: 11.5px;
+            color: var(--text-sub);
+        }
+        .powered-by-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            color: var(--blue);
+            font-weight: 800;
+            text-decoration: none;
+            transition: color 0.15s;
+        }
+        .powered-by-link:hover {
+            color: #0c4a6e;
+            text-decoration: underline;
+        }
+        .powered-by-link svg {
+            width: 12px; height: 12px; stroke: currentColor; fill: none; stroke-width: 2.2;
+        }
+
         .btn-again {
             width: 100%; background: transparent; border: 1px solid var(--border);
             color: var(--text-sub); border-radius: 6px; height: 44px;
@@ -223,10 +368,15 @@
 
         .sys-footer {
             background: #fff; border-top: 1px solid var(--border);
-            padding: 10px 20px; text-align: center;
+            padding: 12px 20px; text-align: center;
             font-size: 11px; color: var(--text-mut); font-weight: 600;
             flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
         }
+        .sys-footer a { color: var(--blue); font-weight: 700; text-decoration: none; }
+        .sys-footer a:hover { text-decoration: underline; }
 
         @media (max-width: 540px) {
             .sys-header { padding: 0 12px; height: 48px; gap: 8px; }
@@ -241,6 +391,7 @@
             .form-card-header img { height: 28px; }
             .form-card-header-text h2 { font-size: 14.5px; }
             .form-card-header-text p { font-size: 9.5px; }
+            .parking-policy-banner { margin: 10px 14px 0; }
             .form-body { padding: 16px 14px; gap: 12px; }
 
             .field-row { grid-template-columns: 1fr; gap: 12px; }
@@ -257,6 +408,7 @@
             }
             .btn-submit { height: 48px; font-size: 12.5px; }
             .success-plate { font-size: 22px; letter-spacing: 2px; padding: 4px 14px; }
+            .facility-info-card { grid-template-columns: 1fr; gap: 6px; }
         }
     </style>
 </head>
@@ -282,6 +434,21 @@
             </div>
 
             <input type="text" id="hpWebsite" name="hp_website" class="hp-field" tabindex="-1" autocomplete="off">
+
+            <!-- Parking Duration & Penalty Policy Notice -->
+            <div class="parking-policy-banner">
+                <div class="policy-badge-icon">
+                    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                </div>
+                <div class="policy-text-area">
+                    <div class="policy-title">Free Customer Parking &mdash; Limited to 2.5 Hours</div>
+                    <p class="policy-desc">
+                        Parking is complimentary for up to <strong>2.5 hours (150 minutes)</strong>.
+                        <strong>Extension beyond 2.5 hours may lead to penalty fees.</strong>
+                        Please collect your printed ticket from the guard booth and keep it safe for exit.
+                    </p>
+                </div>
+            </div>
 
             <form id="driverForm" onsubmit="return false;">
                 <div class="form-body">
@@ -356,15 +523,71 @@
                 <div class="success-icon">
                     <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
                 </div>
-                <div style="font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:0.1em; color:var(--green-lt); margin-bottom:6px;">
+                <div class="success-title">
                     Sign-In Submitted Successfully
                 </div>
                 <div id="successPlate" class="success-plate">KDA 123A</div>
+
+                <!-- Next Step -->
                 <div class="info-block">
-                    <div class="label">Next Step</div>
-                    <p>Your vehicle is now in the queue for guard approval.
-                       Please proceed to the Security Guard booth to collect your printed parking ticket.</p>
+                    <div class="label">
+                        <svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" fill="none" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+                        Next Step &mdash; Gate Entry
+                    </div>
+                    <p>Your vehicle is now queued for security verification. Please proceed to the <strong>Security Guard booth</strong> at the entrance boom barrier to collect your printed parking ticket.</p>
                 </div>
+
+                <!-- Critical Parking Regulations & Penalty Warning -->
+                <div class="policy-card">
+                    <div class="policy-card-title">
+                        <svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                        Important Parking Regulations &amp; Time Limit
+                    </div>
+                    <ul class="policy-rules-list">
+                        <li>
+                            <strong>Free Parking Limit:</strong> Customer parking is strictly limited to <strong>2.5 Hours (150 Minutes)</strong> from time of entry.
+                        </li>
+                        <li>
+                            <strong>Overstay Penalty:</strong> <strong>Extension beyond the 2.5-hour limit may lead to penalty fees</strong> or vehicle wheel clamping as per Mombasa Mall regulations.
+                        </li>
+                        <li>
+                            <strong>Ticket Retention:</strong> Retain your printed ticket at all times. Lost tickets are subject to a standard lost-ticket penalty fee plus verification of vehicle ownership.
+                        </li>
+                        <li>
+                            <strong>Exit Boom Gate:</strong> Present your printed ticket to the security officer at the exit gate for verification before departing.
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- Facility & Additional Info -->
+                <div class="facility-info-card">
+                    <div class="fac-item">
+                        <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                        <span>24/7 CCTV Monitored Facility</span>
+                    </div>
+                    <div class="fac-item">
+                        <svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                        <span>Security Desk at Basement Level</span>
+                    </div>
+                    <div class="fac-item">
+                        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                        <span>Mall Hours: 08:00 &ndash; 22:00 Daily</span>
+                    </div>
+                    <div class="fac-item">
+                        <svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                        <span>Kenya DPA 2019 Compliant</span>
+                    </div>
+                </div>
+
+                <!-- Powered by DataPort.inc -->
+                <div class="powered-by-box">
+                    <span>System Powered by</span>
+                    <a href="https://dpinc.top" target="_blank" rel="noopener" class="powered-by-link">
+                        DataPort.inc (dpinc.top)
+                        <svg viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                    </a>
+                </div>
+
                 <button class="btn-again" onclick="resetForm()">Sign In Another Vehicle</button>
             </div>
 
@@ -372,7 +595,8 @@
     </div>
 
     <footer class="sys-footer">
-        Mombasa Mall Basement Parking &mdash; Jomo Kenyatta Avenue, Mombasa &mdash; Kenya Data Protection Act 2019 Compliant
+        <div>Mombasa Mall Basement Parking &mdash; Jomo Kenyatta Avenue, Mombasa &mdash; Kenya Data Protection Act 2019 Compliant</div>
+        <div>System Powered by <a href="https://dpinc.top" target="_blank" rel="noopener">DataPort.inc (dpinc.top)</a></div>
     </footer>
 
     <script src="../assets/vendor/gsap/gsap.min.js"></script>

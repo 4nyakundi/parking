@@ -231,6 +231,11 @@
             </button>
         </div>
 
+        <!-- System Branding -->
+        <div style="padding:10px 12px; font-size:10.5px; color:var(--text-muted); text-align:center; border-top:1px solid var(--border);">
+            System Powered by <a href="https://dpinc.top" target="_blank" rel="noopener" style="color:var(--amber); text-decoration:none; font-weight:700;">DataPort.inc (dpinc.top)</a>
+        </div>
+
     </aside>
 
     <!-- RIGHT MAIN CONTENT -->
@@ -641,7 +646,8 @@
                     <span class="t-value" id="rcptTimeOut">15:38:05 &bull; 05/10/2026</span>
                 </div>
                 <div class="timing-notice">
-                    ★ FREE customer parking within 2.5 hours limit.
+                    ★ FREE customer parking within 2.5 hours limit.<br>
+                    <strong>Extension beyond 2.5 hours is subject to penalty fees.</strong>
                 </div>
             </div>
 
@@ -650,8 +656,11 @@
             <div class="slip-footer">
                 <div class="slip-warning">KEEP THIS TICKET SAFE</div>
                 <div>Customer permitted 2.5 hrs within mall.</div>
+                <div style="font-weight:700; color:#b91c1c; margin:2px 0;">Extension / overstay is subject to penalty.</div>
                 <div>Present ticket to security guard upon exit.</div>
                 <div class="slip-thanks">Asante kwa Kutembelea Mombasa Mall!</div>
+                <div class="slip-dash-line" style="margin:6px 0;">--------------------------------</div>
+                <div style="font-size:10px; color:#475569; font-weight:700;">System Powered by DataPort.inc (dpinc.top)</div>
             </div>
         </div>
 

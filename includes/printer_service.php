@@ -142,6 +142,7 @@ class PrinterService
             $printer->text("EXPECTED OUT : " . date('d/m/Y H:i:s', $expectedOutTs) . "\n");
             $printer->text("Gate Guard   : " . ($session['guard_name'] ?? 'Gate Officer') . "\n");
             $printer->text("Parking Fee  : FREE (Within 2.5 Hrs)\n");
+            $printer->text("OVERSTAY     : Penalty applies > 2.5h\n");
             $printer->text("--------------------------------\n");
 
             // Footer instructions
@@ -150,8 +151,11 @@ class PrinterService
             $printer->text("KEEP THIS TICKET SAFE\n");
             $printer->setEmphasis(false);
             $printer->text("Customer permitted 2.5 hrs within mall.\n");
+            $printer->text("Extension beyond 2.5h attracts penalty!\n");
             $printer->text("Present ticket to security upon exit.\n");
-            $printer->text("Asante kwa Kutembelea Mombasa Mall!\n\n");
+            $printer->text("Asante kwa Kutembelea Mombasa Mall!\n");
+            $printer->text("--------------------------------\n");
+            $printer->text("Powered by DataPort.inc (dpinc.top)\n\n");
 
             // Cut paper
             $printer->cut();
