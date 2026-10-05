@@ -368,12 +368,67 @@ function switchTab(tabName) {
 }
 
 // --------------------------------------------------------------------
-// Short Polling (Every 2 seconds)
+// Short Polling (Every 2 seconds) + Cloud Firestore Real-time Sync
 // --------------------------------------------------------------------
 function startPolling() {
     if (STATE.pollTimer) clearInterval(STATE.pollTimer);
     runPoll();
     STATE.pollTimer = setInterval(runPoll, 2000);
+    initFirestoreSync();
+}
+
+function initFirestoreSync() {
+    if (STATE.firestoreUnsubscribe) return;
+    if (window.firebaseBridge && typeof window.firebaseBridge.listenPendingRequests === 'function') {
+        STATE.firestoreUnsubscribe = window.firebaseBridge.listenPendingRequests((cloudRequests) => {
+            if (Array.isArray(cloudRequests)) {
+                handleCloudRequests(cloudRequests);
+            }
+        });
+        console.log('[Guard] Real-time Cloud Firestore listener connected.');
+    } else {
+        setTimeout(initFirestoreSync, 1200);
+    }
+}
+
+function handleCloudRequests(cloudRequests) {
+    if (!cloudRequests || cloudRequests.length === 0) return;
+    STATE.pendingRequestsMap = STATE.pendingRequestsMap || {};
+
+    cloudRequests.forEach(cr => {
+        const key = `fb_${cr.firestore_id}`;
+        // Check if vehicle plate is already queued
+        let alreadyExists = false;
+        for (const id in STATE.pendingRequestsMap) {
+            const existing = STATE.pendingRequestsMap[id];
+            if (existing && existing.plate_number === cr.plate_number) {
+                alreadyExists = true;
+                if (!existing.firestore_id) existing.firestore_id = cr.firestore_id;
+                break;
+            }
+        }
+
+        if (!alreadyExists) {
+            const item = {
+                id: key,
+                request_id: key,
+                firestore_id: cr.firestore_id,
+                plate_number: cr.plate_number,
+                formatted_plate: cr.formatted_plate || cr.plate_number,
+                driver_name: cr.driver_name || 'Visitor',
+                driver_phone: cr.driver_phone || '',
+                destination: cr.destination || 'Mombasa Mall',
+                source: 'cloud_mobile',
+                alpr_verified: false,
+                category: 'regular',
+                wait_text: 'Mobile Check-In'
+            };
+            STATE.pendingRequestsMap[key] = item;
+            prependPendingCard(item);
+            playDingSound();
+            logActivity(`☁️ Mobile Check-In: ${item.formatted_plate} (${item.destination})`, 'ok');
+        }
+    });
 }
 
 async function runPoll() {
@@ -388,6 +443,11 @@ async function runPoll() {
             // Update Occupancy Counters
             if (data.stats) {
                 updateOccupancyDisplay(data.stats);
+
+                // Sync occupancy telemetry to Google Cloud Firestore
+                if (window.firebaseBridge && typeof window.firebaseBridge.updateOccupancyTelemetry === 'function') {
+                    window.firebaseBridge.updateOccupancyTelemetry(data.stats);
+                }
             }
 
             // Process New Events
@@ -643,6 +703,7 @@ function createPendingCardElement(item) {
                 <div class="card-plate">${escapeHtml(item.formatted_plate)}</div>
                 <div class="card-meta-row">
                     ${item.source === 'alpr_camera' ? `<span class="cam-source-badge">📷 CAMERA</span>` : ''}
+                    ${(item.source === 'cloud_mobile' || item.source === 'firebase_web') ? `<span class="cam-source-badge" style="background:#0284c7;color:#fff;">☁️ MOBILE SIGN-IN</span>` : ''}
                     ${item.alpr_verified ? `<span class="badge-verified">✓ ${t('verified_badge')}</span>` : ''}
                 </div>
                 ${alertBadge}
@@ -906,12 +967,18 @@ async function submitIntakeFromModal() {
     if (btnAccept) btnAccept.disabled = true;
     if (btnText) btnText.textContent = 'Printing Ticket...';
 
+    const pendingItem = (STATE.pendingRequestsMap && STATE.pendingRequestsMap[requestId]) || null;
+    const isNumericId = typeof requestId === 'number' || (/^\d+$/.test(String(requestId)));
+    const plateEl = document.getElementById('intakePlateDisplay');
+    const plateVal = pendingItem ? (pendingItem.plate_number || pendingItem.formatted_plate) : (plateEl ? plateEl.textContent : '');
+
     try {
         const res = await fetch('../api/gate/approve-session.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                request_id: requestId,
+                request_id: isNumericId ? parseInt(requestId, 10) : 0,
+                plate_number: plateVal,
                 driver_name: name || 'Visitor',
                 driver_phone: phone,
                 destination: dest || 'Mombasa Mall',
@@ -921,6 +988,11 @@ async function submitIntakeFromModal() {
 
         if (json.ok) {
             playSuccessChime();
+
+            // Notify Cloud Firestore if this was a remote cloud sign-in
+            if (pendingItem && pendingItem.firestore_id && window.firebaseBridge && typeof window.firebaseBridge.admitDriverRequest === 'function') {
+                window.firebaseBridge.admitDriverRequest(pendingItem.firestore_id, json.data.ticket_id);
+            }
 
             closeVehicleIntakeModal();
 
@@ -938,7 +1010,7 @@ async function submitIntakeFromModal() {
             // Update stats
             runPoll();
 
-            // Display on-screen printable thermal receipt with 2.5-hour stay limit
+            // Display on-screen printable thermal receipt
             showReceiptModal(json.data);
         } else {
             if (btnAccept) btnAccept.disabled = false;

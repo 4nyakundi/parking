@@ -1,0 +1,76 @@
+rules_version = '2';
+
+// ===============================================================
+// Assumed Data Model
+// ===============================================================
+//
+// Collection: driver_requests
+// Document ID: auto-generated document ID
+// Fields:
+//   - plate_number: string (required, 5-12 chars, uppercase alphanumeric)
+//   - formatted_plate: string (required, 5-14 chars)
+//   - driver_name: string (required, 2-100 chars)
+//   - driver_phone: string (required, 9-16 chars)
+//   - destination: string (required, 2-100 chars)
+//   - status: string (required, 'PENDING', 'ADMITTED', 'REJECTED')
+//   - source: string (required, e.g. 'firebase_web')
+//   - created_at: string (optional, ISO string)
+//   - server_timestamp: timestamp (required on create)
+//
+// Collection: parking_telemetry
+// Document ID: 'live' or mall ID
+// Fields:
+//   - capacity: int (required, e.g. 60)
+//   - occupied: int (required)
+//   - available: int (required)
+//   - updated_at: timestamp
+//
+// ===============================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Default deny for all unspecified collections
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper Functions
+    function isValidDriverRequest(data) {
+      return data.keys().hasAll(['plate_number', 'driver_name', 'driver_phone', 'destination', 'status'])
+        && data.plate_number is string && data.plate_number.size() >= 5 && data.plate_number.size() <= 12
+        && data.driver_name is string && data.driver_name.size() >= 2 && data.driver_name.size() <= 100
+        && data.driver_phone is string && data.driver_phone.size() >= 9 && data.driver_phone.size() <= 16
+        && data.destination is string && data.destination.size() >= 2 && data.destination.size() <= 100
+        && data.status in ['PENDING', 'ADMITTED', 'REJECTED'];
+    }
+
+    // Public Driver Self Sign-In Intake & Guard Synchronization
+    match /driver_requests/{requestId} {
+      // Allow creation of new pending visitor requests from public driver portal
+      allow create: if isValidDriverRequest(request.resource.data)
+                    && request.resource.data.status == 'PENDING';
+
+      // Allow reading and listening to incoming requests for gate guard intake
+      allow read: if true;
+
+      // Allow guard station to update request status (e.g. from PENDING to ADMITTED or REJECTED)
+      // Core driver identity fields remain immutable
+      allow update: if isValidDriverRequest(request.resource.data)
+                    && request.resource.data.plate_number == resource.data.plate_number
+                    && request.resource.data.driver_phone == resource.data.driver_phone
+                    && request.resource.data.status in ['ADMITTED', 'REJECTED'];
+
+      // Deletions are forbidden to preserve security audit logs
+      allow delete: if false;
+    }
+
+    // Live Parking Occupancy Telemetry
+    match /parking_telemetry/{docId} {
+      allow read: if true;
+      allow write: if request.resource.data.capacity is int
+                   && request.resource.data.occupied is int
+                   && request.resource.data.available is int;
+    }
+  }
+}
