@@ -162,6 +162,44 @@ document.addEventListener('DOMContentLoaded', () => {
             searchExitSessions(exitSearch.value.trim());
         }, 300));
     }
+
+    // 10. Vehicle Intake Modal Listeners
+    const intakeDestSelect = document.getElementById('intakeDestSelect');
+    if (intakeDestSelect) {
+        intakeDestSelect.addEventListener('change', () => {
+            syncIntakePillsHighlight(intakeDestSelect.value);
+        });
+    }
+
+    ['intakeDriverName', 'intakeDriverPhone'].forEach(id => {
+        const inputEl = document.getElementById(id);
+        if (inputEl) {
+            inputEl.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    submitIntakeFromModal();
+                }
+            });
+        }
+    });
+
+    const intakeModal = document.getElementById('vehicleIntakeModal');
+    if (intakeModal) {
+        intakeModal.addEventListener('click', (e) => {
+            if (e.target === intakeModal) {
+                closeVehicleIntakeModal();
+            }
+        });
+    }
+
+    // Global ESC key listener to dismiss open modals
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            if (intakeModal && intakeModal.classList.contains('open')) {
+                closeVehicleIntakeModal();
+            }
+        }
+    });
 });
 
 function updateClock() {
@@ -497,6 +535,8 @@ async function loadPendingRequests() {
         const grid = document.getElementById('pendingCardsGrid');
         if (!grid) return;
 
+        STATE.pendingRequestsMap = STATE.pendingRequestsMap || {};
+
         if (!json.ok || !json.data || json.data.length === 0) {
             grid.innerHTML = `<div style="grid-column: 1/-1; text-align:center; padding:60px; color:#64748b; font-size:22px;">
                 ${t('no_pending')}
@@ -506,12 +546,14 @@ async function loadPendingRequests() {
 
         grid.innerHTML = '';
         json.data.forEach(item => {
+            const reqId = item.id || item.request_id;
+            STATE.pendingRequestsMap[reqId] = item;
             grid.appendChild(createPendingCardElement(item));
         });
 
         // Stagger animation with GSAP
         if (window.gsap) {
-            gsap.from('.car-card', { opacity: 0, y: 30, duration: 0.4, stagger: 0.08 });
+            gsap.from('.car-card', { opacity: 0, y: 20, duration: 0.35, stagger: 0.05 });
         }
     } catch (e) {
         console.error('Error loading pending requests:', e);
@@ -527,11 +569,15 @@ function prependPendingCard(item) {
         grid.innerHTML = '';
     }
 
+    STATE.pendingRequestsMap = STATE.pendingRequestsMap || {};
+    const reqId = item.id || item.request_id;
+    STATE.pendingRequestsMap[reqId] = item;
+
     const card = createPendingCardElement(item);
     grid.prepend(card);
 
     if (window.gsap) {
-        gsap.from(card, { scale: 0.8, opacity: 0, duration: 0.4, ease: "back.out(1.7)" });
+        gsap.from(card, { scale: 0.85, opacity: 0, duration: 0.35, ease: "back.out(1.5)" });
     }
 }
 
@@ -548,28 +594,167 @@ function escapeHtml(str) {
 function createPendingCardElement(item) {
     const card = document.createElement('div');
     const reqId = item.id || item.request_id;
+    STATE.pendingRequestsMap = STATE.pendingRequestsMap || {};
+    STATE.pendingRequestsMap[reqId] = item;
+
     card.className = `car-card ${item.alpr_verified ? 'verified' : ''} ${item.category === 'blacklisted' ? 'blacklisted' : ''} ${item.category === 'vip' ? 'vip' : ''}`;
     card.id = `req-card-${reqId}`;
     card.setAttribute('data-plate', item.plate_number);
+    card.setAttribute('data-req-id', reqId);
+    card.setAttribute('tabindex', '0');
+    card.setAttribute('role', 'button');
+    card.setAttribute('aria-label', `Vehicle ${item.formatted_plate}, tap to admit`);
+    card.onclick = () => openVehicleIntakeModal(reqId);
+    card.onkeydown = (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            openVehicleIntakeModal(reqId);
+        }
+    };
 
     let alertBadge = '';
     if (item.category === 'blacklisted') {
         alertBadge = `<div class="badge-alert">⚠️ ${t('blacklisted_alert')}: ${escapeHtml(item.category_notes || 'DO NOT ADMIT')}</div>`;
     } else if (item.category === 'vip') {
-        alertBadge = `<div class="badge-alert" style="background:#7c3aed;">⭐ ${t('vip_alert')}</div>`;
+        alertBadge = `<div class="badge-alert" style="background:#7c3aed;color:#fff;">⭐ ${t('vip_alert')}</div>`;
     }
 
-    const currentDriver = (item.driver_name && item.driver_name !== 'Visitor') ? item.driver_name : 'Visitor';
-    const currentPhone  = item.raw_phone || item.driver_phone || '';
-    const currentDest   = item.destination || 'Mombasa Mall';
-
-    // Snapshot preview thumbnail if available
+    // Snapshot preview thumbnail or placeholder
     let snapHtml = '';
     if (item.snapshot_url) {
-        snapHtml = `<img src="../${item.snapshot_url}" class="card-snap-thumb" alt="Camera Snapshot" title="Click to view full photo" onclick="window.open('../${item.snapshot_url}', '_blank')">`;
+        snapHtml = `<img src="../${item.snapshot_url}" class="card-snap-thumb" alt="Camera Snapshot" loading="lazy">`;
+    } else {
+        snapHtml = `<div class="card-snap-thumb" style="display:flex;align-items:center;justify-content:center;color:#64748b;">
+            <svg class="i-icon" style="width:28px;height:28px;" viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+        </div>`;
     }
 
-    // Prepare destination options from loaded mall store directory
+    card.innerHTML = `
+        <div class="car-card-main">
+            ${snapHtml}
+            <div class="card-plate-col">
+                <div class="card-plate">${escapeHtml(item.formatted_plate)}</div>
+                <div class="card-meta-row">
+                    ${item.source === 'alpr_camera' ? `<span class="cam-source-badge">📷 CAMERA</span>` : ''}
+                    ${item.alpr_verified ? `<span class="badge-verified">✓ ${t('verified_badge')}</span>` : ''}
+                </div>
+                ${alertBadge}
+            </div>
+        </div>
+        <div class="card-footer-strip">
+            <span class="card-wait-text">⏱️ ${escapeHtml(item.wait_text || 'Just now')}</span>
+            <span class="card-tap-cta">
+                Tap to Admit
+                <svg class="i-icon" style="width:12px;height:12px;display:inline;" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+            </span>
+        </div>
+    `;
+
+    return card;
+}
+
+// --------------------------------------------------------------------
+// Vehicle Intake Popup Modal (Tap-to-Fill for Guards)
+// --------------------------------------------------------------------
+STATE.currentIntakeReqId = null;
+
+function openVehicleIntakeModal(requestId) {
+    const item = (STATE.pendingRequestsMap && STATE.pendingRequestsMap[requestId]) || null;
+    if (!item) {
+        acceptWithQuickDetails(requestId);
+        return;
+    }
+
+    STATE.currentIntakeReqId = requestId;
+
+    // Set plate
+    const plateEl = document.getElementById('intakePlateDisplay');
+    if (plateEl) plateEl.textContent = item.formatted_plate || item.plate_number;
+
+    // Set snapshot
+    const snapImg = document.getElementById('intakeSnapImg');
+    const snapWrap = document.getElementById('intakeSnapWrapper');
+    if (snapImg && snapWrap) {
+        if (item.snapshot_url) {
+            snapImg.src = '../' + item.snapshot_url;
+            snapWrap.style.display = 'block';
+        } else {
+            snapWrap.style.display = 'none';
+        }
+    }
+
+    // Set badges
+    const srcBadge = document.getElementById('intakeSourceBadge');
+    if (srcBadge) srcBadge.style.display = (item.source === 'alpr_camera') ? 'inline-flex' : 'none';
+
+    const verBadge = document.getElementById('intakeVerifiedBadge');
+    if (verBadge) verBadge.style.display = item.alpr_verified ? 'inline-block' : 'none';
+
+    const timeAgo = document.getElementById('intakeTimeAgo');
+    if (timeAgo) timeAgo.textContent = item.wait_text || 'Just now';
+
+    // Alerts
+    const alertEl = document.getElementById('intakeAlertBanner');
+    if (alertEl) {
+        if (item.category === 'blacklisted') {
+            alertEl.style.display = 'block';
+            alertEl.className = 'badge-alert';
+            alertEl.textContent = `⚠️ BLACKLISTED: ${item.category_notes || 'DO NOT ADMIT'}`;
+        } else if (item.category === 'vip') {
+            alertEl.style.display = 'block';
+            alertEl.className = 'badge-alert';
+            alertEl.style.background = '#7c3aed';
+            alertEl.style.color = '#fff';
+            alertEl.textContent = `⭐ VIP GUEST`;
+        } else {
+            alertEl.style.display = 'none';
+        }
+    }
+
+    // Driver Name & Phone
+    const nameIn  = document.getElementById('intakeDriverName');
+    const phoneIn = document.getElementById('intakeDriverPhone');
+    if (nameIn) {
+        nameIn.value = (item.driver_name && item.driver_name !== 'Visitor') ? item.driver_name : 'Visitor';
+    }
+    if (phoneIn) {
+        phoneIn.value = item.raw_phone || item.driver_phone || '';
+    }
+
+    // Destinations
+    populateIntakeDestinations(item.destination || 'Naivas Supermarket');
+
+    // Reset button state
+    const btnAccept = document.getElementById('btnIntakeAccept');
+    const btnText   = document.getElementById('btnIntakeAcceptText');
+    if (btnAccept) {
+        btnAccept.disabled = false;
+    }
+    if (btnText) {
+        btnText.textContent = 'ACCEPT & PRINT TICKET';
+    }
+
+    // Open Modal
+    const modal = document.getElementById('vehicleIntakeModal');
+    if (modal) {
+        modal.classList.add('open');
+        playDingSound();
+        if (window.gsap) {
+            gsap.fromTo('.intake-modal-box', { scale: 0.93, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.2, ease: 'power2.out' });
+        }
+        setTimeout(() => {
+            if (nameIn) {
+                nameIn.focus();
+                nameIn.select();
+            }
+        }, 120);
+    }
+}
+
+function populateIntakeDestinations(selectedDest) {
+    const sel = document.getElementById('intakeDestSelect');
+    if (!sel) return;
+
     const allDests = (STATE.destinations && STATE.destinations.length > 0) ? STATE.destinations : [
         { name: 'Naivas Supermarket', floor_level: 'Ground Floor' },
         { name: 'NCBA Bank', floor_level: 'Ground Floor' },
@@ -580,116 +765,160 @@ function createPendingCardElement(item) {
         { name: 'Basement Parking', floor_level: 'Basement' }
     ];
 
-    let destOptionsHtml = `<option value="Mombasa Mall">Mombasa Mall (General)</option>`;
+    sel.innerHTML = `<option value="Mombasa Mall">Mombasa Mall (General)</option>`;
+    let matched = false;
     allDests.forEach(d => {
-        const isSel = (currentDest.toLowerCase() === d.name.toLowerCase());
-        destOptionsHtml += `<option value="${escapeHtml(d.name)}" ${isSel ? 'selected' : ''}>${escapeHtml(d.name)}</option>`;
+        const isSel = (selectedDest && selectedDest.toLowerCase() === d.name.toLowerCase());
+        if (isSel) matched = true;
+        const opt = document.createElement('option');
+        opt.value = d.name;
+        opt.textContent = `${d.name} (${d.floor_level || 'Store'})`;
+        opt.selected = isSel;
+        sel.appendChild(opt);
     });
 
-    card.innerHTML = `
-        <div class="card-header">
-            <div style="display:flex; align-items:center; gap:10px;">
-                ${snapHtml}
-                <div>
-                    <div class="card-plate">${item.formatted_plate}</div>
-                    ${alertBadge}
-                </div>
-            </div>
-            <div style="text-align:right;">
-                ${item.source === 'alpr_camera' ? `<div class="cam-source-badge">📷 CAMERA</div>` : ''}
-                ${item.alpr_verified ? `<div class="badge-verified" style="margin-top:4px;">✓ ${t('verified_badge')}</div>` : `<div style="font-size:12px; color:var(--text-muted); margin-top:4px;">${item.wait_text || 'Just now'}</div>`}
-            </div>
-        </div>
+    if (selectedDest && !matched && selectedDest !== 'Mombasa Mall') {
+        const customOpt = new Option(selectedDest, selectedDest, true, true);
+        sel.add(customOpt);
+    }
 
-        <div class="card-quick-fill">
-            <div class="card-input-row">
-                <div class="card-field-group">
-                    <span class="card-field-label">Driver Name</span>
-                    <input type="text" class="card-quick-input" id="cardName_${reqId}" 
-                           value="${escapeHtml(currentDriver)}" placeholder="Driver Name (e.g. John)" autocomplete="off">
-                </div>
-                <div class="card-field-group">
-                    <span class="card-field-label">Mobile Number</span>
-                    <input type="tel" class="card-quick-input" id="cardPhone_${reqId}" 
-                           value="${escapeHtml(currentPhone)}" placeholder="07XX XXX XXX (Optional)" autocomplete="off">
-                </div>
-            </div>
-
-            <div class="card-field-group">
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <span class="card-field-label">Destination</span>
-                    <span style="font-size:10px; color:var(--text-muted); font-weight:700;">Tap quick pill or select:</span>
-                </div>
-                <div class="dest-pills-row">
-                    <button type="button" class="dest-pill-btn ${currentDest.includes('Naivas') ? 'active' : ''}" 
-                            onclick="selectCardPill(${reqId}, 'Naivas Supermarket', this)">🛒 Naivas</button>
-                    <button type="button" class="dest-pill-btn ${currentDest.includes('Bank') || currentDest.includes('NCBA') ? 'active' : ''}" 
-                            onclick="selectCardPill(${reqId}, 'NCBA Bank', this)">🏦 Bank / ATM</button>
-                    <button type="button" class="dest-pill-btn ${currentDest.includes('Food') ? 'active' : ''}" 
-                            onclick="selectCardPill(${reqId}, 'Food Court', this)">🍔 Food Court</button>
-                    <button type="button" class="dest-pill-btn" 
-                            onclick="selectCardPill(${reqId}, 'Level 1 Retail', this)">Level 1</button>
-                    <button type="button" class="dest-pill-btn" 
-                            onclick="selectCardPill(${reqId}, 'Level 2 Retail', this)">Level 2</button>
-                    <button type="button" class="dest-pill-btn ${currentDest === 'Mombasa Mall' ? 'active' : ''}" 
-                            onclick="selectCardPill(${reqId}, 'Mombasa Mall', this)">Other</button>
-                </div>
-                <select id="cardDest_${reqId}" class="card-dest-select" style="margin-top:5px;">
-                    ${destOptionsHtml}
-                </select>
-            </div>
-        </div>
-
-        <div class="card-actions">
-            <button class="btn-card-accept" onclick="acceptWithQuickDetails(${reqId})">
-                <svg class="i-icon" viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
-                ACCEPT &amp; PRINT TICKET
-            </button>
-            <button class="btn-card-reject" onclick="openRejectDialog(${reqId})">
-                ✕ Decline
-            </button>
-        </div>
-    `;
-
-    return card;
+    // Sync quick pills
+    syncIntakePillsHighlight(selectedDest);
 }
 
-function selectCardPill(reqId, destName, btnEl) {
-    const card = document.getElementById(`req-card-${reqId}`);
-    if (card) {
-        card.querySelectorAll('.dest-pill-btn').forEach(b => b.classList.remove('active'));
-        if (btnEl) btnEl.classList.add('active');
+function syncIntakePillsHighlight(destName) {
+    const container = document.getElementById('intakePillsContainer');
+    if (!container) return;
+    const destLower = (destName || '').toLowerCase();
+    container.querySelectorAll('.dest-pill-btn').forEach(btn => {
+        btn.classList.remove('active');
+        const pillText = btn.textContent.toLowerCase();
+        if (destLower.includes('naivas') && pillText.includes('naivas')) {
+            btn.classList.add('active');
+        } else if ((destLower.includes('bank') || destLower.includes('ncba')) && (pillText.includes('bank') || pillText.includes('ncba'))) {
+            btn.classList.add('active');
+        } else if (destLower.includes('food') && pillText.includes('food')) {
+            btn.classList.add('active');
+        } else if (destLower.includes('java') && pillText.includes('java')) {
+            btn.classList.add('active');
+        } else if (destLower.includes('level 1') && pillText.includes('level 1')) {
+            btn.classList.add('active');
+        } else if (destLower.includes('level 2') && pillText.includes('level 2')) {
+            btn.classList.add('active');
+        } else if ((destLower === 'mombasa mall' || destLower.includes('other')) && pillText.includes('other')) {
+            btn.classList.add('active');
+        }
+    });
+}
 
-        const sel = document.getElementById(`cardDest_${reqId}`);
-        if (sel) {
-            let found = false;
-            for (let i = 0; i < sel.options.length; i++) {
-                if (sel.options[i].value === destName) {
-                    sel.selectedIndex = i;
-                    found = true;
-                    break;
-                }
+function selectIntakePill(destName, btnEl) {
+    const container = document.getElementById('intakePillsContainer');
+    if (container) {
+        container.querySelectorAll('.dest-pill-btn').forEach(b => b.classList.remove('active'));
+    }
+    if (btnEl) btnEl.classList.add('active');
+
+    const sel = document.getElementById('intakeDestSelect');
+    if (sel) {
+        let found = false;
+        for (let i = 0; i < sel.options.length; i++) {
+            if (sel.options[i].value === destName) {
+                sel.selectedIndex = i;
+                found = true;
+                break;
             }
-            if (!found) {
-                const opt = new Option(destName, destName, true, true);
-                sel.add(opt);
-            }
+        }
+        if (!found) {
+            const opt = new Option(destName, destName, true, true);
+            sel.add(opt);
         }
     }
 }
 
-function markCardVerified(reqId) {
-    const card = document.getElementById(`req-card-${reqId}`);
-    if (card) {
-        card.classList.add('verified');
-        const badge = card.querySelector('.badge-verified');
-        if (!badge) {
-            const header = card.querySelector('.card-header');
-            const newBadge = document.createElement('div');
-            newBadge.className = 'badge-verified';
-            newBadge.innerHTML = `✓ ${t('verified_badge')}`;
-            header.appendChild(newBadge);
+function closeVehicleIntakeModal() {
+    const modal = document.getElementById('vehicleIntakeModal');
+    if (modal) {
+        modal.classList.remove('open');
+    }
+    STATE.currentIntakeReqId = null;
+}
+
+function declineCurrentIntake() {
+    const reqId = STATE.currentIntakeReqId;
+    closeVehicleIntakeModal();
+    if (reqId) {
+        openRejectDialog(reqId);
+    }
+}
+
+async function submitIntakeFromModal() {
+    const requestId = STATE.currentIntakeReqId;
+    if (!requestId) {
+        showToast('No vehicle selected for intake.');
+        return;
+    }
+
+    const nameIn  = document.getElementById('intakeDriverName');
+    const phoneIn = document.getElementById('intakeDriverPhone');
+    const destIn  = document.getElementById('intakeDestSelect');
+
+    const name  = nameIn ? nameIn.value.trim() : 'Visitor';
+    const phone = phoneIn ? phoneIn.value.trim() : '';
+    const dest  = destIn ? destIn.value.trim() : 'Mombasa Mall';
+
+    const btnAccept = document.getElementById('btnIntakeAccept');
+    const btnText   = document.getElementById('btnIntakeAcceptText');
+    if (btnAccept) btnAccept.disabled = true;
+    if (btnText) btnText.textContent = 'Printing Ticket...';
+
+    try {
+        const res = await fetch('../api/gate/approve-session.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                request_id: requestId,
+                driver_name: name || 'Visitor',
+                driver_phone: phone,
+                destination: dest || 'Mombasa Mall',
+            }),
+        });
+        const json = await res.json();
+
+        if (json.ok) {
+            playSuccessChime();
+
+            if (window.confetti) {
+                confetti({
+                    particleCount: 65,
+                    spread: 75,
+                    origin: { y: 0.6 }
+                });
+            }
+
+            closeVehicleIntakeModal();
+
+            if (json.data.print_status === 'printed') {
+                showToast(`✓ Ticket #${json.data.ticket_id} Printed for ${json.data.formatted_plate}`);
+            } else {
+                showToast(`✓ Ticket #${json.data.ticket_id} Saved (${json.data.formatted_plate})`, true, json.data.session_id);
+            }
+
+            removePendingCard(json.data.plate_number);
+            if (STATE.pendingRequestsMap) {
+                delete STATE.pendingRequestsMap[requestId];
+            }
+
+            // Update stats
+            runPoll();
+        } else {
+            if (btnAccept) btnAccept.disabled = false;
+            if (btnText) btnText.textContent = 'ACCEPT & PRINT TICKET';
+            showToast(json.error || 'Failed to approve session.');
         }
+    } catch (e) {
+        if (btnAccept) btnAccept.disabled = false;
+        if (btnText) btnText.textContent = 'ACCEPT & PRINT TICKET';
+        showToast('Network error while approving ticket.');
     }
 }
 
@@ -710,75 +939,30 @@ function removePendingCard(plate) {
     });
 }
 
-// --------------------------------------------------------------------
-// Accept & Print Action with Guard Details
-// --------------------------------------------------------------------
-async function acceptWithQuickDetails(requestId) {
-    const nameIn  = document.getElementById(`cardName_${requestId}`);
-    const phoneIn = document.getElementById(`cardPhone_${requestId}`);
-    const destIn  = document.getElementById(`cardDest_${requestId}`);
-
-    const name  = nameIn ? nameIn.value.trim() : '';
-    const phone = phoneIn ? phoneIn.value.trim() : '';
-    const dest  = destIn ? destIn.value.trim() : 'Mombasa Mall';
-
-    const card = document.getElementById(`req-card-${requestId}`);
-    const acceptBtn = card ? card.querySelector('.btn-card-accept') : null;
-    if (acceptBtn) {
-        acceptBtn.disabled = true;
-        acceptBtn.innerHTML = 'Printing Ticket...';
-    }
-
-    try {
-        const res = await fetch('../api/gate/approve-session.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                request_id: requestId,
-                driver_name: name || 'Visitor',
-                driver_phone: phone,
-                destination: dest || 'Mombasa Mall',
-            }),
-        });
-        const json = await res.json();
-
-        if (json.ok) {
-            playSuccessChime();
-
-            if (window.confetti) {
-                confetti({
-                    particleCount: 60,
-                    spread: 70,
-                    origin: { y: 0.6 }
-                });
+function markCardVerified(reqId) {
+    const card = document.getElementById(`req-card-${reqId}`);
+    if (card) {
+        card.classList.add('verified');
+        const badge = card.querySelector('.badge-verified');
+        if (!badge) {
+            const row = card.querySelector('.card-meta-row');
+            if (row) {
+                const newBadge = document.createElement('span');
+                newBadge.className = 'badge-verified';
+                newBadge.innerHTML = `✓ ${t('verified_badge')}`;
+                row.appendChild(newBadge);
             }
-
-            if (json.data.print_status === 'printed') {
-                showToast(`✓ Ticket #${json.data.ticket_id} Printed for ${json.data.formatted_plate}`);
-            } else {
-                showToast(`✓ Ticket #${json.data.ticket_id} Saved (${json.data.formatted_plate})`, true, json.data.session_id);
-            }
-
-            removePendingCard(json.data.plate_number);
-        } else {
-            if (acceptBtn) {
-                acceptBtn.disabled = false;
-                acceptBtn.innerHTML = `<svg class="i-icon" viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg> ACCEPT &amp; PRINT TICKET`;
-            }
-            showToast(json.error || 'Failed to approve session.');
         }
-    } catch (e) {
-        if (acceptBtn) {
-            acceptBtn.disabled = false;
-            acceptBtn.innerHTML = `<svg class="i-icon" viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg> ACCEPT &amp; PRINT TICKET`;
-        }
-        showToast('Network error while approving ticket.');
     }
 }
 
 // Legacy alias
+function acceptWithQuickDetails(requestId) {
+    openVehicleIntakeModal(requestId);
+}
+
 function acceptAndPrint(requestId) {
-    acceptWithQuickDetails(requestId);
+    openVehicleIntakeModal(requestId);
 }
 
 // --------------------------------------------------------------------
@@ -808,12 +992,8 @@ async function triggerCameraPlateFetch() {
                 showToast(`✓ Camera detected plate: ${json.data.formatted_plate}`);
                 await loadPendingRequests();
                 setTimeout(() => {
-                    const newCardInput = document.getElementById(`cardName_${json.data.request_id}`);
-                    if (newCardInput) {
-                        newCardInput.focus();
-                        newCardInput.select();
-                    }
-                }, 300);
+                    openVehicleIntakeModal(json.data.request_id);
+                }, 200);
             } else if (json.is_duplicate) {
                 showToast(`⚠️ Vehicle ${json.formatted_plate} is already inside.`);
             } else {

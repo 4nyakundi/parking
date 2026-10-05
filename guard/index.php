@@ -427,6 +427,81 @@
 </div>
 
 <!-- ================================================================
+     MODAL 2b: VEHICLE INTAKE POPUP (TAP-TO-FILL FOR GUARDS)
+     ================================================================ -->
+<div id="vehicleIntakeModal" class="modal-overlay">
+    <div class="modal-box intake-modal-box">
+        <!-- Header with Plate & Snapshot -->
+        <div class="intake-header">
+            <div class="intake-header-left">
+                <div id="intakeSnapWrapper" class="intake-snap-wrapper">
+                    <img id="intakeSnapImg" src="" alt="Snapshot" class="intake-snap-thumb" onclick="window.open(this.src, '_blank')">
+                </div>
+                <div class="intake-plate-meta">
+                    <div class="intake-plate-badge" id="intakePlateDisplay">KDA 123A</div>
+                    <div class="intake-meta-row">
+                        <span id="intakeSourceBadge" class="cam-source-badge">📷 CAMERA</span>
+                        <span id="intakeVerifiedBadge" class="badge-verified">✓ VERIFIED</span>
+                        <span id="intakeTimeAgo" class="intake-time">Just now</span>
+                    </div>
+                </div>
+            </div>
+            <button type="button" onclick="closeVehicleIntakeModal()" class="modal-close-btn" title="Close">&#x2715;</button>
+        </div>
+
+        <div id="intakeAlertBanner" style="display:none;" class="badge-alert"></div>
+
+        <!-- Form fields: Name, Phone, Destination -->
+        <div class="intake-form-body">
+            <div class="intake-grid-2">
+                <div class="form-field">
+                    <label for="intakeDriverName">Driver Full Name</label>
+                    <input type="text" id="intakeDriverName" class="intake-input" 
+                           placeholder="Driver Name (e.g. John Mwangi)" autocomplete="name">
+                </div>
+                <div class="form-field">
+                    <label for="intakeDriverPhone">Mobile Number</label>
+                    <input type="tel" id="intakeDriverPhone" class="intake-input" 
+                           placeholder="07XX XXX XXX (Optional)" autocomplete="tel">
+                </div>
+            </div>
+
+            <div class="form-field">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                    <label style="margin:0;">Destination Store / Floor</label>
+                    <span style="font-size:10px; color:var(--text-muted); font-weight:700;">Tap quick pill:</span>
+                </div>
+                <!-- 1-Tap Quick Pills -->
+                <div class="intake-pills-row" id="intakePillsContainer">
+                    <button type="button" class="dest-pill-btn" onclick="selectIntakePill('Naivas Supermarket', this)">🛒 Naivas</button>
+                    <button type="button" class="dest-pill-btn" onclick="selectIntakePill('NCBA Bank', this)">🏦 Bank / ATM</button>
+                    <button type="button" class="dest-pill-btn" onclick="selectIntakePill('Food Court', this)">🍔 Food Court</button>
+                    <button type="button" class="dest-pill-btn" onclick="selectIntakePill('Java House', this)">☕ Java House</button>
+                    <button type="button" class="dest-pill-btn" onclick="selectIntakePill('Level 1 Retail', this)">Level 1</button>
+                    <button type="button" class="dest-pill-btn" onclick="selectIntakePill('Level 2 Retail', this)">Level 2</button>
+                    <button type="button" class="dest-pill-btn" onclick="selectIntakePill('Mombasa Mall', this)">Other</button>
+                </div>
+                <!-- Dropdown for all mall stores -->
+                <select id="intakeDestSelect" class="card-dest-select" style="margin-top:8px;">
+                    <!-- Populated dynamically -->
+                </select>
+            </div>
+        </div>
+
+        <!-- Action Footer -->
+        <div class="intake-actions-footer">
+            <button type="button" class="btn-intake-accept" id="btnIntakeAccept" onclick="submitIntakeFromModal()">
+                <svg class="i-icon" viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                <span id="btnIntakeAcceptText">ACCEPT &amp; PRINT TICKET</span>
+            </button>
+            <button type="button" class="btn-intake-decline" onclick="declineCurrentIntake()">
+                ✕ Decline
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ================================================================
      MODAL 3: DECLINE REASON
      ================================================================ -->
 <div id="rejectModal" class="modal-overlay">
