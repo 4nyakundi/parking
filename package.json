@@ -1,0 +1,27 @@
+{
+  "name": "parking",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/4nyakundi/parking.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/4nyakundi/parking/issues"
+  },
+  "homepage": "https://github.com/4nyakundi/parking#readme",
+  "dependencies": {
+    "firebase": "^12.19.0"
+  }
+}

@@ -16,3 +16,7 @@ storage/backups/*
 
 # Temporary / Scratch scripts
 scratch/
+
+# Node modules & Firebase cache
+node_modules/
+.firebase/

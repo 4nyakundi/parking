@@ -733,6 +733,7 @@
 <!-- Application Scripts -->
 <script src="js/guard_i18n.js"></script>
 <script src="js/guard.js"></script>
+<script type="module" src="../assets/js/firebase-init.js"></script>
 
 <script>
     function openHelpModal()  { document.getElementById('helpModal').classList.add('open'); }

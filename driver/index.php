@@ -601,5 +601,6 @@
 
     <script src="../assets/vendor/gsap/gsap.min.js"></script>
     <script src="js/driver.js"></script>
+    <script type="module" src="../assets/js/firebase-init.js"></script>
 </body>
 </html>

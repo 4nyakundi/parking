@@ -321,5 +321,6 @@ $isMobile = str_contains($ua, 'mobile') || str_contains($ua, 'android') || str_c
             setTimeout(clock, 1000);
         })();
     </script>
+    <script type="module" src="assets/js/firebase-init.js"></script>
 </body>
 </html>

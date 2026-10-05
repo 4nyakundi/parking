@@ -658,5 +658,6 @@ $user = require_role(['supervisor', 'admin'], false);
             link.addEventListener('click', closeSidebarMobile);
         });
     </script>
+    <script type="module" src="../assets/js/firebase-init.js"></script>
 </body>
 </html>

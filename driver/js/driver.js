@@ -309,6 +309,14 @@ async function submitDriverSignIn() {
                     gsap.from(box, { opacity: 0, y: 20, duration: 0.3, ease: 'power2.out' });
                 }
             }
+
+            // Log Firebase Analytics telemetry
+            if (typeof window.logParkingEvent === 'function') {
+                window.logParkingEvent('driver_signin_success', {
+                    plate_number: plate_display,
+                    destination: selectedDestination
+                });
+            }
         } else {
             alert(json.error || 'Failed to submit check-in. Please try again.');
             if (btn) { btn.disabled = false; btn.textContent = 'Submit Sign-In Request'; }
