@@ -1,0 +1,5 @@
+connectorId: "default"
+generate:
+  javascriptSdk:
+    outputDir: "../../assets/js/dataconnect"
+    package: "@mombasa-parking/dataconnect"

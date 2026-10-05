@@ -1,0 +1,110 @@
+# ===============================================================
+# Firebase SQL Connect (Data Connect) Queries
+# ===============================================================
+
+# 1. Movie & Review Queries (User Requested)
+query ListMovies @auth(level: PUBLIC) {
+  movies(orderBy: [{ title: ASC }]) {
+    id
+    title
+    imageUrl
+    genre
+  }
+}
+
+query GetMovie($id: UUID!) @auth(level: PUBLIC) {
+  movie(id: $id) {
+    id
+    title
+    imageUrl
+    genre
+    reviews_on_movie {
+      rating
+      reviewText
+      reviewDate
+      user {
+        id
+        username
+        fullName
+      }
+    }
+  }
+}
+
+query ListReviewsForMovie($movieId: UUID!) @auth(level: PUBLIC) {
+  reviews(where: { movie: { id: { eq: $movieId } } }, orderBy: [{ reviewDate: DESC }]) {
+    rating
+    reviewText
+    reviewDate
+    user {
+      id
+      username
+      fullName
+    }
+  }
+}
+
+# 2. Visitors / Driver Self Sign-In (schema.sql lines 50-66)
+query ListPendingVisitors @auth(level: PUBLIC) {
+  visitors(
+    where: { status: { eq: PENDING } },
+    orderBy: [{ createdAt: DESC }]
+  ) {
+    id
+    plateNumber
+    driverName
+    driverPhone
+    destination
+    status
+    source
+    alprVerified
+    createdAt
+  }
+}
+
+# 3. Parking Sessions (schema.sql lines 72-102)
+query ListActiveParkingSessions @auth(level: PUBLIC) {
+  parkingSessions(
+    where: { status: { eq: ACTIVE } },
+    orderBy: [{ entryTime: DESC }]
+  ) {
+    id
+    ticketId
+    plateNumber
+    driverName
+    driverPhone
+    destination
+    status
+    entryTime
+  }
+}
+
+query GetSessionByTicket($ticketId: String!) @auth(level: PUBLIC) {
+  parkingSession(
+    first: { where: { ticketId: { eq: $ticketId } } }
+  ) {
+    id
+    ticketId
+    plateNumber
+    driverName
+    driverPhone
+    destination
+    status
+    entryTime
+    exitTime
+    durationMinutes
+  }
+}
+
+# 4. Registered Vehicles (schema.sql lines 32-45)
+query GetRegisteredVehicle($plateNumber: String!) @auth(level: PUBLIC) {
+  registeredVehicle(plateNumber: $plateNumber) {
+    plateNumber
+    ownerName
+    phone
+    vehicleType
+    category
+    notes
+    isActive
+  }
+}

@@ -1,0 +1,153 @@
+# ===============================================================
+# Firebase SQL Connect (Cloud SQL for PostgreSQL) Schema
+# Maps directly to Mombasa Mall Parking MariaDB/MySQL schema
+# Includes requested Movie & Review models with composite keys
+# ===============================================================
+
+# ---------------------------------------------------------------
+# 1. USERS & ROLES
+# ---------------------------------------------------------------
+enum UserRole {
+  GUARD
+  SUPERVISOR
+  ADMIN
+}
+
+type User @table(name: "users") {
+  id: UUID! @default(expr: "uuidV4()")
+  uid: String @unique @default(expr: "auth.uid")
+  username: String @unique @col(dataType: "varchar(50)")
+  fullName: String! @col(name: "full_name", dataType: "varchar(100)")
+  role: UserRole! @default(value: GUARD)
+  phone: String @col(dataType: "varchar(20)")
+  isActive: Boolean! @col(name: "is_active") @default(value: true)
+  createdAt: Timestamp! @col(name: "created_at") @default(expr: "request.time")
+}
+
+# ---------------------------------------------------------------
+# 2. MOVIE & REVIEW (Requested Table Models)
+# ---------------------------------------------------------------
+type Movie @table(name: "movies") {
+  # Implicit primary key: id: UUID! @default(expr: "uuidV4()")
+  id: UUID! @default(expr: "uuidV4()")
+  title: String!
+  imageUrl: String! @col(name: "image_url")
+  genre: String
+}
+
+type Review @table(name: "reviews", key: ["movie", "user"]) {
+  user: User!
+  movie: Movie!
+  rating: Int
+  reviewText: String @col(name: "review_text")
+  reviewDate: Date! @col(name: "review_date") @default(expr: "request.time")
+}
+
+# ---------------------------------------------------------------
+# 3. REGISTERED VEHICLES (VIP, Staff, Tenants, Blacklisted)
+# ---------------------------------------------------------------
+enum VehicleType {
+  CAR
+  MOTORCYCLE
+  VAN
+  TRUCK
+  GOVERNMENT
+  DIPLOMATIC
+  OTHER
+}
+
+enum VehicleCategory {
+  REGULAR
+  VIP
+  STAFF
+  TENANT
+  BLACKLISTED
+}
+
+type RegisteredVehicle @table(name: "registered_vehicles", key: "plateNumber") {
+  plateNumber: String! @col(name: "plate_number", dataType: "varchar(20)")
+  ownerName: String @col(name: "owner_name", dataType: "varchar(100)")
+  phone: String @col(dataType: "varchar(20)")
+  vehicleType: VehicleType! @col(name: "vehicle_type") @default(value: CAR)
+  category: VehicleCategory! @default(value: REGULAR)
+  notes: String
+  isActive: Boolean! @col(name: "is_active") @default(value: true)
+  createdAt: Timestamp! @col(name: "created_at") @default(expr: "request.time")
+}
+
+# ---------------------------------------------------------------
+# 4. VISITORS / DRIVER SELF SIGN-IN REQUESTS (schema.sql lines 50-66)
+# ---------------------------------------------------------------
+enum VisitorSource {
+  SELF_SIGNIN
+  MANUAL_GUARD
+  ALPR_ONLY
+  ALPR_CAMERA
+}
+
+enum VisitorStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  EXPIRED
+}
+
+type Visitor @table(name: "visitors") {
+  id: UUID! @default(expr: "uuidV4()")
+  plateNumber: String! @col(name: "plate_number", dataType: "varchar(20)")
+  driverName: String! @col(name: "driver_name", dataType: "varchar(100)")
+  driverPhone: String! @col(name: "driver_phone", dataType: "varchar(20)")
+  destination: String! @col(dataType: "varchar(100)")
+  source: VisitorSource! @default(value: SELF_SIGNIN)
+  status: VisitorStatus! @default(value: PENDING)
+  rejectReason: String @col(name: "reject_reason", dataType: "varchar(255)")
+  alprVerified: Boolean! @col(name: "alpr_verified") @default(value: false)
+  handledBy: User @ref(fields: "handledById", references: "id")
+  handledById: UUID
+  ipAddress: String @col(name: "ip_address", dataType: "varchar(45)")
+  createdAt: Timestamp! @col(name: "created_at") @default(expr: "request.time")
+}
+
+# ---------------------------------------------------------------
+# 5. PARKING SESSIONS (Primary Business Entity - 2 Hours Free Stay)
+# ---------------------------------------------------------------
+enum SessionStatus {
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+type ParkingSession @table(name: "parking_sessions") {
+  id: UUID! @default(expr: "uuidV4()")
+  ticketId: String! @unique @col(name: "ticket_id", dataType: "varchar(32)")
+  plateNumber: String! @col(name: "plate_number", dataType: "varchar(20)")
+  driverName: String! @col(name: "driver_name", dataType: "varchar(100)")
+  driverPhone: String! @col(name: "driver_phone", dataType: "varchar(20)")
+  destination: String! @col(dataType: "varchar(100)")
+  entryTime: Timestamp! @col(name: "entry_time") @default(expr: "request.time")
+  exitTime: Timestamp @col(name: "exit_time")
+  status: SessionStatus! @default(value: ACTIVE)
+  durationMinutes: Int @col(name: "duration_minutes")
+  entrySnapshot: String @col(name: "entry_snapshot", dataType: "varchar(255)")
+  exitSnapshot: String @col(name: "exit_snapshot", dataType: "varchar(255)")
+  approvedBy: User @ref(fields: "approvedById", references: "id")
+  approvedById: UUID
+  clearedBy: User @ref(fields: "clearedById", references: "id")
+  clearedById: UUID
+  entryMethod: String! @col(name: "entry_method") @default(value: "self_signin")
+  notes: String
+  createdAt: Timestamp! @col(name: "created_at") @default(expr: "request.time")
+  updatedAt: Timestamp! @col(name: "updated_at") @default(expr: "request.time")
+}
+
+# ---------------------------------------------------------------
+# 6. DESTINATIONS (48 Mall Stores across G, 1st, 2nd, 3rd Floors)
+# ---------------------------------------------------------------
+type Destination @table(name: "destinations") {
+  id: UUID! @default(expr: "uuidV4()")
+  name: String! @unique @col(dataType: "varchar(150)")
+  unitCode: String! @col(name: "unit_code", dataType: "varchar(20)") @default(value: "")
+  floorLevel: String! @col(name: "floor_level", dataType: "varchar(50)") @default(value: "Ground Floor")
+  category: String! @col(dataType: "varchar(50)") @default(value: "Retail")
+  isActive: Boolean! @col(name: "is_active") @default(value: true)
+}

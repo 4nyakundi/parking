@@ -1,0 +1,90 @@
+# ===============================================================
+# Firebase SQL Connect (Data Connect) Mutations
+# ===============================================================
+
+# 1. Movie & Review Mutations (User Requested)
+mutation CreateMovie($title: String!, $imageUrl: String!, $genre: String) @auth(level: USER) {
+  movie_insert(data: {
+    title: $title,
+    imageUrl: $imageUrl,
+    genre: $genre
+  })
+}
+
+mutation UpsertUser($username: String!, $fullName: String!, $role: UserRole) @auth(level: USER) {
+  user_upsert(data: {
+    uid_expr: "auth.uid",
+    username: $username,
+    fullName: $fullName,
+    role: $role
+  })
+}
+
+mutation AddReview($movieId: UUID!, $rating: Int, $reviewText: String) @auth(level: USER) {
+  review_upsert(data: {
+    movie: { id: $movieId },
+    user: { uid_expr: "auth.uid" },
+    rating: $rating,
+    reviewText: $reviewText,
+    reviewDate_date: { today: true }
+  })
+}
+
+mutation DeleteReview($movieId: UUID!) @auth(level: USER) {
+  review_delete(key: {
+    movieId: $movieId,
+    userUid_expr: "auth.uid"
+  })
+}
+
+# 2. Visitors / Driver Intake (schema.sql lines 50-66)
+mutation CreateVisitorRequest(
+  $plateNumber: String!,
+  $driverName: String!,
+  $driverPhone: String!,
+  $destination: String!,
+  $source: VisitorSource
+) @auth(level: PUBLIC) {
+  visitor_insert(data: {
+    plateNumber: $plateNumber,
+    driverName: $driverName,
+    driverPhone: $driverPhone,
+    destination: $destination,
+    status: PENDING,
+    source: $source
+  })
+}
+
+# 3. Parking Sessions (schema.sql lines 72-102)
+mutation CreateParkingSession(
+  $ticketId: String!,
+  $plateNumber: String!,
+  $driverName: String!,
+  $driverPhone: String!,
+  $destination: String!,
+  $entryMethod: String
+) @auth(level: PUBLIC) {
+  parkingSession_insert(data: {
+    ticketId: $ticketId,
+    plateNumber: $plateNumber,
+    driverName: $driverName,
+    driverPhone: $driverPhone,
+    destination: $destination,
+    status: ACTIVE,
+    entryMethod: $entryMethod
+  })
+}
+
+mutation CompleteParkingSession(
+  $ticketId: String!,
+  $durationMinutes: Int
+) @auth(level: PUBLIC) {
+  parkingSession_update(
+    first: { where: { ticketId: { eq: $ticketId } } },
+    data: {
+      status: COMPLETED,
+      exitTime_expr: "request.time",
+      durationMinutes: $durationMinutes
+    }
+  )
+}

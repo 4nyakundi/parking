@@ -1,0 +1,43 @@
+# ===============================================================
+# Local Prototyping & Emulator Seed Data
+# ===============================================================
+
+mutation SeedData @transaction {
+  # 1. Seed Sample Movies
+  movie_insertMany(data: [
+    {
+      title: "Inception",
+      imageUrl: "https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=400",
+      genre: "Sci-Fi"
+    },
+    {
+      title: "The Dark Knight",
+      imageUrl: "https://images.unsplash.com/photo-1509281373149-e957c6296406?w=400",
+      genre: "Action"
+    },
+    {
+      title: "Interstellar",
+      imageUrl: "https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=400",
+      genre: "Adventure"
+    }
+  ])
+
+  # 2. Seed Mall Destinations
+  destination_insertMany(data: [
+    { name: "G-01 Naivas Supermarket", unitCode: "G-01", floorLevel: "Ground Floor", category: "Hypermarket" },
+    { name: "G-02 Chicken Inn", unitCode: "G-02", floorLevel: "Ground Floor", category: "Fast Food" },
+    { name: "F-01 Naivas First Floor", unitCode: "F-01", floorLevel: "1st Floor", category: "Department Store" },
+    { name: "S-01 Play On (Game Area)", unitCode: "S-01", floorLevel: "2nd Floor", category: "Entertainment" },
+    { name: "T-01 Gamers Vault", unitCode: "T-01", floorLevel: "3rd Floor", category: "Esports Lounge" }
+  ])
+
+  # 3. Seed Sample Visitor Self Sign-In Request
+  visitor_insert(data: {
+    plateNumber: "KDA 123A",
+    driverName: "Ali Hassan",
+    driverPhone: "0712345678",
+    destination: "G-01 Naivas Supermarket",
+    status: PENDING,
+    source: SELF_SIGNIN
+  })
+}
