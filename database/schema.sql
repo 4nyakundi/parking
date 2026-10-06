@@ -361,18 +361,24 @@ INSERT INTO `system_settings` (`key`, `value`, `description`) VALUES
 ('cloud_sync_enabled', '0', 'Enable syncing to remote cloud management server'),
 ('cloud_sync_url', 'https://cloud.mombasamall.co.ke/remote/api/ingest.php', 'Cloud ingestion endpoint'),
 ('language_default', 'en', 'Default interface language (en or sw)'),
-('dpa_notice', 'Data collected is strictly for security and parking management under Kenya Data Protection Act 2019.', 'Data protection statement')
+('dpa_notice', 'Data collected is strictly for security and parking management under Kenya Data Protection Act 2019.', 'Data protection statement'),
+('nvr_cctv_ip', '192.168.1.3', 'Dahua NVR CCTV internal network IP'),
+('nvr_lan_ip', '192.168.0.3', 'Dahua NVR internet/LAN interface IP'),
+('cam_entrance_ip', '192.168.1.230', 'Dahua Entrance ANPR camera IP'),
+('cam_exit_ip', '192.168.1.210', 'Dahua Exit ANPR camera IP'),
+('cam_username', 'admin', 'Master camera username'),
+('cam_password', 'Mall@2024', 'Master camera password')
 ON DUPLICATE KEY UPDATE `value` = VALUES(`value`);
 
 -- 4. Initial Device Health Records
 INSERT INTO `device_health` (`device`, `status`, `last_checked_at`, `message`) VALUES
-('entrance_cam', 'OK', NOW(), 'Camera stream active (RTSP 192.168.1.1:554/101)'),
-('exit_cam', 'OK', NOW(), 'Camera stream active (RTSP 192.168.1.1:554/201)'),
+('entrance_cam', 'OK', NOW(), 'Dahua Entrance ANPR Camera (192.168.1.230) Online'),
+('exit_cam', 'OK', NOW(), 'Dahua Exit ANPR Camera (192.168.1.210) Online'),
 ('printer', 'OK', NOW(), 'Windows printer spooler ready'),
 ('alpr_worker', 'OK', NOW(), 'ALPR inference worker running on Edge PC'),
 ('internet', 'OK', NOW(), 'Mall LAN/Internet interface reachable'),
 ('cloud_sync', 'OK', NOW(), 'Cloud mirror standby')
-ON DUPLICATE KEY UPDATE `status` = VALUES(`status`);
+ON DUPLICATE KEY UPDATE `status` = VALUES(`status`), `message` = VALUES(`message`);
 
 -- 5. Seed Vehicles (Sample VIP, Staff, Blacklisted for immediate testing)
 INSERT INTO `registered_vehicles` (`plate_number`, `owner_name`, `phone`, `vehicle_type`, `category`, `notes`, `is_active`) VALUES

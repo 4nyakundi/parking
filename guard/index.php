@@ -271,6 +271,18 @@
 
         <!-- VIEW 2: VEHICLES EXITING -->
         <section id="viewLeaving" style="display:none;">
+            <!-- Action Bar: Fetch Live Exit Camera Plate (192.168.1.210) -->
+            <div class="entering-action-bar">
+                <button class="btn-fetch-camera" id="btnFetchExitCameraPlate" onclick="triggerCameraPlateFetch('exit')">
+                    <svg class="i-icon" viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                    <span id="btnFetchExitCamText">Fetch Exit Camera Plate Now</span>
+                </button>
+                <div class="cam-status-pill">
+                    <span class="pulse-dot"></span>
+                    <span id="camExitStatusLabel">Exit Camera (192.168.1.210): Online</span>
+                </div>
+            </div>
+
             <div id="exitCandidateArea"></div>
 
             <div class="search-bar-large">
@@ -739,7 +751,7 @@
 
 <!-- Application Scripts -->
 <script src="js/guard_i18n.js"></script>
-<script src="js/guard.js"></script>
+<script src="js/guard.js?v=20261005_1755"></script>
 <script type="module" src="../assets/js/firebase-init.js"></script>
 
 <script>

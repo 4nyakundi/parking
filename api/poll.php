@@ -62,17 +62,52 @@ try {
     $pendStmt = $db->query('SELECT COUNT(*) FROM visitors WHERE status = "PENDING"');
     $pendingCount = (int)$pendStmt->fetchColumn();
 
+    // 4. Compute Daily Operations Stats
+    $todayInStmt = $db->query('SELECT COUNT(*) FROM parking_sessions WHERE DATE(entry_time) = CURDATE()');
+    $todayEntries = (int)$todayInStmt->fetchColumn();
+
+    $todayOutStmt = $db->query('SELECT COUNT(*) FROM parking_sessions WHERE DATE(exit_time) = CURDATE() AND status = "COMPLETED"');
+    $todayExits = (int)$todayOutStmt->fetchColumn();
+
+    $overstayStmt = $db->query('SELECT COUNT(*) FROM parking_sessions WHERE status = "ACTIVE" AND entry_time < DATE_SUB(NOW(), INTERVAL 2 HOUR)');
+    $overstays = (int)$overstayStmt->fetchColumn();
+
+    $dwellStmt = $db->query('SELECT ROUND(AVG(TIMESTAMPDIFF(MINUTE, entry_time, exit_time))) FROM parking_sessions WHERE DATE(exit_time) = CURDATE() AND status = "COMPLETED"');
+    $avgDwell = $dwellStmt->fetchColumn();
+    $avgDwellMinutes = ($avgDwell !== false && $avgDwell !== null) ? (int)$avgDwell : 0;
+
+    // 5. Read Device Health
+    $devStmt = $db->query('SELECT device, status, message, TIMESTAMPDIFF(SECOND, last_checked_at, NOW()) AS age_seconds FROM device_health');
+    $devRows = $devStmt->fetchAll();
+    $devices = [];
+    foreach ($devRows as $dr) {
+        $stat = $dr['status'];
+        // If no heartbeat in 120s, mark warning
+        if (in_array($dr['device'], ['alpr_worker', 'entrance_cam', 'exit_cam'], true) && (int)$dr['age_seconds'] > 120) {
+            $stat = 'WARNING';
+        }
+        $devices[$dr['device']] = [
+            'status'  => $stat,
+            'message' => $dr['message'],
+        ];
+    }
+
     echo json_encode([
         'ok'            => true,
         'last_event_id' => $maxId,
         'events'        => $events,
         'stats'         => [
-            'capacity'      => $capacity,
-            'occupied'      => $occupied,
-            'available'     => $available,
-            'pending_count' => $pendingCount,
-            'server_time'   => date('H:i:s'),
+            'capacity'          => $capacity,
+            'occupied'          => $occupied,
+            'available'         => $available,
+            'pending_count'     => $pendingCount,
+            'today_entries'     => $todayEntries,
+            'today_exits'       => $todayExits,
+            'overstays'         => $overstays,
+            'avg_dwell_minutes' => $avgDwellMinutes,
+            'server_time'       => date('H:i:s'),
         ],
+        'devices'       => $devices,
     ]);
 } catch (Throwable $e) {
     error_log('POLL ERROR: ' . $e->getMessage());

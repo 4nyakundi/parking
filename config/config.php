@@ -45,26 +45,37 @@ return [
     ],
 
     // ---------------------------------------------------------
-    // Network & Hardware Topology
-    // Edge PC: NIC 1 (192.168.0.50), NIC 2 (192.168.1.50, no gateway)
-    // NVR: 192.168.1.1
+    // Network & Hardware Topology (Locked to Mall Infrastructure)
+    // Edge PC: NIC 1 LAN (192.168.0.50), NIC 2 CCTV (192.168.1.50)
+    // Dahua NVR: CCTV Internal (192.168.1.3), Internet/LAN (192.168.0.3)
     // ---------------------------------------------------------
     'network' => [
         'nic1_lan_ip'        => '192.168.0.50',
         'nic2_cctv_ip'       => '192.168.1.50',
-        'nvr_ip'             => '192.168.1.1',
+        'nvr_cctv_ip'        => '192.168.1.3',
+        'nvr_lan_ip'         => '192.168.0.3',
+        'nvr_ip'             => '192.168.1.3',
         'nvr_rtsp_port'      => 554,
     ],
 
     // ---------------------------------------------------------
-    // ALPR & Camera Streams
+    // ALPR & Dahua Camera Streams (Locked Credentials: admin / Mall@2024)
     // ---------------------------------------------------------
     'alpr' => [
         'api_key'            => 'MOMBASA_PARKING_ALPR_SECRET_KEY_2026',
         'min_confidence'     => 0.70,
-        'debounce_seconds'   => 15,
+        'debounce_seconds'   => 10,
         'voting_frames'      => 2,
-        'source_mode'        => 'rtsp', // 'rtsp' or 'isapi_snapshot'
+        'source_mode'        => 'dahua_anpr', // Native Dahua ANPR HTTP Event Stream
+        // NVR Master Credentials
+        'nvr' => [
+            'ip_cctv'        => '192.168.1.3',
+            'ip_lan'         => '192.168.0.3',
+            'username'       => 'admin',
+            'password'       => 'Mall@2024',
+            'rtsp_port'      => 554,
+        ],
+        // Entrance ANPR Camera (Dahua 192.168.1.230)
         'entrance' => [
             'ip'             => '192.168.1.230',
             'username'       => 'admin',
@@ -72,11 +83,19 @@ return [
             'rtsp_main'      => 'rtsp://admin:Mall@2024@192.168.1.230:554/cam/realmonitor?channel=1&subtype=0',
             'rtsp_sub'       => 'rtsp://admin:Mall@2024@192.168.1.230:554/cam/realmonitor?channel=1&subtype=1',
             'snapshot_url'   => 'http://192.168.1.230/cgi-bin/snapshot.cgi?channel=1',
+            'event_url'      => 'http://192.168.1.230/cgi-bin/eventManager.cgi?action=attach&codes=[Traffic,TrafficTollGate,PlateDetection,All]',
+            'nvr_rtsp'       => 'rtsp://admin:Mall@2024@192.168.1.3:554/cam/realmonitor?channel=1&subtype=0',
         ],
+        // Exit ANPR Camera (Dahua 192.168.1.210)
         'exit' => [
-            'rtsp_main'      => 'rtsp://admin:password@192.168.1.1:554/Streaming/Channels/201',
-            'rtsp_sub'       => 'rtsp://admin:password@192.168.1.1:554/Streaming/Channels/202',
-            'isapi_snapshot' => 'http://192.168.1.1/ISAPI/Streaming/channels/201/picture',
+            'ip'             => '192.168.1.210',
+            'username'       => 'admin',
+            'password'       => 'Mall@2024',
+            'rtsp_main'      => 'rtsp://admin:Mall@2024@192.168.1.210:554/cam/realmonitor?channel=1&subtype=0',
+            'rtsp_sub'       => 'rtsp://admin:Mall@2024@192.168.1.210:554/cam/realmonitor?channel=1&subtype=1',
+            'snapshot_url'   => 'http://192.168.1.210/cgi-bin/snapshot.cgi?channel=1',
+            'event_url'      => 'http://192.168.1.210/cgi-bin/eventManager.cgi?action=attach&codes=[Traffic,TrafficTollGate,PlateDetection,All]',
+            'nvr_rtsp'       => 'rtsp://admin:Mall@2024@192.168.1.3:554/cam/realmonitor?channel=2&subtype=0',
         ],
     ],
 

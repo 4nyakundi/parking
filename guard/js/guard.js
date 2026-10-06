@@ -450,6 +450,11 @@ async function runPoll() {
                 }
             }
 
+            // Update Device Health Status (Cameras, Printer, ALPR Worker)
+            if (data.devices) {
+                updateDeviceStatusDisplay(data.devices);
+            }
+
             // Process New Events
             if (data.events && data.events.length > 0) {
                 data.events.forEach(evt => handleServerEvent(evt));
@@ -459,6 +464,33 @@ async function runPoll() {
         // Network drop: Show clear offline notice without crashing
         document.getElementById('offlineBanner').classList.add('active');
     }
+}
+
+function updateDeviceStatusDisplay(devices) {
+    if (!devices) return;
+    const updatePill = (id, info, defaultText = 'Online') => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const stat = (info && info.status) ? info.status : 'OK';
+        if (stat === 'OK') {
+            el.textContent = defaultText;
+            el.style.color = '#059669';
+            el.style.fontWeight = '700';
+        } else if (stat === 'WARNING') {
+            el.textContent = 'Active';
+            el.style.color = '#d97706';
+            el.style.fontWeight = '700';
+        } else {
+            el.textContent = 'Offline';
+            el.style.color = '#dc2626';
+            el.style.fontWeight = '700';
+        }
+    };
+
+    updatePill('pnlPrinterStatus', devices.printer, 'Ready');
+    updatePill('pnlCam1Status', devices.entrance_cam, 'Online (192.168.1.230)');
+    updatePill('pnlCam2Status', devices.exit_cam, 'Online (192.168.1.210)');
+    updatePill('pnlAlprStatus', devices.alpr_worker, 'Active');
 }
 
 function updateOccupancyDisplay(stats) {
@@ -882,14 +914,15 @@ function openVehicleIntakeModal(requestId) {
 
     switchIntakeFloor(STATE.intakeActiveFloor);
 
-    // Reset button state
+    // Reset button state and customize text for self check-in
     const btnAccept = document.getElementById('btnIntakeAccept');
-    const btnText   = document.getElementById('btnIntakeAcceptText');
     if (btnAccept) {
         btnAccept.disabled = false;
     }
     if (btnText) {
-        btnText.textContent = 'ACCEPT & PRINT TICKET';
+        btnText.textContent = isSelfCheckin
+            ? 'APPROVE & PRINT TICKET (PROCEED TO SHOPPING)'
+            : 'ACCEPT & PRINT TICKET';
     }
 
     // Open Modal
@@ -1221,51 +1254,61 @@ function printReceiptDirect() {
 }
 
 // --------------------------------------------------------------------
-// On-Demand Camera Plate Fetcher
+// On-Demand Camera Plate Fetcher (Entrance & Exit Cameras)
 // --------------------------------------------------------------------
-async function triggerCameraPlateFetch() {
-    const btn = document.getElementById('btnFetchCameraPlate');
-    const btnText = document.getElementById('btnFetchCamText');
-    const origText = btnText ? btnText.textContent : 'Fetch Camera Plate Now';
+async function triggerCameraPlateFetch(targetCam = 'entrance') {
+    const isExit = targetCam === 'exit';
+    const btn = document.getElementById(isExit ? 'btnFetchExitCameraPlate' : 'btnFetchCameraPlate');
+    const btnText = document.getElementById(isExit ? 'btnFetchExitCamText' : 'btnFetchCamText');
+    const origText = btnText ? btnText.textContent : (isExit ? 'Fetch Exit Camera Plate Now' : 'Fetch Camera Plate Now');
 
     if (btn) {
         btn.disabled = true;
-        if (btnText) btnText.textContent = 'Scanning Camera...';
+        if (btnText) btnText.textContent = isExit ? 'Scanning Exit Cam (192.168.1.210)...' : 'Scanning Entry Cam (192.168.1.230)...';
     }
 
     try {
         const res = await fetch('../api/gate/fetch-camera-plate.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({}),
+            body: JSON.stringify({ camera: isExit ? 'exit' : 'entrance' }),
         });
         const json = await res.json();
 
         if (json.ok) {
             if (json.plate_found && json.data) {
                 playDingSound();
-                showToast(`✓ Camera detected plate: ${json.data.formatted_plate}`);
-                await loadPendingRequests();
-                setTimeout(() => {
-                    openVehicleIntakeModal(json.data.request_id);
-                }, 200);
-            } else if (json.is_duplicate) {
+                showToast(`✓ ${isExit ? 'Exit' : 'Entrance'} camera detected: ${json.data.formatted_plate}`);
+                
+                if (isExit) {
+                    const searchInput = document.getElementById('exitSearchInput');
+                    if (searchInput) {
+                        searchInput.value = json.data.formatted_plate || json.data.plate_number;
+                    }
+                    searchExitSessions(json.data.plate_number);
+                } else {
+                    await loadPendingRequests();
+                    setTimeout(() => {
+                        openVehicleIntakeModal(json.data.request_id);
+                    }, 200);
+                }
+            } else if (json.is_duplicate && !isExit) {
                 showToast(`⚠️ Vehicle ${json.formatted_plate} is already inside.`);
             } else {
-                showToast(json.message || 'Camera is live. Ready for approaching vehicle.');
+                showToast(json.message || `${isExit ? 'Exit (192.168.1.210)' : 'Entrance (192.168.1.230)'} camera is live.`);
             }
 
-            const statusLabel = document.getElementById('camEntranceStatusLabel');
+            const statusLabel = document.getElementById(isExit ? 'camExitStatusLabel' : 'camEntranceStatusLabel');
             if (statusLabel) {
                 statusLabel.textContent = json.camera_online 
-                    ? 'Entrance Camera (192.168.1.230): Online' 
-                    : 'Entrance Camera: Connecting...';
+                    ? (isExit ? 'Exit Camera (192.168.1.210): Online' : 'Entrance Camera (192.168.1.230): Online')
+                    : (isExit ? 'Exit Camera (192.168.1.210): Connecting...' : 'Entrance Camera (192.168.1.230): Connecting...');
             }
         } else {
             showToast(json.error || 'Failed to fetch camera plate.');
         }
     } catch (e) {
-        showToast('Could not reach entrance camera endpoint.');
+        showToast(`Could not reach ${isExit ? 'exit (192.168.1.210)' : 'entrance (192.168.1.230)'} camera endpoint.`);
     } finally {
         if (btn) {
             btn.disabled = false;

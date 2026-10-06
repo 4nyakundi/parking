@@ -17,15 +17,16 @@ require_once __DIR__ . '/../../includes/events.php';
 $user = require_auth(true);
 $config = require __DIR__ . '/../../config/config.php';
 
-$camConfig = $config['alpr']['entrance'] ?? [];
-$camIp   = $camConfig['ip'] ?? '192.168.1.230';
-$camUser = $camConfig['username'] ?? 'admin';
-$camPass = $camConfig['password'] ?? 'Mall@2024';
-$snapUrl = $camConfig['snapshot_url'] ?? "http://{$camIp}/cgi-bin/snapshot.cgi?channel=1";
-
 $rawInput = file_get_contents('php://input');
 $json = json_decode($rawInput, true) ?? [];
 $manualPlate = trim((string)($json['plate'] ?? $_POST['plate'] ?? $_GET['plate'] ?? ''));
+$targetCamera = in_array(strtolower((string)($json['camera'] ?? $_POST['camera'] ?? $_GET['camera'] ?? '')), ['exit', 'cam2'], true) ? 'exit' : 'entrance';
+
+$camConfig = $config['alpr'][$targetCamera] ?? [];
+$camIp   = $camConfig['ip'] ?? ($targetCamera === 'exit' ? '192.168.1.210' : '192.168.1.230');
+$camUser = $camConfig['username'] ?? 'admin';
+$camPass = $camConfig['password'] ?? 'Mall@2024';
+$snapUrl = $camConfig['snapshot_url'] ?? "http://{$camIp}/cgi-bin/snapshot.cgi?channel=1";
 
 $startTime = microtime(true);
 $snapshotRelPath = null;
@@ -62,15 +63,17 @@ if ($httpCode === 200 && !empty($imageBinary) && strlen($imageBinary) > 1000) {
 try {
     $db = get_db();
 
-    // Update device_health for Entry Camera
+    // Update device_health for Target Camera
+    $camDeviceKey = ($targetCamera === 'exit') ? 'exit_cam' : 'entrance_cam';
     $camStatus = $cameraOnline ? 'OK' : 'OFFLINE';
-    $msg = $cameraOnline ? "Dahua ANPR Camera active (Latency: {$latencyMs}ms)" : "Camera unreachable: {$curlErr}";
+    $msg = $cameraOnline ? "Dahua {$targetCamera} ANPR Camera ({$camIp}) active (Latency: {$latencyMs}ms)" : "Camera unreachable: {$curlErr}";
     try {
         $db->prepare('
             INSERT INTO device_health (device, status, last_checked_at, message)
-            VALUES ("entrance_cam", :status, NOW(), :msg)
+            VALUES (:device, :status, NOW(), :msg)
             ON DUPLICATE KEY UPDATE status = VALUES(status), last_checked_at = NOW(), message = VALUES(message)
         ')->execute([
+            ':device' => $camDeviceKey,
             ':status' => $camStatus,
             ':msg'    => $msg,
         ]);
@@ -81,24 +84,26 @@ try {
     if (!empty($manualPlate)) {
         $detectedPlate = PlateHelper::clean($manualPlate);
     } else {
-        // Look for the most recent plate seen by entrance camera within last 2 minutes
-        $detStmt = $db->query('
+        // Look for the most recent plate seen by target camera within last 2 minutes
+        $detStmt = $db->prepare('
             SELECT plate_clean 
             FROM alpr_detections 
-            WHERE camera = "entrance" AND created_at >= (NOW() - INTERVAL 2 MINUTE)
+            WHERE camera = :cam AND created_at >= (NOW() - INTERVAL 2 MINUTE)
             ORDER BY id DESC LIMIT 1
         ');
+        $detStmt->execute([':cam' => $targetCamera]);
         $recentDet = $detStmt->fetchColumn();
         if ($recentDet) {
             $detectedPlate = $recentDet;
         } else {
             // Check newest detection in table if within last 1 hour
-            $detStmt2 = $db->query('
+            $detStmt2 = $db->prepare('
                 SELECT plate_clean 
                 FROM alpr_detections 
-                WHERE camera = "entrance" AND created_at >= (NOW() - INTERVAL 1 HOUR)
+                WHERE camera = :cam AND created_at >= (NOW() - INTERVAL 1 HOUR)
                 ORDER BY id DESC LIMIT 1
             ');
+            $detStmt2->execute([':cam' => $targetCamera]);
             $detectedPlate = $detStmt2->fetchColumn() ?: '';
         }
     }
