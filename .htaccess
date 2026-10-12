@@ -4,6 +4,9 @@ ServerSignature Off
 # Prevent directory listings
 Options -Indexes
 
+# Set default landing file
+DirectoryIndex index.php index.html
+
 # Security Headers
 <IfModule mod_headers.c>
     Header set X-Content-Type-Options "nosniff"

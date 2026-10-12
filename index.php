@@ -5,6 +5,12 @@
  */
 $ua       = strtolower($_SERVER['HTTP_USER_AGENT'] ?? '');
 $isMobile = str_contains($ua, 'mobile') || str_contains($ua, 'android') || str_contains($ua, 'iphone');
+
+// On mobile phones (e.g. driver scanning QR billboard), launch driver check-in immediately
+if ($isMobile && !isset($_GET['portal'])) {
+    header('Location: driver/');
+    exit;
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
