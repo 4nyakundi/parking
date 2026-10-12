@@ -123,6 +123,15 @@ try {
     // 4. Begin Database Transaction
     $db->beginTransaction();
 
+    // Preserve exact camera detection entry timestamp if available
+    $actualEntryTime = date('Y-m-d H:i:s');
+    if (!empty($req['created_at'])) {
+        $reqTs = strtotime($req['created_at']);
+        if ($reqTs && (time() - $reqTs) < 86400) {
+            $actualEntryTime = $req['created_at'];
+        }
+    }
+
     $insSess = $db->prepare('
         INSERT INTO parking_sessions (
             ticket_id, plate_number, driver_name, driver_phone, destination,
@@ -130,19 +139,20 @@ try {
             whatsapp_status, print_status, synced_to_cloud, created_at
         ) VALUES (
             :ticket_id, :plate, :driver, :phone, :dest,
-            NOW(), "ACTIVE", :snapshot, :guard_id, :method,
+            :entry_time, "ACTIVE", :snapshot, :guard_id, :method,
             "not_sent", "pending", 0, NOW()
         )
     ');
     $insSess->execute([
-        ':ticket_id' => $ticketId,
-        ':plate'     => $cleanPlate,
-        ':driver'    => $driverName,
-        ':phone'     => $driverPhone,
-        ':dest'      => $destination,
-        ':snapshot'  => $entrySnapshot,
-        ':guard_id'  => $user['id'],
-        ':method'    => $entryMethod,
+        ':ticket_id'  => $ticketId,
+        ':plate'      => $cleanPlate,
+        ':driver'     => $driverName,
+        ':phone'      => $driverPhone,
+        ':dest'       => $destination,
+        ':entry_time' => $actualEntryTime,
+        ':snapshot'   => $entrySnapshot,
+        ':guard_id'   => $user['id'],
+        ':method'     => $entryMethod,
     ]);
     $sessionId = (int)$db->lastInsertId();
 
@@ -155,9 +165,9 @@ try {
     $db->commit();
 
     // 5. Thermal Print execution (Non-blocking: session is already safely saved)
-    $now = time();
-    $entryTime = date('Y-m-d H:i:s', $now);
-    $expectedExitTime = date('Y-m-d H:i:s', $now + (120 * 60)); // 2 hours = 120 minutes
+    $entryTime = $actualEntryTime;
+    $entryTsVal = strtotime($entryTime);
+    $expectedExitTime = date('Y-m-d H:i:s', $entryTsVal + (120 * 60)); // 2 hours = 120 minutes
 
     $sessionPayload = [
         'session_id'         => $sessionId,

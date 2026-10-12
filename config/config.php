@@ -33,14 +33,15 @@ return [
     ],
 
     // ---------------------------------------------------------
-    // Database Configuration (XAMPP MySQL / MariaDB)
+    // Database Configuration (cPanel Production)
+    // Local dev override is loaded from config.local.php if present
     // ---------------------------------------------------------
     'db' => [
-        'host'     => '127.0.0.1',
+        'host'     => 'localhost',
         'port'     => 3306,
-        'dbname'   => 'mombasa_parking',
-        'username' => 'root',
-        'password' => '', // Default XAMPP root password is blank
+        'dbname'   => 'mombasam_parking',
+        'username' => 'mombasam_admin',
+        'password' => 'basement2026.',
         'charset'  => 'utf8mb4',
     ],
 

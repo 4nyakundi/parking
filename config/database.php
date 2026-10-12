@@ -12,6 +12,12 @@ function get_db(): PDO
 
     if ($pdo === null) {
         $config = require __DIR__ . '/config.php';
+        if (file_exists(__DIR__ . '/config.local.php')) {
+            $localConfig = require __DIR__ . '/config.local.php';
+            if (is_array($localConfig)) {
+                $config = array_replace_recursive($config, $localConfig);
+            }
+        }
         $dbCfg = $config['db'];
 
         $dsn = sprintf(

@@ -20,6 +20,7 @@ date_default_timezone_set('Africa/Nairobi');
 
 $configFile = __DIR__ . '/../config/config.php';
 $config = require $configFile;
+require_once __DIR__ . '/../includes/plate_helper.php';
 
 $apiKey    = $config['alpr']['api_key'] ?? 'MOMBASA_PARKING_ALPR_SECRET_KEY_2026';
 $apiUrl    = 'http://127.0.0.1/parking/api/gate/plate-detected.php';
@@ -202,6 +203,8 @@ function init_camera_stream(string $camKey, array &$camConfig, string $apiUrl, s
                 $matchedPlate = null;
                 $currentConf = 0.95;
 
+                $vehicleType = null;
+
                 // 1. JSON parsing
                 if (preg_match('/data\s*=\s*(\{.*\})/is', $part, $m)) {
                     $jsonObj = json_decode($m[1], true);
@@ -210,6 +213,7 @@ function init_camera_stream(string $camKey, array &$camConfig, string $apiUrl, s
                             ?? $jsonObj['PlateNumber']
                             ?? $jsonObj['Plate']['PlateNumber']
                             ?? null;
+                        $vehicleType = strtolower((string)($jsonObj['TrafficCar']['VehicleType'] ?? $jsonObj['TrafficCar']['ObjectType'] ?? ''));
                         if (isset($jsonObj['TrafficCar']['Confidence'])) {
                             $currentConf = ((float)$jsonObj['TrafficCar']['Confidence']) / 100.0;
                         }
@@ -221,16 +225,26 @@ function init_camera_stream(string $camKey, array &$camConfig, string $apiUrl, s
                     $matchedPlate = trim($m[1]);
                 }
 
+                // Filter out motorcycles if camera classified as such
+                if ($vehicleType && in_array($vehicleType, ['motorcycle', 'motorbike', 'bike'], true)) {
+                    log_msg("[{$camKey}] Filtered out 2-wheel vehicle type '{$vehicleType}' (Only cars and tuktuks captured).");
+                    continue;
+                }
+
                 if (!empty($matchedPlate)) {
                     $matchedPlate = trim($matchedPlate);
-                    $cleanUpper = strtoupper(preg_replace('/[^A-Z0-9]/', '', $matchedPlate));
+                    $cleanPlate = PlateHelper::clean($matchedPlate);
 
-                    if (strlen($cleanUpper) >= 4 && !in_array($cleanUpper, ['NOPLATE', 'UNKNOWN', 'NONE', '000000', 'NULL'], true)) {
-                        log_msg("[{$camKey}] Extracted Plate: {$matchedPlate}");
+                    // Strictly validate: Cars & TukTuks starting with K, G, or County Gov
+                    if (PlateHelper::validate($cleanPlate)) {
+                        $formattedPlate = PlateHelper::format($cleanPlate);
+                        log_msg("[{$camKey}] ACCEPTED PLATE: {$formattedPlate} [{$cleanPlate}] (Confidence: " . round($currentConf * 100) . "%)");
 
                         // Grab live high-res snapshot
                         $snapB64 = grab_snapshot_base64($camConfig['snap'], $camConfig['user'], $camConfig['pass']);
-                        dispatch_plate_to_api($apiUrl, $apiKey, $camKey, $matchedPlate, $currentConf, $snapB64);
+                        dispatch_plate_to_api($apiUrl, $apiKey, $camKey, $cleanPlate, $currentConf, $snapB64);
+                    } else {
+                        log_msg("[{$camKey}] Filtered out non-qualifying plate '{$matchedPlate}' (Cars and TukTuks only: starting with K, G, or County format).");
                     }
                 }
             }

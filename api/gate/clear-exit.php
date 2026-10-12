@@ -49,49 +49,69 @@ try {
     }
 
     // -------------------------------------------------------------
-    // Supervisor Override if No Active Session Found
+    // Departure Processing if No Active Session Found
+    // "even if the car left without data being collected, let it get out and inform the guard that the car left without collection of detail"
     // -------------------------------------------------------------
     if (!$session || $session['status'] !== 'ACTIVE') {
-        if (empty($supervisorPin)) {
-            echo json_encode([
-                'ok'                        => false,
-                'need_supervisor_override' => true,
-                'error'                     => 'No active parking record found for this vehicle. Enter Supervisor PIN to authorize exit.',
-            ]);
-            exit;
-        }
+        $cleanPlate = !empty($rawPlate) ? PlateHelper::clean($rawPlate) : 'UNKNOWN';
+        $displayPlate = PlateHelper::format($cleanPlate);
 
-        // Verify supervisor PIN
-        $supStmt = $db->prepare('
-            SELECT id, full_name, pin_hash 
-            FROM users 
-            WHERE is_active = 1 AND role IN ("supervisor", "admin") AND pin_hash IS NOT NULL
-        ');
-        $supStmt->execute();
-        $supervisors = $supStmt->fetchAll();
-
+        // Check if supervisor PIN was explicitly provided
         $authorizedSupervisor = null;
-        foreach ($supervisors as $s) {
-            if (password_verify($supervisorPin, $s['pin_hash'])) {
-                $authorizedSupervisor = $s;
-                break;
+        if (!empty($supervisorPin)) {
+            $supStmt = $db->prepare('
+                SELECT id, full_name, pin_hash 
+                FROM users 
+                WHERE is_active = 1 AND role IN ("supervisor", "admin") AND pin_hash IS NOT NULL
+            ');
+            $supStmt->execute();
+            foreach ($supStmt->fetchAll() as $s) {
+                if (password_verify($supervisorPin, $s['pin_hash'])) {
+                    $authorizedSupervisor = $s;
+                    break;
+                }
             }
         }
 
-        if (!$authorizedSupervisor) {
-            echo json_encode([
-                'ok'                        => false,
-                'need_supervisor_override' => true,
-                'error'                     => 'Invalid Supervisor PIN. Access denied.',
-            ]);
-            exit;
+        // Look up vehicle entry time from visitors or alpr_detections
+        $entryTime = null;
+        $visStmt = $db->prepare('
+            SELECT id, destination, created_at 
+            FROM visitors 
+            WHERE plate_number = :plate 
+            ORDER BY id DESC LIMIT 1
+        ');
+        $visStmt->execute([':plate' => $cleanPlate]);
+        $pendingVis = $visStmt->fetch();
+
+        if ($pendingVis) {
+            $entryTime = $pendingVis['created_at'];
+            // Mark pending visitor request as EXPIRED so it clears from the entrance screen
+            $db->prepare('UPDATE visitors SET status = "EXPIRED" WHERE id = ?')->execute([(int)$pendingVis['id']]);
+        } else {
+            $detStmt = $db->prepare('
+                SELECT created_at 
+                FROM alpr_detections 
+                WHERE camera = "entrance" AND plate_clean = :plate 
+                ORDER BY id DESC LIMIT 1
+            ');
+            $detStmt->execute([':plate' => $cleanPlate]);
+            $entryTime = $detStmt->fetchColumn() ?: date('Y-m-d H:i:s', time() - 300);
         }
 
-        // Create an ad-hoc emergency departure session for audit integrity
-        $cleanPlate = !empty($rawPlate) ? PlateHelper::clean($rawPlate) : 'UNKNOWN';
-        $displayPlate = PlateHelper::format($cleanPlate);
+        $entryTs = strtotime($entryTime);
+        $durationMinutes = max(1, (int)round((time() - $entryTs) / 60));
+        $durHours = floor($durationMinutes / 60);
+        $durMins  = $durationMinutes % 60;
+        $durationText = $durHours > 0 ? "{$durHours}h {$durMins}m" : "{$durMins} mins";
+
         $datePart = date('Ymd');
-        $ticketId = sprintf('MM-%s-EMERG-%04d', $datePart, rand(100, 999));
+        $ticketId = sprintf('MM-%s-UNCOL-%04d', $datePart, rand(1000, 9999));
+
+        $exitMethod = $authorizedSupervisor ? 'supervisor_override' : 'guard_exit_uncollected';
+        $notes = $authorizedSupervisor 
+            ? "SUPERVISOR OVERRIDE EXIT: {$overrideReason} (Authorized by {$authorizedSupervisor['full_name']})"
+            : "EXIT WITHOUT DETAILS: Vehicle left without collection of driver details. Cleared by {$user['full_name']}";
 
         $ins = $db->prepare('
             INSERT INTO parking_sessions (
@@ -99,25 +119,47 @@ try {
                 entry_time, exit_time, status, duration_minutes,
                 approved_by, cleared_by, entry_method, exit_method, notes, synced_to_cloud, created_at
             ) VALUES (
-                :ticket_id, :plate, "Unregistered Driver", "254700000000", "Direct Exit",
-                NOW(), NOW(), "COMPLETED", 0,
-                :sup_id, :guard_id, "manual", "supervisor_override", :notes, 0, NOW()
+                :ticket_id, :plate, "Uncollected Driver", "", "Direct Exit",
+                :entry_time, NOW(), "COMPLETED", :duration,
+                :approved_by, :guard_id, "alpr", :exit_method, :notes, 0, NOW()
             )
         ');
         $ins->execute([
-            ':ticket_id' => $ticketId,
-            ':plate'     => $cleanPlate,
-            ':sup_id'    => $authorizedSupervisor['id'],
-            ':guard_id'  => $user['id'],
-            ':notes'     => 'SUPERVISOR OVERRIDE EXIT: ' . $overrideReason . ' (Authorized by ' . $authorizedSupervisor['full_name'] . ')',
+            ':ticket_id'    => $ticketId,
+            ':plate'        => $cleanPlate,
+            ':entry_time'   => $entryTime,
+            ':duration'     => $durationMinutes,
+            ':approved_by'  => $authorizedSupervisor ? $authorizedSupervisor['id'] : $user['id'],
+            ':guard_id'     => $user['id'],
+            ':exit_method'  => $exitMethod,
+            ':notes'        => $notes,
         ]);
         $newSessId = (int)$db->lastInsertId();
 
-        // Audit supervisor override
-        audit_log($user['id'], 'SUPERVISOR_EXIT_OVERRIDE', 'parking_sessions', $ticketId, null, [
-            'supervisor' => $authorizedSupervisor['full_name'],
-            'plate'      => $cleanPlate,
-            'reason'     => $overrideReason,
+        // Audit Log
+        audit_log($user['id'], 'EXIT_WITHOUT_DETAILS', 'parking_sessions', $ticketId, null, [
+            'plate'       => $cleanPlate,
+            'entry_time'  => $entryTime,
+            'duration'    => $durationMinutes,
+            'cleared_by'  => $user['full_name'],
+            'supervisor'  => $authorizedSupervisor ? $authorizedSupervisor['full_name'] : null,
+        ]);
+
+        // Fire realtime event to inform all guard stations
+        fire_event('exit_without_details', [
+            'session_id'         => $newSessId,
+            'ticket_id'          => $ticketId,
+            'plate_number'       => $cleanPlate,
+            'formatted_plate'    => $displayPlate,
+            'entry_time'         => $entryTime,
+            'entry_time_display' => date('h:i A', $entryTs),
+            'exit_time'          => date('Y-m-d H:i:s'),
+            'exit_time_display'  => date('h:i A'),
+            'duration_minutes'   => $durationMinutes,
+            'duration_text'      => $durationText,
+            'cleared_by'         => $user['full_name'],
+            'message'            => "Vehicle {$displayPlate} exited without collection of details! Entered: " . date('h:i A', $entryTs) . " | Exited: " . date('h:i A') . " ({$durationText}).",
+            'time'               => date('H:i:s'),
         ]);
 
         fire_event('session_completed', [
@@ -125,9 +167,9 @@ try {
             'ticket_id'        => $ticketId,
             'plate_number'     => $cleanPlate,
             'formatted_plate'  => $displayPlate,
-            'duration_minutes' => 0,
-            'duration_text'    => 'Override (0m)',
-            'cleared_by'       => $user['full_name'] . " (Sup: {$authorizedSupervisor['full_name']})",
+            'duration_minutes' => $durationMinutes,
+            'duration_text'    => $durationText,
+            'cleared_by'       => $user['full_name'],
             'time'             => date('H:i:s'),
         ]);
 
@@ -138,9 +180,12 @@ try {
                 'ticket_id'        => $ticketId,
                 'plate_number'     => $cleanPlate,
                 'formatted_plate'  => $displayPlate,
-                'duration_minutes' => 0,
-                'duration_text'    => 'Authorized via Supervisor Override',
-                'cleared_by'       => $authorizedSupervisor['full_name'],
+                'entry_time'       => $entryTime,
+                'entry_time_display' => date('h:i A', $entryTs),
+                'duration_minutes' => $durationMinutes,
+                'duration_text'    => $durationText,
+                'notice'           => "Vehicle cleared for exit without prior collection of driver details. Entry recorded at: {$entryTime}.",
+                'cleared_by'       => $user['full_name'],
             ],
         ]);
         exit;

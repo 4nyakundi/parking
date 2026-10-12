@@ -1,5 +1,6 @@
 # Environment and Local Config Overrides
 *.env.local
+config/config.local.php
 
 # Logs
 *.log

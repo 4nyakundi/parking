@@ -580,6 +580,13 @@ function handleServerEvent(event) {
             logActivity(`Exit candidate: ${p.formatted_plate || p.plate_number}`, 'warn');
             break;
 
+        case 'exit_without_details':
+            playAlertChime();
+            removePendingCard(p.plate_number);
+            showExitWithoutDetailsBanner(p);
+            logActivity(`⚠️ ${p.formatted_plate || p.plate_number} exited WITHOUT details! In: ${p.entry_time_display || p.entry_time || '--'} | Out: ${p.exit_time_display || p.time || '--'} (${p.duration_text || ''})`, 'warn');
+            break;
+
         case 'session_created':
             removePendingCard(p.plate_number);
             logActivity(`Session created: ${p.plate_number || ''} — Ticket #${p.ticket_id || ''}`, 'ok');
@@ -587,6 +594,7 @@ function handleServerEvent(event) {
 
         case 'session_completed':
             logActivity(`Exit cleared: ${p.formatted_plate || ''} — ${p.duration_text || ''}`, 'ok');
+            removePendingCard(p.plate_number);
             if (STATE.activeExitSession && STATE.activeExitSession.ticket_id === p.ticket_id) {
                 document.getElementById('exitCandidateArea').innerHTML = `
                     <div style="text-align:center; padding:28px; color:var(--green-lt); border:1px solid var(--border); border-radius:8px;">
@@ -620,6 +628,68 @@ function showEntranceAlprBanner(p) {
         if (window.gsap) {
             gsap.fromTo(banner, { y: -20, opacity: 0 }, { y: 0, opacity: 1, duration: 0.4 });
         }
+    }
+}
+
+function showExitWithoutDetailsBanner(p) {
+    const area = document.getElementById('exitCandidateArea');
+    const plate = escapeHtml(p.formatted_plate || p.plate_number || 'UNKNOWN');
+    const inTime = escapeHtml(p.entry_time_display || p.entry_time || '--');
+    const outTime = escapeHtml(p.exit_time_display || p.exit_time || p.time || '--');
+    const durText = escapeHtml(p.duration_text || (p.duration_minutes ? p.duration_minutes + ' mins' : '--'));
+
+    // Prominent toast notification
+    showToast(`⚠️ Vehicle ${plate} left WITHOUT collection of details! In: ${inTime} • Out: ${outTime} (${durText})`, 8000);
+
+    if (area) {
+        area.innerHTML = `
+            <div class="uncollected-exit-card" style="border: 2px solid #f59e0b; background: #fffbeb; border-radius: 12px; padding: 18px 20px; margin-bottom: 20px; box-shadow: 0 10px 25px rgba(245,158,11,0.18);">
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <span style="font-size:28px;">⚠️</span>
+                        <div>
+                            <div style="font-size:15px; font-weight:900; color:#b45309; text-transform:uppercase; letter-spacing:0.04em;">
+                                VEHICLE EXITED WITHOUT DETAILS
+                            </div>
+                            <div style="font-size:12px; color:#92400e; font-weight:600;">
+                                Gate cleared automatically • Driver info was not collected upon entry
+                            </div>
+                        </div>
+                    </div>
+                    <span style="background:#10b981; color:#fff; font-size:11px; font-weight:800; padding:4px 10px; border-radius:6px; letter-spacing:0.05em;">
+                        ✓ GATE CLEARED
+                    </span>
+                </div>
+
+                <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap:12px; background:#fff; padding:12px 14px; border-radius:8px; border:1px solid #fde68a;">
+                    <div>
+                        <span class="info-label" style="font-size:11px; color:#64748b;">Vehicle Plate</span>
+                        <div style="font-size:20px; font-weight:900; color:#0f172a; font-family:monospace;">${plate}</div>
+                    </div>
+                    <div>
+                        <span class="info-label" style="font-size:11px; color:#64748b;">Entered At</span>
+                        <div style="font-size:14px; font-weight:800; color:#1e293b;">${inTime}</div>
+                    </div>
+                    <div>
+                        <span class="info-label" style="font-size:11px; color:#64748b;">Exited At</span>
+                        <div style="font-size:14px; font-weight:800; color:#1e293b;">${outTime}</div>
+                    </div>
+                    <div>
+                        <span class="info-label" style="font-size:11px; color:#64748b;">Total Duration</span>
+                        <div style="font-size:14px; font-weight:800; color:#d97706;">${durText}</div>
+                    </div>
+                </div>
+
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:12px; flex-wrap:wrap; gap:8px;">
+                    <div style="font-size:11.5px; color:#78350f; font-weight:600;">
+                        ℹ️ Vehicle departure recorded in database. Driver details were not registered.
+                    </div>
+                    <button class="btn-search-clear" onclick="document.getElementById('exitCandidateArea').innerHTML=''" style="background:#fef3c7; border:1px solid #fcd34d; color:#92400e; font-weight:800; padding:5px 12px; border-radius:6px; cursor:pointer;">
+                        Dismiss Alert
+                    </button>
+                </div>
+            </div>
+        `;
     }
 }
 
@@ -738,6 +808,14 @@ function createPendingCardElement(item) {
         sourceBadge = `<span class="cam-source-badge">📷 CAMERA</span>`;
     }
 
+    // Vehicle type badge (Car, Tuktuk, Government)
+    let typeBadge = '';
+    if (item.vehicle_type === 'tuktuk') {
+        typeBadge = `<span class="cam-source-badge" style="background:#f59e0b;color:#000;font-weight:800;">🛺 TUKTUK</span>`;
+    } else if (item.vehicle_type === 'government') {
+        typeBadge = `<span class="cam-source-badge" style="background:#0284c7;color:#fff;font-weight:800;">🏛️ GOVT</span>`;
+    }
+
     // Driver details tag on the card
     let driverTag = '';
     if (isSelfCheckin || (item.driver_name && item.driver_name !== 'Visitor')) {
@@ -754,17 +832,25 @@ function createPendingCardElement(item) {
         `;
     }
 
+    // Entry timestamp & wait duration
+    const entryTimeLabel = item.entry_time_display 
+        ? item.entry_time_display 
+        : (item.entry_time ? item.entry_time.split(' ')[1] : '');
+    const waitAndEntryTime = entryTimeLabel 
+        ? `🕒 In: ${escapeHtml(entryTimeLabel)} (${escapeHtml(item.wait_text || 'Just now')})` 
+        : `⏱️ ${escapeHtml(item.wait_text || 'Just now')}`;
+
     // Footer strip
     const footerStrip = isSelfCheckin ? `
         <div class="card-footer-strip" style="background:rgba(5,150,105,0.08); border-top:1px solid rgba(5,150,105,0.2);">
-            <span class="card-wait-text" style="color:#047857; font-weight:700;">⏱️ ${escapeHtml(item.wait_text || 'Just now')}</span>
+            <span class="card-wait-text" style="color:#047857; font-weight:700;">${waitAndEntryTime}</span>
             <span class="card-tap-cta" style="background:#059669; color:#fff; font-weight:800; border-radius:4px; padding:3px 9px;">
                 ✓ Approve Entry ➔
             </span>
         </div>
     ` : `
         <div class="card-footer-strip">
-            <span class="card-wait-text">⏱️ ${escapeHtml(item.wait_text || 'Just now')}</span>
+            <span class="card-wait-text">${waitAndEntryTime}</span>
             <span class="card-tap-cta">
                 Tap to Admit
                 <svg class="i-icon" style="width:12px;height:12px;display:inline;" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
@@ -779,6 +865,7 @@ function createPendingCardElement(item) {
                 <div class="card-plate">${escapeHtml(item.formatted_plate)}</div>
                 <div class="card-meta-row">
                     ${sourceBadge}
+                    ${typeBadge}
                     ${item.alpr_verified ? `<span class="badge-verified">✓ ${t('verified_badge')}</span>` : ''}
                 </div>
                 ${driverTag}
@@ -846,8 +933,35 @@ function openVehicleIntakeModal(requestId) {
         }
     }
 
+    const typeBadge = document.getElementById('intakeTypeBadge');
+    if (typeBadge) {
+        if (item.vehicle_type === 'tuktuk') {
+            typeBadge.textContent = '🛺 TUKTUK';
+            typeBadge.style.background = '#f59e0b';
+            typeBadge.style.color = '#000';
+            typeBadge.style.display = 'inline-flex';
+        } else if (item.vehicle_type === 'government') {
+            typeBadge.textContent = '🏛️ GOVT';
+            typeBadge.style.background = '#0284c7';
+            typeBadge.style.color = '#fff';
+            typeBadge.style.display = 'inline-flex';
+        } else {
+            typeBadge.style.display = 'none';
+        }
+    }
+
     const verBadge = document.getElementById('intakeVerifiedBadge');
     if (verBadge) verBadge.style.display = item.alpr_verified ? 'inline-block' : 'none';
+
+    const entryTimeEl = document.getElementById('intakeEntryTime');
+    if (entryTimeEl) {
+        if (item.entry_time_display || item.entry_time) {
+            entryTimeEl.textContent = `In: ${item.entry_time_display || item.entry_time.split(' ')[1]}`;
+            entryTimeEl.style.display = 'inline-block';
+        } else {
+            entryTimeEl.style.display = 'none';
+        }
+    }
 
     const timeAgo = document.getElementById('intakeTimeAgo');
     if (timeAgo) timeAgo.textContent = item.wait_text || 'Just now';
@@ -1456,20 +1570,38 @@ async function searchExitSessions(term) {
         json.data.forEach(item => {
             const card = document.createElement('div');
             card.className = 'car-card';
-            card.style.borderColor = '#f97316';
-            card.innerHTML = `
-                <div class="card-header">
-                    <div class="card-plate">${item.formatted_plate}</div>
-                    <span style="font-weight:800; color:#fbbf24;">Parked: ${item.dwell_string}</span>
-                </div>
-                <div class="card-body">
-                    <div><span class="info-label">${t('driver')}</span><span class="info-val">${item.driver_name}</span></div>
-                    <div><span class="info-label">${t('destination')}</span><span class="info-val">${item.destination}</span></div>
-                </div>
-                <button class="btn-card-accept" style="background:#f97316;" onclick="executeClearExit(${item.id})">
-                    🚪 ${t('btn_clear_exit')}
-                </button>
-            `;
+            if (item.is_uncollected) {
+                card.style.borderColor = '#f59e0b';
+                card.style.background = '#fffbeb';
+                card.innerHTML = `
+                    <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
+                        <div class="card-plate" style="color:#b45309;">${item.formatted_plate}</div>
+                        <span style="font-weight:800; color:#d97706;">🕒 In: ${item.entry_time_display || item.entry_time || item.dwell_string}</span>
+                    </div>
+                    <div class="card-body" style="padding:10px 0;">
+                        <div style="color:#b45309; font-weight:800; font-size:12.5px;">⚠️ Details Not Collected</div>
+                        <div style="color:#78350f; font-size:11.5px; margin-top:2px;">Wait: ${item.dwell_string} • Entrance: ${item.source || 'Camera'}</div>
+                    </div>
+                    <button class="btn-card-accept" style="background:#f59e0b; color:#fff;" onclick="executeClearExit(0, '${item.plate_number}')">
+                        🚪 Allow Exit (Uncollected Details)
+                    </button>
+                `;
+            } else {
+                card.style.borderColor = '#f97316';
+                card.innerHTML = `
+                    <div class="card-header">
+                        <div class="card-plate">${item.formatted_plate}</div>
+                        <span style="font-weight:800; color:#fbbf24;">Parked: ${item.dwell_string}</span>
+                    </div>
+                    <div class="card-body">
+                        <div><span class="info-label">${t('driver')}</span><span class="info-val">${item.driver_name}</span></div>
+                        <div><span class="info-label">${t('destination')}</span><span class="info-val">${item.destination}</span></div>
+                    </div>
+                    <button class="btn-card-accept" style="background:#f97316;" onclick="executeClearExit(${item.id})">
+                        🚪 ${t('btn_clear_exit')}
+                    </button>
+                `;
+            }
             area.appendChild(card);
         });
     } catch (e) {
@@ -1477,20 +1609,34 @@ async function searchExitSessions(term) {
     }
 }
 
-async function executeClearExit(sessionId) {
-    if (!confirm('Are you sure you want to clear this vehicle for exit?')) return;
+async function executeClearExit(sessionId, plateNumber = '') {
+    const isUncollected = !sessionId && plateNumber;
+    const confirmMsg = isUncollected 
+        ? `Clear exit for uncollected vehicle ${plateNumber}? Vehicle will be allowed out and alert recorded.`
+        : 'Are you sure you want to clear this vehicle for exit?';
+    if (!confirm(confirmMsg)) return;
 
     try {
+        const payload = sessionId ? { session_id: sessionId } : { plate_number: plateNumber };
         const res = await fetch('../api/gate/clear-exit.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ session_id: sessionId }),
+            body: JSON.stringify(payload),
         });
         const json = await res.json();
 
         if (json.ok) {
             playSuccessChime();
-            showToast(`✓ Vehicle ${json.data.formatted_plate} cleared. Total time: ${json.data.duration_text}`);
+            const plate = json.data.formatted_plate || json.data.plate_number || plateNumber;
+            removePendingCard(json.data.plate_number || plateNumber);
+
+            if (json.data.details_uncollected) {
+                showToast(`⚠️ Vehicle ${plate} cleared without details. In: ${json.data.entry_time_display || '--'} • Out: ${json.data.exit_time_display || '--'}`);
+                logActivity(`⚠️ Vehicle ${plate} exited without details. Gate cleared.`, 'warn');
+            } else {
+                showToast(`✓ Vehicle ${plate} cleared. Total time: ${json.data.duration_text}`);
+            }
+
             document.getElementById('exitCandidateArea').innerHTML = '';
             document.getElementById('exitSearchResults').innerHTML = '';
             const searchInput = document.getElementById('exitSearchInput');

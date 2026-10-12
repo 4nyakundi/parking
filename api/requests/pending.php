@@ -18,6 +18,11 @@ require_auth(true);
 try {
     $db = get_db();
 
+    // Auto-expire abandoned visitor requests older than 24 hours to keep the guard dashboard clean
+    try {
+        $db->query("UPDATE visitors SET status = 'EXPIRED' WHERE status = 'PENDING' AND created_at < DATE_SUB(NOW(), INTERVAL 24 HOUR)");
+    } catch (Throwable) {}
+
     // Query pending requests and join with registered_vehicles to highlight VIP / staff / blacklisted
     $stmt = $db->query('
         SELECT 
@@ -51,23 +56,31 @@ try {
 
         $waitText = $waitMinutes < 1 ? 'Just now' : ($waitMinutes == 1 ? '1 min ago' : "{$waitMinutes} mins ago");
 
+        $createdTs = strtotime($row['created_at']);
+        $isToday = (date('Y-m-d', $createdTs) === date('Y-m-d'));
+        $timeDisplay = date('h:i A', $createdTs);
+        $entryDisplay = $isToday ? $timeDisplay : date('d M, h:i A', $createdTs);
+
         $data[] = [
-            'id'               => (int)$row['id'],
-            'plate_number'     => $row['plate_number'],
-            'formatted_plate'  => PlateHelper::format($row['plate_number']),
-            'driver_name'      => $row['driver_name'],
-            'driver_phone'     => PhoneHelper::formatDisplay($row['driver_phone']),
-            'raw_phone'        => $row['driver_phone'],
-            'destination'      => $row['destination'],
-            'destination_icon' => $row['destination_icon'] ?? 'store',
-            'source'           => $row['source'],
-            'alpr_verified'    => (bool)$row['alpr_verified'],
-            'snapshot_url'     => $row['snapshot_url'] ?? null,
-            'wait_seconds'     => $waitSeconds,
-            'wait_text'        => $waitText,
-            'category'         => $row['vehicle_category'] ?? 'regular',
-            'category_notes'   => $row['category_notes'] ?? '',
-            'created_at'       => $row['created_at'],
+            'id'                 => (int)$row['id'],
+            'plate_number'       => $row['plate_number'],
+            'formatted_plate'    => PlateHelper::format($row['plate_number']),
+            'driver_name'        => $row['driver_name'],
+            'driver_phone'       => PhoneHelper::formatDisplay($row['driver_phone']),
+            'raw_phone'          => $row['driver_phone'],
+            'destination'        => $row['destination'],
+            'destination_icon'   => $row['destination_icon'] ?? 'store',
+            'source'             => $row['source'],
+            'alpr_verified'      => (bool)$row['alpr_verified'],
+            'snapshot_url'       => $row['snapshot_url'] ?? null,
+            'wait_seconds'       => $waitSeconds,
+            'wait_text'          => $waitText,
+            'category'           => $row['vehicle_category'] ?? 'regular',
+            'category_notes'     => $row['category_notes'] ?? '',
+            'created_at'         => $row['created_at'],
+            'entry_time'         => $row['created_at'],
+            'entry_time_display' => $entryDisplay,
+            'vehicle_type'       => PlateHelper::detectType($row['plate_number']),
         ];
     }
 

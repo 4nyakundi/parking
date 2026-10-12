@@ -6,11 +6,11 @@
 
 return [
     'db' => [
-        'host'     => '127.0.0.1',
+        'host'     => 'localhost',
         'port'     => 3306,
-        'dbname'   => 'mombasa_parking_cloud',
-        'username' => 'root',
-        'password' => '',
+        'dbname'   => 'mombasam_parking',
+        'username' => 'mombasam_admin',
+        'password' => 'basement2026.',
         'charset'  => 'utf8mb4',
     ],
     'security' => [

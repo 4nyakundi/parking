@@ -453,7 +453,9 @@
                     <div class="intake-plate-badge" id="intakePlateDisplay">KDA 123A</div>
                     <div class="intake-meta-row">
                         <span id="intakeSourceBadge" class="cam-source-badge">📷 CAMERA</span>
+                        <span id="intakeTypeBadge" class="cam-source-badge" style="display:none;">🚗 CAR</span>
                         <span id="intakeVerifiedBadge" class="badge-verified">✓ VERIFIED</span>
+                        <span id="intakeEntryTime" class="intake-time" style="background:#e0f2fe; color:#0369a1; font-weight:800; padding:2px 8px; border-radius:4px; display:none;">In: --</span>
                         <span id="intakeTimeAgo" class="intake-time">Just now</span>
                     </div>
                 </div>

@@ -108,18 +108,18 @@ try {
         }
     }
 
-    if (empty($detectedPlate)) {
+    $cleanPlate = PlateHelper::clean($detectedPlate);
+    if (empty($cleanPlate) || !PlateHelper::validate($cleanPlate)) {
         echo json_encode([
             'ok'            => true,
             'camera_online' => $cameraOnline,
             'snapshot_url'  => $snapshotRelPath,
             'plate_found'   => false,
-            'message'       => 'Camera is live. No vehicle plate currently positioned in detection zone.',
+            'message'       => 'Camera is live. No qualifying vehicle plate (Cars/Tuktuks starting with K, G, or County Gov) in detection zone.',
         ]);
         exit;
     }
 
-    $cleanPlate   = PlateHelper::clean($detectedPlate);
     $displayPlate = PlateHelper::format($cleanPlate);
 
     // Check if vehicle is already parked inside
@@ -188,22 +188,29 @@ try {
             ':req_id' => $requestId,
         ]);
 
+        $nowTime = date('Y-m-d H:i:s');
+        $nowDisplay = date('h:i A');
+
         // Dispatch new_request event
         fire_event('new_request', [
-            'id'              => $requestId,
-            'request_id'      => $requestId,
-            'plate_number'    => $cleanPlate,
-            'formatted_plate' => $displayPlate,
-            'driver_name'     => $driverName,
-            'driver_phone'    => PhoneHelper::formatDisplay($driverPhone),
-            'destination'     => $destination,
-            'source'          => 'alpr_camera',
-            'alpr_verified'   => true,
-            'snapshot_url'    => $snapshotRelPath,
-            'wait_seconds'    => 0,
-            'wait_text'       => 'Just now',
-            'category'        => $regVehicle['category'] ?? 'regular',
-            'category_notes'  => $regVehicle['notes'] ?? '',
+            'id'                 => $requestId,
+            'request_id'         => $requestId,
+            'plate_number'       => $cleanPlate,
+            'formatted_plate'    => $displayPlate,
+            'driver_name'        => $driverName,
+            'driver_phone'       => PhoneHelper::formatDisplay($driverPhone),
+            'destination'        => $destination,
+            'source'             => 'alpr_camera',
+            'alpr_verified'      => true,
+            'snapshot_url'       => $snapshotRelPath,
+            'created_at'         => $nowTime,
+            'entry_time'         => $nowTime,
+            'entry_time_display' => $nowDisplay,
+            'wait_seconds'       => 0,
+            'wait_text'          => 'Just now',
+            'category'           => $regVehicle['category'] ?? 'regular',
+            'category_notes'     => $regVehicle['notes'] ?? '',
+            'vehicle_type'       => PlateHelper::detectType($cleanPlate),
         ]);
     }
 

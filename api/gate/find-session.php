@@ -91,6 +91,50 @@ try {
         ];
     }
 
+    // Fallback: If no parking session found, search visitors table (uncollected entry)
+    if (empty($results) && !empty($cleanPlate)) {
+        $visStmt = $db->prepare('
+            SELECT id, plate_number, driver_name, driver_phone, destination, created_at,
+                   TIMESTAMPDIFF(MINUTE, created_at, NOW()) AS dwell_minutes
+            FROM visitors
+            WHERE plate_number LIKE :exactPlate OR plate_number LIKE :partPlate
+            ORDER BY id DESC LIMIT 5
+        ');
+        $visStmt->execute([':exactPlate' => $cleanPlate, ':partPlate' => "%{$cleanPlate}%"]);
+        $pendingVisitors = $visStmt->fetchAll();
+
+        foreach ($pendingVisitors as $pv) {
+            $dwellMins = (int)$pv['dwell_minutes'];
+            $hours = floor($dwellMins / 60);
+            $mins  = $dwellMins % 60;
+            $dwellStr = $hours > 0 ? "{$hours}h {$mins}m" : "{$mins} mins";
+
+            $results[] = [
+                'id'                 => 0,
+                'visitor_id'         => (int)$pv['id'],
+                'ticket_id'          => 'UNCOLLECTED',
+                'plate_number'       => $pv['plate_number'],
+                'formatted_plate'    => PlateHelper::format($pv['plate_number']),
+                'driver_name'        => !empty($pv['driver_name']) && $pv['driver_name'] !== 'Visitor' ? $pv['driver_name'] : 'Visitor (Details not collected)',
+                'driver_phone'       => PhoneHelper::formatDisplay($pv['driver_phone']),
+                'raw_phone'          => $pv['driver_phone'],
+                'destination'        => $pv['destination'] ?: 'Mombasa Mall',
+                'entry_time'         => $pv['created_at'],
+                'exit_time'          => null,
+                'status'             => 'PENDING_NO_DATA',
+                'dwell_minutes'      => $dwellMins,
+                'dwell_string'       => $dwellStr,
+                'is_overstay'        => false,
+                'is_uncollected'     => true,
+                'entry_snapshot'     => null,
+                'exit_snapshot'      => null,
+                'guard_name'         => 'Entrance Camera',
+                'print_status'       => 'none',
+                'whatsapp_status'    => 'not_sent',
+            ];
+        }
+    }
+
     echo json_encode(['ok' => true, 'data' => $results]);
 } catch (Throwable $e) {
     error_log('FIND SESSION ERROR: ' . $e->getMessage());

@@ -84,8 +84,8 @@ def clean_kenyan_plate(raw_text):
         l2 = correct_string(clean[6:7], DIGIT_TO_LETTER)
         return l1 + d + l2
 
-    # Motorcycle (KMDA 123A) -> LLLL DDD L
-    if length == 8 and clean.startswith("KM"):
+    # TukTuk series (KTWA 123A) -> LLLL DDD L
+    if length == 8 and clean.startswith("KTW"):
         l1 = correct_string(clean[0:4], DIGIT_TO_LETTER)
         d  = correct_string(clean[4:7], LETTER_TO_DIGIT)
         l2 = correct_string(clean[7:8], DIGIT_TO_LETTER)
@@ -100,23 +100,53 @@ def clean_kenyan_plate(raw_text):
         else:
             return "GK" + correct_string(clean[2:3], DIGIT_TO_LETTER) + correct_string(clean[3:6], LETTER_TO_DIGIT)
 
+    # County Government (e.g. 47CG123A, 01CG001A)
+    if length == 8 and re.match(r'^[0-9OIZSB]{2}(CG|CP|CV)[0-9OIZSB]{3}[A-Z0-9]$', clean):
+        code = correct_string(clean[0:2], LETTER_TO_DIGIT)
+        num = correct_string(clean[4:7], LETTER_TO_DIGIT)
+        suf = correct_string(clean[7:8], DIGIT_TO_LETTER)
+        return code + "CG" + num + suf
+
     return clean
 
 def validate_kenyan_plate(clean_plate):
-    # 1. Standard Civilian
+    if not clean_plate or len(clean_plate) < 4 or len(clean_plate) > 10:
+        return False
+
+    # 1. Reject 4-letter motorcycle plates (KMCA 001A - boda boda)
+    if re.match(r'^KM[A-Z]{2}[0-9]{3}[A-Z]$', clean_plate):
+        return False
+
+    # 2. Standard Civilian Cars & TukTuks (KAA 001A to KZZ 999Z)
     if re.match(r'^K[A-Z]{2}[0-9]{3}[A-Z]$', clean_plate):
         return True
-    # 2. Motorcycle
-    if re.match(r'^KM[A-Z]{2}[0-9]{3}[A-Z]$', clean_plate):
+
+    # 3. TukTuk specific series (KTW 123A or KTWA 123A)
+    if re.match(r'^KTW[A-Z]?[0-9]{3}[A-Z]$', clean_plate):
         return True
-    # 3. Government (GK)
-    if re.match(r'^GK([0-9]{3}[A-Z]|[A-Z][0-9]{3})$', clean_plate):
+
+    # 4. Older Kenyan civilian formats starting with K (KAA 123A, KB 1234, K 1234)
+    if re.match(r'^K[A-Z]{1,2}[0-9]{1,4}[A-Z]?$', clean_plate):
         return True
-    # 4. County Government
-    if re.match(r'^(0[1-9]|[1-4][0-9])CG[0-9]{3}[A-Z]$', clean_plate):
+
+    # 5. Government (GK 123A, GK A123, GK 1234, GKA 123A)
+    if re.match(r'^GK([0-9]{3}[A-Z]|[A-Z][0-9]{3}|[0-9]{1,4}|[A-Z]{1,2}[0-9]{1,4}[A-Z]?)$', clean_plate):
         return True
-    # 5. Broad fallback (4 to 10 alphanumeric)
-    return bool(re.match(r'^[A-Z0-9]{4,10}$', clean_plate))
+
+    # 6. General Government starting with G (GKA 123A, GP 123A, GV 123A)
+    if re.match(r'^G[A-Z]{1,3}[0-9]{1,4}[A-Z]?$', clean_plate):
+        return True
+
+    # 7. County Government (all 47 counties: 01 CG to 47 CG, e.g. 01CG001A, 47CG001A, 22CG123B)
+    if re.match(r'^(0[1-9]|[1-4][0-9])(CG|GP|GV)[0-9]{1,4}[A-Z]?$', clean_plate):
+        return True
+
+    # 8. County Government starting with CG (CG 01 001A, CG 47 001A, CG 123A)
+    if re.match(r'^CG(0[1-9]|[1-4][0-9])?[0-9]{1,4}[A-Z]?$', clean_plate):
+        return True
+
+    # Reject non-conforming formats
+    return False
 
 # Thread-safe Camera Capture Worker
 class CameraStreamWorker(threading.Thread):
