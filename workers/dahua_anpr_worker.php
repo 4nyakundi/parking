@@ -26,7 +26,9 @@ $apiKey    = $config['alpr']['api_key'] ?? 'MOMBASA_PARKING_ALPR_SECRET_KEY_2026
 $apiUrl    = 'http://127.0.0.1/parking/api/gate/plate-detected.php';
 $healthUrl = 'http://127.0.0.1/parking/api/health.php';
 
-// Target Cameras Configuration (Locked to Mall Network)
+// Target Cameras Configuration (Locked to Mall Network: Cameras on 192.168.1.230/210, NVR on 192.168.1.3)
+$nvrIp = $config['alpr']['nvr']['ip'] ?? '192.168.1.3';
+
 $cameras = [
     'entrance' => [
         'name'      => 'Entrance ANPR Camera',
@@ -34,7 +36,10 @@ $cameras = [
         'user'      => $config['alpr']['entrance']['username'] ?? 'admin',
         'pass'      => $config['alpr']['entrance']['password'] ?? 'Mall@2024',
         'stream'    => "http://" . ($config['alpr']['entrance']['ip'] ?? '192.168.1.230') . "/cgi-bin/eventManager.cgi?action=attach&codes=[Traffic,TrafficTollGate,PlateDetection,All]",
-        'snap'      => "http://" . ($config['alpr']['entrance']['ip'] ?? '192.168.1.230') . "/cgi-bin/snapshot.cgi?channel=1",
+        'snap'      => [
+            "http://" . ($config['alpr']['entrance']['ip'] ?? '192.168.1.230') . "/cgi-bin/snapshot.cgi?channel=1",
+            "http://{$nvrIp}/cgi-bin/snapshot.cgi?channel=1",
+        ],
         'last_seen' => 0,
         'status'    => 'CONNECTING',
     ],
@@ -44,7 +49,10 @@ $cameras = [
         'user'      => $config['alpr']['exit']['username'] ?? 'admin',
         'pass'      => $config['alpr']['exit']['password'] ?? 'Mall@2024',
         'stream'    => "http://" . ($config['alpr']['exit']['ip'] ?? '192.168.1.210') . "/cgi-bin/eventManager.cgi?action=attach&codes=[Traffic,TrafficTollGate,PlateDetection,All]",
-        'snap'      => "http://" . ($config['alpr']['exit']['ip'] ?? '192.168.1.210') . "/cgi-bin/snapshot.cgi?channel=1",
+        'snap'      => [
+            "http://" . ($config['alpr']['exit']['ip'] ?? '192.168.1.210') . "/cgi-bin/snapshot.cgi?channel=1",
+            "http://{$nvrIp}/cgi-bin/snapshot.cgi?channel=2",
+        ],
         'last_seen' => 0,
         'status'    => 'CONNECTING',
     ],
@@ -52,8 +60,8 @@ $cameras = [
 
 echo "====================================================================\n";
 echo " Mombasa Mall ANPR Worker - Dahua Dual-Camera Real-Time Engine\n";
-echo " Entrance Camera: http://{$cameras['entrance']['ip']} (User: {$cameras['entrance']['user']})\n";
-echo " Exit Camera:     http://{$cameras['exit']['ip']} (User: {$cameras['exit']['user']})\n";
+echo " Entrance Camera: http://{$cameras['entrance']['ip']} (NVR Ch 1: http://{$nvrIp})\n";
+echo " Exit Camera:     http://{$cameras['exit']['ip']} (NVR Ch 2: http://{$nvrIp})\n";
 echo " API Receiver:    {$apiUrl}\n";
 echo " Credentials:     Locked (admin / Mall@2024)\n";
 echo "====================================================================\n\n";
@@ -66,20 +74,23 @@ function log_msg(string $msg): void {
     echo "[{$time}] {$msg}\n";
 }
 
-function grab_snapshot_base64(string $snapUrl, string $user, string $pass): ?string {
-    $ch = curl_init($snapUrl);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_HTTPAUTH, CURLAUTH_DIGEST);
-    curl_setopt($ch, CURLOPT_USERPWD, "{$user}:{$pass}");
-    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 2);
-    curl_setopt($ch, CURLOPT_TIMEOUT, 4);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-    $data = curl_exec($ch);
-    $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
+function grab_snapshot_base64(array|string $snapUrls, string $user, string $pass): ?string {
+    $urls = is_array($snapUrls) ? $snapUrls : [$snapUrls];
+    foreach ($urls as $snapUrl) {
+        $ch = curl_init($snapUrl);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_HTTPAUTH, CURLAUTH_DIGEST | CURLAUTH_BASIC);
+        curl_setopt($ch, CURLOPT_USERPWD, "{$user}:{$pass}");
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 2);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 3);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        $data = curl_exec($ch);
+        $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
 
-    if ($code === 200 && !empty($data) && strlen($data) > 1000) {
-        return base64_encode($data);
+        if ($code === 200 && !empty($data) && strlen($data) > 1000) {
+            return base64_encode($data);
+        }
     }
     return null;
 }

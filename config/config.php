@@ -68,35 +68,43 @@ return [
         'debounce_seconds'   => 10,
         'voting_frames'      => 2,
         'source_mode'        => 'dahua_anpr', // Native Dahua ANPR HTTP Event Stream
-        // NVR Master Credentials
+        // NVR Master Credentials (Dahua NVR at 192.168.1.3, channels 1 & 2)
         'nvr' => [
+            'ip'             => '192.168.1.3',
             'ip_cctv'        => '192.168.1.3',
             'ip_lan'         => '192.168.0.3',
             'username'       => 'admin',
             'password'       => 'Mall@2024',
             'rtsp_port'      => 554,
+            'channel_entrance' => 1,
+            'channel_exit'     => 2,
+            'event_url'      => 'http://192.168.1.3/cgi-bin/eventManager.cgi?action=attach&codes=[Traffic,TrafficTollGate,PlateDetection,All]',
         ],
-        // Entrance ANPR Camera (Dahua 192.168.1.230)
+        // Entrance ANPR Camera (Dahua 192.168.1.230 - NVR Channel 1)
         'entrance' => [
-            'ip'             => '192.168.1.230',
-            'username'       => 'admin',
-            'password'       => 'Mall@2024',
-            'rtsp_main'      => 'rtsp://admin:Mall@2024@192.168.1.230:554/cam/realmonitor?channel=1&subtype=0',
-            'rtsp_sub'       => 'rtsp://admin:Mall@2024@192.168.1.230:554/cam/realmonitor?channel=1&subtype=1',
-            'snapshot_url'   => 'http://192.168.1.230/cgi-bin/snapshot.cgi?channel=1',
-            'event_url'      => 'http://192.168.1.230/cgi-bin/eventManager.cgi?action=attach&codes=[Traffic,TrafficTollGate,PlateDetection,All]',
-            'nvr_rtsp'       => 'rtsp://admin:Mall@2024@192.168.1.3:554/cam/realmonitor?channel=1&subtype=0',
+            'ip'               => '192.168.1.230',
+            'username'         => 'admin',
+            'password'         => 'Mall@2024',
+            'nvr_channel'      => 1,
+            'rtsp_main'        => 'rtsp://admin:Mall@2024@192.168.1.230:554/cam/realmonitor?channel=1&subtype=0',
+            'rtsp_sub'         => 'rtsp://admin:Mall@2024@192.168.1.230:554/cam/realmonitor?channel=1&subtype=1',
+            'snapshot_url'     => 'http://192.168.1.230/cgi-bin/snapshot.cgi?channel=1',
+            'nvr_snapshot_url' => 'http://192.168.1.3/cgi-bin/snapshot.cgi?channel=1',
+            'event_url'        => 'http://192.168.1.230/cgi-bin/eventManager.cgi?action=attach&codes=[Traffic,TrafficTollGate,PlateDetection,All]',
+            'nvr_rtsp'         => 'rtsp://admin:Mall@2024@192.168.1.3:554/cam/realmonitor?channel=1&subtype=0',
         ],
-        // Exit ANPR Camera (Dahua 192.168.1.210)
+        // Exit ANPR Camera (Dahua 192.168.1.210 - NVR Channel 2)
         'exit' => [
-            'ip'             => '192.168.1.210',
-            'username'       => 'admin',
-            'password'       => 'Mall@2024',
-            'rtsp_main'      => 'rtsp://admin:Mall@2024@192.168.1.210:554/cam/realmonitor?channel=1&subtype=0',
-            'rtsp_sub'       => 'rtsp://admin:Mall@2024@192.168.1.210:554/cam/realmonitor?channel=1&subtype=1',
-            'snapshot_url'   => 'http://192.168.1.210/cgi-bin/snapshot.cgi?channel=1',
-            'event_url'      => 'http://192.168.1.210/cgi-bin/eventManager.cgi?action=attach&codes=[Traffic,TrafficTollGate,PlateDetection,All]',
-            'nvr_rtsp'       => 'rtsp://admin:Mall@2024@192.168.1.3:554/cam/realmonitor?channel=2&subtype=0',
+            'ip'               => '192.168.1.210',
+            'username'         => 'admin',
+            'password'         => 'Mall@2024',
+            'nvr_channel'      => 2,
+            'rtsp_main'        => 'rtsp://admin:Mall@2024@192.168.1.210:554/cam/realmonitor?channel=1&subtype=0',
+            'rtsp_sub'         => 'rtsp://admin:Mall@2024@192.168.1.210:554/cam/realmonitor?channel=1&subtype=1',
+            'snapshot_url'     => 'http://192.168.1.210/cgi-bin/snapshot.cgi?channel=1',
+            'nvr_snapshot_url' => 'http://192.168.1.3/cgi-bin/snapshot.cgi?channel=2',
+            'event_url'        => 'http://192.168.1.210/cgi-bin/eventManager.cgi?action=attach&codes=[Traffic,TrafficTollGate,PlateDetection,All]',
+            'nvr_rtsp'         => 'rtsp://admin:Mall@2024@192.168.1.3:554/cam/realmonitor?channel=2&subtype=0',
         ],
     ],
 

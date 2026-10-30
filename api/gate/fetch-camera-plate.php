@@ -23,38 +23,83 @@ $manualPlate = trim((string)($json['plate'] ?? $_POST['plate'] ?? $_GET['plate']
 $targetCamera = in_array(strtolower((string)($json['camera'] ?? $_POST['camera'] ?? $_GET['camera'] ?? '')), ['exit', 'cam2'], true) ? 'exit' : 'entrance';
 
 $camConfig = $config['alpr'][$targetCamera] ?? [];
+$nvrConfig = $config['alpr']['nvr'] ?? [];
+
 $camIp   = $camConfig['ip'] ?? ($targetCamera === 'exit' ? '192.168.1.210' : '192.168.1.230');
 $camUser = $camConfig['username'] ?? 'admin';
 $camPass = $camConfig['password'] ?? 'Mall@2024';
-$snapUrl = $camConfig['snapshot_url'] ?? "http://{$camIp}/cgi-bin/snapshot.cgi?channel=1";
+$directSnapUrl = $camConfig['snapshot_url'] ?? "http://{$camIp}/cgi-bin/snapshot.cgi?channel=1";
+
+$nvrChannel = (int)($camConfig['nvr_channel'] ?? ($targetCamera === 'exit' ? 2 : 1));
+$nvrIp = $nvrConfig['ip'] ?? '192.168.1.3';
+$nvrUser = $nvrConfig['username'] ?? 'admin';
+$nvrPass = $nvrConfig['password'] ?? 'Mall@2024';
+$nvrSnapUrl = $camConfig['nvr_snapshot_url'] ?? "http://{$nvrIp}/cgi-bin/snapshot.cgi?channel={$nvrChannel}";
+
+$endpoints = [
+    [
+        'url'    => $directSnapUrl,
+        'user'   => $camUser,
+        'pass'   => $camPass,
+        'source' => "Camera Direct ({$camIp})",
+    ],
+    [
+        'url'    => $nvrSnapUrl,
+        'user'   => $nvrUser,
+        'pass'   => $nvrPass,
+        'source' => "Dahua NVR ({$nvrIp} Ch {$nvrChannel})",
+    ],
+];
+
+if (!empty($nvrConfig['ip_lan'])) {
+    $endpoints[] = [
+        'url'    => "http://{$nvrConfig['ip_lan']}/cgi-bin/snapshot.cgi?channel={$nvrChannel}",
+        'user'   => $nvrUser,
+        'pass'   => $nvrPass,
+        'source' => "Dahua NVR LAN ({$nvrConfig['ip_lan']} Ch {$nvrChannel})",
+    ];
+}
 
 $startTime = microtime(true);
 $snapshotRelPath = null;
 $cameraOnline = false;
+$activeSource = '';
+$imageBinary = null;
+$lastErr = '';
 
-// 1. Fetch live snapshot from Dahua camera
-$ch = curl_init($snapUrl);
-curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-curl_setopt($ch, CURLOPT_HTTPAUTH, CURLAUTH_DIGEST);
-curl_setopt($ch, CURLOPT_USERPWD, "{$camUser}:{$camPass}");
-curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 3);
-curl_setopt($ch, CURLOPT_TIMEOUT, 5);
-curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-$imageBinary = curl_exec($ch);
-$httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-$curlErr = curl_error($ch);
-curl_close($ch);
+// 1. Fetch live snapshot from Dahua camera or Dahua NVR
+foreach ($endpoints as $ep) {
+    $ch = curl_init($ep['url']);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_HTTPAUTH, CURLAUTH_DIGEST | CURLAUTH_BASIC);
+    curl_setopt($ch, CURLOPT_USERPWD, "{$ep['user']}:{$ep['pass']}");
+    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 2);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 3);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    $res = curl_exec($ch);
+    $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $err = curl_error($ch);
+    curl_close($ch);
+
+    if ($code === 200 && !empty($res) && strlen($res) > 1000) {
+        $imageBinary = $res;
+        $cameraOnline = true;
+        $activeSource = $ep['source'];
+        break;
+    } else {
+        $lastErr = "{$ep['source']} [HTTP {$code}]: " . ($err ?: 'No data');
+    }
+}
 
 $latencyMs = (int)round((microtime(true) - $startTime) * 1000);
 
-if ($httpCode === 200 && !empty($imageBinary) && strlen($imageBinary) > 1000) {
-    $cameraOnline = true;
+if ($cameraOnline && $imageBinary !== null) {
     $dateFolder = date('Y/m/d');
     $fullDir = __DIR__ . '/../../storage/snapshots/' . $dateFolder;
     if (!is_dir($fullDir)) {
         mkdir($fullDir, 0777, true);
     }
-    $fileName = sprintf('cam_entrance_live_%s_%s.jpg', date('His'), substr(md5(uniqid()), 0, 6));
+    $fileName = sprintf('cam_%s_live_%s_%s.jpg', $targetCamera, date('His'), substr(md5(uniqid()), 0, 6));
     $filePath = $fullDir . '/' . $fileName;
     file_put_contents($filePath, $imageBinary);
     $snapshotRelPath = 'storage/snapshots/' . $dateFolder . '/' . $fileName;
@@ -66,7 +111,7 @@ try {
     // Update device_health for Target Camera
     $camDeviceKey = ($targetCamera === 'exit') ? 'exit_cam' : 'entrance_cam';
     $camStatus = $cameraOnline ? 'OK' : 'OFFLINE';
-    $msg = $cameraOnline ? "Dahua {$targetCamera} ANPR Camera ({$camIp}) active (Latency: {$latencyMs}ms)" : "Camera unreachable: {$curlErr}";
+    $msg = $cameraOnline ? "Dahua {$targetCamera} active via {$activeSource} (Latency: {$latencyMs}ms)" : "Camera & NVR unreachable: {$lastErr}";
     try {
         $db->prepare('
             INSERT INTO device_health (device, status, last_checked_at, message)
