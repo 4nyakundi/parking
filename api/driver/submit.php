@@ -2,6 +2,7 @@
 /**
  * Mombasa Mall Basement Parking - Public Driver Self Sign-In Endpoint
  * Rate-limited, honeypot protected, Kenyan plate & phone validated.
+ * Fully synchronized with Edge MySQL database and Realtime Guard Dispatch.
  */
 
 declare(strict_types=1);
@@ -45,7 +46,7 @@ $cleanPlate = PlateHelper::clean($rawPlate);
 if (!PlateHelper::validate($cleanPlate)) {
     echo json_encode([
         'ok'    => false,
-        'error' => 'Please enter a valid Kenyan number plate (e.g. KDA 123A, KMDA 123A, GK 123A).',
+        'error' => 'Please enter a valid Kenyan number plate (e.g. KDA 123A, GK 123A, 47 CG 123A).',
     ]);
     exit;
 }
@@ -73,22 +74,42 @@ if (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
 try {
     $db = get_db();
 
-    // 5. Rate Limiting: Max 5 submissions per IP or Phone within 10 minutes
-    $rateStmt = $db->prepare('
-        SELECT COUNT(*) AS cnt 
-        FROM visitors 
-        WHERE (ip_address = :ip OR driver_phone = :phone)
-          AND created_at > DATE_SUB(NOW(), INTERVAL 10 MINUTE)
-    ');
-    $rateStmt->execute([':ip' => $ip, ':phone' => $cleanPhone]);
-    $recentCount = (int)$rateStmt->fetchColumn();
+    // 5. Rate Limiting: Max 10 submissions per IP or Phone within 10 minutes
+    $isLocalIp = ($ip === '127.0.0.1' || $ip === '::1' || str_starts_with($ip, '192.168.') || str_starts_with($ip, '10.') || str_starts_with($ip, '172.'));
+    if (!$isLocalIp) {
+        $rateStmt = $db->prepare('
+            SELECT COUNT(*) AS cnt 
+            FROM visitors 
+            WHERE (ip_address = :ip OR driver_phone = :phone)
+              AND created_at > DATE_SUB(NOW(), INTERVAL 10 MINUTE)
+        ');
+        $rateStmt->execute([':ip' => $ip, ':phone' => $cleanPhone]);
+        $recentCount = (int)$rateStmt->fetchColumn();
 
-    if ($recentCount >= 5) {
-        echo json_encode([
-            'ok'    => false,
-            'error' => 'Too many sign-in attempts. Please drive directly to the security guard for assistance.',
-        ]);
-        exit;
+        if ($recentCount >= 10) {
+            echo json_encode([
+                'ok'    => false,
+                'error' => 'Too many sign-in attempts. Please drive directly to the security guard for assistance.',
+            ]);
+            exit;
+        }
+    } else {
+        $rateStmt = $db->prepare('
+            SELECT COUNT(*) AS cnt 
+            FROM visitors 
+            WHERE driver_phone = :phone
+              AND created_at > DATE_SUB(NOW(), INTERVAL 10 MINUTE)
+        ');
+        $rateStmt->execute([':phone' => $cleanPhone]);
+        $recentCount = (int)$rateStmt->fetchColumn();
+
+        if ($recentCount >= 8) {
+            echo json_encode([
+                'ok'    => false,
+                'error' => 'Too many sign-in attempts for this phone number. Please see the security guard.',
+            ]);
+            exit;
+        }
     }
 
     // 6. Check if vehicle currently has an ACTIVE session inside
@@ -109,48 +130,13 @@ try {
         exit;
     }
 
-    // 7. Check if this vehicle already has a PENDING request waiting
-    $pendingStmt = $db->prepare('
-        SELECT id, created_at 
-        FROM visitors 
-        WHERE plate_number = :plate AND status = "PENDING"
-          AND created_at > DATE_SUB(NOW(), INTERVAL 15 MINUTE)
-        LIMIT 1
-    ');
-    $pendingStmt->execute([':plate' => $cleanPlate]);
-    $existingPending = $pendingStmt->fetch();
-
-    if ($existingPending) {
-        $createdTimestamp = !empty($existingPending['created_at']) ? strtotime($existingPending['created_at']) : time();
-        $timeInFormatted = date('H:i:s • d/m/Y', $createdTimestamp);
-        $expectedTimeOut = date('H:i:s • d/m/Y', $createdTimestamp + (120 * 60));
-
-        echo json_encode([
-            'ok'   => true,
-            'data' => [
-                'request_id'        => (int)$existingPending['id'],
-                'plate_number'      => $cleanPlate,
-                'formatted_plate'   => $displayPlate,
-                'driver_name'       => $driverName,
-                'driver_phone'      => PhoneHelper::formatDisplay($cleanPhone),
-                'destination'       => $destination,
-                'time_in'           => $timeInFormatted,
-                'expected_time_out' => $expectedTimeOut,
-                'parking_limit'     => '2 Hours (120 Mins) — Free',
-                'already_queued'    => true,
-                'message'           => 'Your sign-in is already waiting for the guard. Please drive to the gate.',
-            ],
-        ]);
-        exit;
-    }
-
-    // 8. Check for recent ALPR entrance detection (within last 3 minutes)
+    // 7. Check for recent ALPR entrance detection (within last 5 minutes)
     $alprStmt = $db->prepare('
         SELECT id 
         FROM alpr_detections 
         WHERE camera = "entrance" 
           AND plate_clean = :plate 
-          AND created_at > DATE_SUB(NOW(), INTERVAL 3 MINUTE)
+          AND created_at > DATE_SUB(NOW(), INTERVAL 5 MINUTE)
         ORDER BY id DESC 
         LIMIT 1
     ');
@@ -158,7 +144,7 @@ try {
     $alprDetection = $alprStmt->fetch();
     $alprVerified = $alprDetection ? 1 : 0;
 
-    // 9. Check registered vehicle category (VIP, Staff, Tenant, Blacklisted)
+    // 8. Check registered vehicle category (VIP, Staff, Tenant, Blacklisted)
     $regStmt = $db->prepare('
         SELECT category, notes 
         FROM registered_vehicles 
@@ -169,43 +155,88 @@ try {
     $regVehicle = $regStmt->fetch();
     $category = $regVehicle['category'] ?? 'regular';
 
-    // 10. Insert new visitor request
-    $ins = $db->prepare('
-        INSERT INTO visitors (plate_number, driver_name, driver_phone, destination, source, status, alpr_verified, ip_address, created_at)
-        VALUES (:plate, :name, :phone, :dest, "self_signin", "PENDING", :alpr, :ip, NOW())
+    // 9. Check if this vehicle already has a PENDING request in the queue (e.g. from camera detection)
+    $pendingStmt = $db->prepare('
+        SELECT id, created_at 
+        FROM visitors 
+        WHERE plate_number = :plate AND status = "PENDING"
+          AND created_at > DATE_SUB(NOW(), INTERVAL 30 MINUTE)
+        ORDER BY id DESC
+        LIMIT 1
     ');
-    $ins->execute([
-        ':plate' => $cleanPlate,
-        ':name'  => $driverName,
-        ':phone' => $cleanPhone,
-        ':dest'  => $destination,
-        ':alpr'  => $alprVerified,
-        ':ip'    => $ip,
-    ]);
-    $requestId = (int)$db->lastInsertId();
+    $pendingStmt->execute([':plate' => $cleanPlate]);
+    $existingPending = $pendingStmt->fetch();
+
+    $requestId = null;
+    $timeInTimestamp = time();
+
+    if ($existingPending) {
+        // Vehicle was already queued by camera: UPDATE it with the driver details!
+        $requestId = (int)$existingPending['id'];
+        $upd = $db->prepare('
+            UPDATE visitors 
+            SET driver_name   = :name,
+                driver_phone  = :phone,
+                destination   = :dest,
+                source        = "self_signin",
+                alpr_verified = 1,
+                ip_address    = :ip
+            WHERE id = :id
+        ');
+        $upd->execute([
+            ':name'  => $driverName,
+            ':phone' => $cleanPhone,
+            ':dest'  => $destination,
+            ':ip'    => $ip,
+            ':id'    => $requestId,
+        ]);
+
+        if (!empty($existingPending['created_at'])) {
+            $timeInTimestamp = strtotime($existingPending['created_at']);
+        }
+    } else {
+        // 10. Brand-new visitor request: INSERT into visitors table
+        $ins = $db->prepare('
+            INSERT INTO visitors (plate_number, driver_name, driver_phone, destination, source, status, alpr_verified, ip_address, created_at)
+            VALUES (:plate, :name, :phone, :dest, "self_signin", "PENDING", :alpr, :ip, NOW())
+        ');
+        $ins->execute([
+            ':plate' => $cleanPlate,
+            ':name'  => $driverName,
+            ':phone' => $cleanPhone,
+            ':dest'  => $destination,
+            ':alpr'  => $alprVerified,
+            ':ip'    => $ip,
+        ]);
+        $requestId = (int)$db->lastInsertId();
+    }
 
     // Link ALPR detection if available
-    if ($alprDetection) {
+    if ($alprDetection && $requestId) {
         $db->prepare('UPDATE alpr_detections SET matched_request_id = ? WHERE id = ?')
            ->execute([$requestId, $alprDetection['id']]);
     }
 
-    // 11. Broadcast Realtime Event to Guard Tablet
-    fire_event('new_request', [
+    // 11. Broadcast Realtime Events to Guard Tablet & Screen
+    $eventPayload = [
         'request_id'      => $requestId,
         'plate_number'    => $cleanPlate,
         'formatted_plate' => $displayPlate,
         'driver_name'     => $driverName,
         'driver_phone'    => PhoneHelper::formatDisplay($cleanPhone),
+        'raw_phone'       => $cleanPhone,
         'destination'     => $destination,
         'source'          => 'self_signin',
-        'alpr_verified'   => $alprVerified === 1,
+        'alpr_verified'   => true,
         'category'        => $category,
         'category_note'   => $regVehicle['notes'] ?? '',
-        'created_at'      => date('H:i:s'),
-    ]);
+        'created_at'      => date('H:i:s', $timeInTimestamp),
+        'is_update'       => !empty($existingPending),
+    ];
 
-    $timeInTimestamp = time();
+    fire_event('new_request', $eventPayload);
+    fire_event('request_updated', $eventPayload);
+
     $timeInFormatted = date('H:i:s • d/m/Y', $timeInTimestamp);
     $expectedTimeOut = date('H:i:s • d/m/Y', $timeInTimestamp + (120 * 60)); // 2 hours = 120 mins
 
@@ -221,7 +252,8 @@ try {
             'time_in'           => $timeInFormatted,
             'expected_time_out' => $expectedTimeOut,
             'parking_limit'     => '2 Hours (120 Mins) — Free',
-            'message'           => 'Sign-in successful! Please drive forward to the guard booth to collect your parking ticket.',
+            'already_queued'    => !empty($existingPending),
+            'message'           => 'Sign-in registered! Your details have been sent to the security guard for instant pass printing.',
         ],
     ]);
 } catch (Throwable $e) {

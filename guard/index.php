@@ -207,12 +207,12 @@
                     <span class="device-name">Printer:</span>
                     <span class="device-val" id="pnlPrinterStatus">Ready</span>
                 </div>
-                <div class="device-chip" title="Gate 1 Entrance Camera (192.168.1.230)">
+                <div class="device-chip" title="Dahua NVR Gate 1 Entrance Camera (192.168.0.3 Ch 1)">
                     <span class="device-dot online"></span>
                     <span class="device-name">Entry:</span>
                     <span class="device-val" id="pnlCam1Status">Online</span>
                 </div>
-                <div class="device-chip" title="Gate 2 Exit Camera (192.168.1.210)">
+                <div class="device-chip" title="Dahua NVR Gate 2 Exit Camera (192.168.0.3 Ch 2)">
                     <span class="device-dot online"></span>
                     <span class="device-name">Exit:</span>
                     <span class="device-val" id="pnlCam2Status">Online</span>
@@ -326,7 +326,7 @@
                 </button>
                 <div class="cam-status-pill">
                     <span class="pulse-dot"></span>
-                    <span id="camExitStatusLabel">Exit Camera (192.168.1.210): Online</span>
+                    <span id="camExitStatusLabel">Dahua NVR Exit (192.168.0.3 Ch 2): Online</span>
                 </div>
             </div>
 
@@ -362,9 +362,9 @@
 
             <!-- Hardware Telemetry Status Strip -->
             <div class="queue-cam-telemetry-row">
-                <div class="queue-cam-status-pill" title="Dahua Gate 1 ANPR Camera Online: 192.168.1.230">
+                <div class="queue-cam-status-pill" title="Dahua NVR Gate 1 ANPR Camera: 192.168.0.3 Channel 1">
                     <span class="pulse-dot"></span>
-                    <span id="camEntranceStatusLabel">Gate 1 Cam (192.168.1.230)</span>
+                    <span id="camEntranceStatusLabel">Dahua NVR (192.168.0.3 Ch 1)</span>
                 </div>
                 <span class="cam-feed-badge">Live ANPR</span>
             </div>
@@ -979,7 +979,7 @@
 
 <!-- Application Scripts -->
 <script src="js/guard_i18n.js"></script>
-<script src="js/guard.js?v=20261005_1755"></script>
+<script src="js/guard.js?v=20261031_1825"></script>
 <script type="module" src="../assets/js/firebase-init.js"></script>
 
 <script>

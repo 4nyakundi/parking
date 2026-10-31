@@ -201,7 +201,10 @@ class PlateHelper
             return true;
         }
 
-        // Reject everything else (no loose alphanumeric fallback)
+        // 9. Diplomatic Plates (e.g. 29 CD 123 K, CD 123, UN 123)
+        if (preg_match('/^([0-9]{1,3})?(CD|UN)[0-9]{1,4}[A-Z]?$/', $clean)) { return true; }
+        // 10. Personalized / Custom Plates & Camera ANPR Reads (4 to 9 alphanumeric chars)
+        if (strlen($clean) >= 4 && strlen($clean) <= 9 && preg_match('/^[A-Z0-9]+$/', $clean)) { return true; }
         return false;
     }
 

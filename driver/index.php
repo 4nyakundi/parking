@@ -776,7 +776,7 @@
                 <div class="cam-section-header">
                     <div class="cam-header-title">
                         <span class="live-pulse-dot"></span>
-                        <span>GATE 1 LIVE ARRIVALS &bull; TAP YOUR CAR</span>
+                        <span>GATE 1 LIVE ARRIVALS (192.168.0.3) &bull; TAP YOUR CAR</span>
                         <span class="cam-count-chip" id="camCarsCountBadge">0 Cars</span>
                     </div>
                     <button type="button" class="btn-cam-refresh" id="btnCamRefresh" onclick="fetchCameraDetectedPlate(true)" title="Check entrance camera again for latest captures">
@@ -949,7 +949,7 @@
     </div>
 
     <script src="../assets/vendor/gsap/gsap.min.js"></script>
-    <script src="js/driver.js?v=20261005_1722"></script>
+    <script src="js/driver.js?v=20261031_1825"></script>
     <script type="module" src="../assets/js/firebase-init.js?v=20261005_1722"></script>
 </body>
 </html>

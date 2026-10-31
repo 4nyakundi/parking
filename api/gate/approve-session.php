@@ -16,6 +16,7 @@ require_once __DIR__ . '/../../includes/plate_helper.php';
 require_once __DIR__ . '/../../includes/phone_helper.php';
 require_once __DIR__ . '/../../includes/printer_service.php';
 require_once __DIR__ . '/../../includes/whatsapp_service.php';
+require_once __DIR__ . '/../../includes/cloud_sync_service.php';
 
 $user = require_auth(true);
 
@@ -41,12 +42,14 @@ try {
         $req = $stmt->fetch();
 
         if (!$req) {
-            echo json_encode(['ok' => false, 'error' => 'Pending driver request not found or already processed.']);
+
+    echo json_encode(['ok' => false, 'error' => 'Pending driver request not found or already processed.']);
             exit;
         }
 
         if ($req['status'] !== 'PENDING' && !$reissue) {
-            echo json_encode(['ok' => false, 'error' => "This request has already been {$req['status']}."]);
+
+    echo json_encode(['ok' => false, 'error' => "This request has already been {$req['status']}."]);
             exit;
         }
 
@@ -71,7 +74,8 @@ try {
         $entryMethod = 'manual';
 
         if (empty($plateNumber) || empty($driverName) || empty($destination)) {
-            echo json_encode(['ok' => false, 'error' => 'Plate number, Driver name, and Destination are required.']);
+
+    echo json_encode(['ok' => false, 'error' => 'Plate number, Driver name, and Destination are required.']);
             exit;
         }
     }
@@ -90,7 +94,8 @@ try {
     $activeSess = $actStmt->fetch();
 
     if ($activeSess && !$reissue) {
-        echo json_encode([
+
+    echo json_encode([
             'ok'             => false,
             'is_duplicate'   => true,
             'error'          => "Vehicle {$formattedPlate} already has an ACTIVE ticket (#{$activeSess['ticket_id']}) issued at {$activeSess['entry_time']}.",
@@ -220,6 +225,9 @@ try {
         'time'             => date('H:i:s'),
     ]);
 
+    // 9. Asynchronously mirror session to Cloud Executive Dashboard
+    CloudSyncService::syncSession($sessionId);
+
     echo json_encode([
         'ok'   => true,
         'data' => [
@@ -246,6 +254,7 @@ try {
         $db->rollBack();
     }
     error_log('APPROVE SESSION ERROR: ' . $e->getMessage());
+
     echo json_encode([
         'ok'    => false,
         'error' => 'Failed to create parking session: ' . $e->getMessage(),

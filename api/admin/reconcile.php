@@ -22,39 +22,86 @@ $action = $_GET['action'] ?? ($input['action'] ?? 'list');
 try {
     $db = get_db();
 
-    // 1. LIST STUCK SESSIONS (> 8 hours active)
+    // -------------------------------------------------------------
+    // 1. LIST SESSIONS (Configurable Threshold: All Active, >4h, >8h, >12h)
+    // -------------------------------------------------------------
     if ($action === 'list') {
-        $stmt = $db->query('
+        $hoursThreshold = isset($_GET['hours']) ? (int)$_GET['hours'] : 8;
+
+        $sql = '
             SELECT 
                 s.id, s.ticket_id, s.plate_number, s.driver_name, s.destination, s.entry_time, s.notes,
                 TIMESTAMPDIFF(HOUR, s.entry_time, NOW()) AS hours_active,
                 TIMESTAMPDIFF(MINUTE, s.entry_time, NOW()) AS mins_active
             FROM parking_sessions s
-            WHERE s.status = "ACTIVE" AND TIMESTAMPDIFF(HOUR, s.entry_time, NOW()) >= 8
-            ORDER BY s.entry_time ASC
-        ');
+            WHERE s.status = "ACTIVE"
+        ';
+        $params = [];
+
+        if ($hoursThreshold > 0) {
+            $sql .= ' AND TIMESTAMPDIFF(HOUR, s.entry_time, NOW()) >= :hours';
+            $params[':hours'] = $hoursThreshold;
+        }
+
+        $sql .= ' ORDER BY s.entry_time ASC';
+
+        $stmt = $db->prepare($sql);
+        $stmt->execute($params);
         $stuck = $stmt->fetchAll();
 
         $data = [];
         foreach ($stuck as $r) {
+            $mins = (int)$r['mins_active'];
+            $hrs = floor($mins / 60);
+            $remMins = $mins % 60;
+            $dwellText = $hrs > 0 ? "{$hrs}h {$remMins}m" : "{$remMins}m";
+
             $data[] = [
                 'id'              => (int)$r['id'],
                 'ticket_id'       => $r['ticket_id'],
                 'plate_number'    => $r['plate_number'],
                 'formatted_plate' => PlateHelper::format($r['plate_number']),
-                'driver_name'     => $r['driver_name'],
-                'destination'     => $r['destination'],
+                'driver_name'     => $r['driver_name'] ?: 'Visitor',
+                'destination'     => $r['destination'] ?: 'Mall Store',
                 'entry_time'      => $r['entry_time'],
                 'hours_active'    => (int)$r['hours_active'],
-                'notes'           => $r['notes'],
+                'mins_active'     => $mins,
+                'dwell_text'      => $dwellText,
+                'notes'           => $r['notes'] ?: '',
+                'urgency'         => ($r['hours_active'] >= 12) ? 'ghost' : (($r['hours_active'] >= 8) ? 'overstay' : 'normal'),
             ];
         }
 
-        echo json_encode(['ok' => true, 'data' => $data]);
+        // Live Deck Telemetry for Zero-Drift Calculator
+        $totalActive = (int)$db->query('SELECT COUNT(*) FROM parking_sessions WHERE status = "ACTIVE"')->fetchColumn();
+        $overstay8h  = (int)$db->query('SELECT COUNT(*) FROM parking_sessions WHERE status = "ACTIVE" AND TIMESTAMPDIFF(HOUR, entry_time, NOW()) >= 8')->fetchColumn();
+        $extended4h  = (int)$db->query('SELECT COUNT(*) FROM parking_sessions WHERE status = "ACTIVE" AND TIMESTAMPDIFF(HOUR, entry_time, NOW()) >= 4')->fetchColumn();
+        $todayEntries = (int)$db->query('SELECT COUNT(*) FROM parking_sessions WHERE DATE(entry_time) = CURDATE()')->fetchColumn();
+        $todayExits   = (int)$db->query('SELECT COUNT(*) FROM parking_sessions WHERE status = "COMPLETED" AND DATE(exit_time) = CURDATE()')->fetchColumn();
+        $overridesToday = (int)$db->query('SELECT COUNT(*) FROM parking_sessions WHERE DATE(exit_time) = CURDATE() AND exit_method IN ("supervisor_override", "supervisor_reconcile")')->fetchColumn();
+
+        echo json_encode([
+            'ok'      => true,
+            'data'    => $data,
+            'count'   => count($data),
+            'metrics' => [
+                'total_active'      => $totalActive,
+                'capacity'          => 60,
+                'available'         => max(0, 60 - $totalActive),
+                'overstay_8h'       => $overstay8h,
+                'extended_4h'       => $extended4h,
+                'today_entries'     => $todayEntries,
+                'today_exits'       => $todayExits,
+                'overrides_today'   => $overridesToday,
+                'threshold_applied' => $hoursThreshold,
+            ],
+        ], JSON_UNESCAPED_UNICODE);
         exit;
     }
 
-    // 2. FORCE CLOSE / RECONCILE SESSION
+    // -------------------------------------------------------------
+    // 2. FORCE CLOSE / RECONCILE SINGLE SESSION
+    // -------------------------------------------------------------
     if ($action === 'force_close') {
         $sessionId = (int)($input['session_id'] ?? 0);
         $reason    = trim((string)($input['reason'] ?? 'Supervisor physical count verified vehicle departed.'));
@@ -64,7 +111,7 @@ try {
         $sess = $stmt->fetch();
 
         if (!$sess) {
-            echo json_encode(['ok' => false, 'error' => 'Active session not found.']);
+            echo json_encode(['ok' => false, 'error' => 'Active session not found or already closed.']);
             exit;
         }
 
@@ -94,9 +141,10 @@ try {
             'status'           => 'COMPLETED',
             'reason'           => $reason,
             'duration_minutes' => $durationMinutes,
+            'supervisor'       => $user['full_name'],
         ]);
 
-        // Broadcast realtime event to update occupancy counts on all screens
+        // Broadcast realtime event
         fire_event('session_completed', [
             'session_id'       => $sessionId,
             'ticket_id'        => $sess['ticket_id'],
@@ -108,7 +156,91 @@ try {
             'time'             => date('H:i:s'),
         ]);
 
-        echo json_encode(['ok' => true, 'message' => "Session {$sess['ticket_id']} successfully reconciled."]);
+        echo json_encode([
+            'ok'      => true,
+            'message' => "Session {$sess['ticket_id']} successfully reconciled and cleared from basement occupancy.",
+        ]);
+        exit;
+    }
+
+    // -------------------------------------------------------------
+    // 3. BATCH RECONCILE (Multi-session clearance)
+    // -------------------------------------------------------------
+    if ($action === 'batch_reconcile') {
+        $ids = $input['session_ids'] ?? [];
+        $reason = trim((string)($input['reason'] ?? 'Supervisor physical count verified ghost sessions departed.'));
+
+        if (!is_array($ids) || empty($ids)) {
+            echo json_encode(['ok' => false, 'error' => 'Please select at least one session to reconcile.']);
+            exit;
+        }
+
+        $cleared = 0;
+        foreach ($ids as $sId) {
+            $sessId = (int)$sId;
+            $stmt = $db->prepare('SELECT * FROM parking_sessions WHERE id = ? AND status = "ACTIVE"');
+            $stmt->execute([$sessId]);
+            $sess = $stmt->fetch();
+            if (!$sess) continue;
+
+            $entryTime = new DateTime($sess['entry_time']);
+            $exitTime  = new DateTime();
+            $interval  = $entryTime->diff($exitTime);
+            $durMins   = ($interval->days * 24 * 60) + ($interval->h * 60) + $interval->i;
+
+            $db->prepare('
+                UPDATE parking_sessions 
+                SET status = "COMPLETED", exit_time = NOW(), duration_minutes = :dur,
+                    cleared_by = :user_id, exit_method = "supervisor_reconcile",
+                    notes = CONCAT(IFNULL(notes, ""), " [BATCH RECONCILED: ", :reason, "]"),
+                    synced_to_cloud = 0
+                WHERE id = :id
+            ')->execute([
+                ':dur'     => $durMins,
+                ':user_id' => $user['id'],
+                ':reason'  => $reason,
+                ':id'      => $sessId,
+            ]);
+
+            audit_log($user['id'], 'RECONCILE_BATCH_CLOSE', 'parking_sessions', $sess['ticket_id'], null, [
+                'reason'     => $reason,
+                'supervisor' => $user['full_name'],
+            ]);
+
+            $cleared++;
+        }
+
+        echo json_encode([
+            'ok'      => true,
+            'message' => "Successfully reconciled {$cleared} session(s). Basement occupancy updated.",
+            'cleared' => $cleared,
+        ]);
+        exit;
+    }
+
+    // -------------------------------------------------------------
+    // 4. SUPERVISOR SHIFT SIGN-OFF & DECK LOG
+    // -------------------------------------------------------------
+    if ($action === 'shift_signoff') {
+        $physicalCount = (int)($input['physical_count'] ?? 0);
+        $systemCount   = (int)($input['system_count'] ?? 0);
+        $notes         = trim((string)($input['notes'] ?? 'Shift deck count completed.'));
+        $delta         = $systemCount - $physicalCount;
+
+        audit_log($user['id'], 'SUPERVISOR_SHIFT_SIGNOFF', 'system', 'DECK_AUDIT', null, [
+            'supervisor'     => $user['full_name'],
+            'physical_count' => $physicalCount,
+            'system_count'   => $systemCount,
+            'drift_delta'    => $delta,
+            'notes'          => $notes,
+            'timestamp'      => date('Y-m-d H:i:s'),
+        ]);
+
+        echo json_encode([
+            'ok'      => true,
+            'message' => 'Shift reconciliation signed off and recorded in permanent audit log.',
+            'delta'   => $delta,
+        ]);
         exit;
     }
 

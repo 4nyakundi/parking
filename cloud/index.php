@@ -18,6 +18,9 @@ $dbCfg = $cfg['db'];
 $dsn = "mysql:host={$dbCfg['host']};port={$dbCfg['port']};dbname={$dbCfg['dbname']};charset=utf8mb4";
 $pdo = new PDO($dsn, $dbCfg['username'], $dbCfg['password'], [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
 
+require_once __DIR__ . '/schema_init.php';
+ensure_cloud_schema($pdo);
+
 // 1. Fetch Edge Heartbeat & Check Online Status
 $hbStmt = $pdo->query('
     SELECT *, TIMESTAMPDIFF(SECOND, last_synced_at, NOW()) AS age_seconds 

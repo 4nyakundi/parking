@@ -15,6 +15,7 @@ require_once __DIR__ . '/../../includes/events.php';
 require_once __DIR__ . '/../../includes/plate_helper.php';
 require_once __DIR__ . '/../../includes/phone_helper.php';
 require_once __DIR__ . '/../../includes/whatsapp_service.php';
+require_once __DIR__ . '/../../includes/cloud_sync_service.php';
 
 $user = require_auth(true);
 
@@ -268,6 +269,9 @@ try {
         'cleared_by'       => $user['full_name'],
         'time'             => date('H:i:s'),
     ]);
+
+    // Mirror exit completion to Cloud Executive Dashboard
+    CloudSyncService::syncSession($sessId);
 
     echo json_encode([
         'ok'   => true,

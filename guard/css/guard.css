@@ -1621,6 +1621,7 @@ body {
     overflow: hidden;
     display: flex;
     flex-direction: column;
+    min-height: 130px;
     transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
     cursor: pointer;
     position: relative;

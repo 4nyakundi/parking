@@ -65,6 +65,9 @@ try {
 
     $syncedIds = [];
 
+    require_once __DIR__ . '/../schema_init.php';
+    ensure_cloud_schema($pdo);
+
     // 5. Idempotent Upsert of Sessions
     $upsertStmt = $pdo->prepare('
         INSERT INTO cloud_parking_sessions (

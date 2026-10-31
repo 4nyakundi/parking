@@ -74,6 +74,10 @@ $user = require_role(['supervisor', 'admin'], false);
                 <svg class="nav-icon" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>
                 Reconcile Sessions
             </a>
+            <a class="nav-link" data-section="cloud">
+                <svg class="nav-icon" viewBox="0 0 24 24"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg>
+                Cloud Synchronization
+            </a>
 
             <div class="nav-section-label">System</div>
             <a class="nav-link" data-section="settings">
@@ -115,9 +119,18 @@ $user = require_role(['supervisor', 'admin'], false);
                 <button type="button" id="btnSidebarToggle" class="sidebar-toggle-btn" onclick="toggleSidebarMobile()" aria-label="Toggle menu">&#9776;</button>
                 <h2 id="topNavTitle" style="font-size:18px; font-weight:800;">Management Control Center</h2>
             </div>
-            <div style="display:flex; gap:12px; align-items:center;">
-                <a href="../guard/" target="_blank" class="btn-primary btn-success" style="text-decoration:none; padding:8px 14px;">
-                    <span class="btn-nav-full">Open Guard Station</span>
+            <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                <button type="button" class="btn-primary" onclick="navigateTo('sessions')" style="background:#f0f6fc; color:#116FC7; border:1px solid #b0cfec; padding:7px 12px; font-size:12px; font-weight:700;">
+                    📋 All Records
+                </button>
+                <button type="button" class="btn-primary" onclick="navigateTo('reconcile')" style="background:#fef3c7; color:#b45309; border:1px solid #fde68a; padding:7px 12px; font-size:12px; font-weight:700;">
+                    🛡️ Supervisor Shift
+                </button>
+                <a href="../cloud/" target="_blank" class="btn-primary" style="background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; text-decoration:none; padding:7px 12px; font-size:12px; font-weight:700;">
+                    ☁️ Cloud Portal &#x2197;
+                </a>
+                <a href="../guard/" target="_blank" class="btn-primary btn-success" style="text-decoration:none; padding:7px 12px; font-size:12px;">
+                    <span class="btn-nav-full">Guard Station &#x2197;</span>
                     <span class="btn-nav-short">Guard</span>
                 </a>
             </div>
@@ -177,6 +190,12 @@ $user = require_role(['supervisor', 'admin'], false);
         <!-- 2. ALL SESSIONS SECTION -->
         <!-- ============================================================== -->
         <section id="sec-sessions" class="section-content">
+            <div class="filter-pills-row" id="sessionsFilterPills">
+                <button type="button" class="filter-pill-btn active" data-sfilter="all" onclick="setSessionQuickFilter('all')">All Records</button>
+                <button type="button" class="filter-pill-btn" data-sfilter="active" onclick="setSessionQuickFilter('active')">Inside Now (Active)</button>
+                <button type="button" class="filter-pill-btn" data-sfilter="completed" onclick="setSessionQuickFilter('completed')">Completed (Exited)</button>
+                <button type="button" class="filter-pill-btn" data-sfilter="today" onclick="setSessionQuickFilter('today')">Today's Traffic</button>
+            </div>
             <div class="filter-bar">
                 <input type="text" id="filterPlate" class="filter-input" placeholder="Plate number...">
                 <input type="text" id="filterTicket" class="filter-input" placeholder="Ticket ID...">
@@ -388,28 +407,156 @@ $user = require_role(['supervisor', 'admin'], false);
         <!-- ============================================================== -->
         <!-- 9. RECONCILE (DRIFT FIXER) -->
         <!-- ============================================================== -->
+                <!-- ============================================================== -->
+        <!-- 9. RECONCILE (DRIFT FIXER & ZERO-DRIFT DECK AUDITOR) -->
+        <!-- ============================================================== -->
         <section id="sec-reconcile" class="section-content">
-            <div class="table-card">
-                <div class="table-header-bar">
-                    <div>
-                        <h3>Zero-Drift Occupancy Reconciliation</h3>
-                        <p style="font-size:13px; color:#94a3b8;">Review sessions open longer than 8 hours and force close with audit verification.</p>
-                    </div>
-                    <button class="btn-primary btn-warning" onclick="loadReconcileList()">Scan for Mismatches</button>
+            <!-- Supervisor KPI Telemetry Strip -->
+            <div class="kpi-grid" style="margin-bottom:18px;">
+                <div class="kpi-card accent-blue">
+                    <div class="kpi-title">System Active Count</div>
+                    <div class="kpi-val" id="recSystemActive">--</div>
+                    <div class="kpi-sub">Vehicles currently logged inside</div>
                 </div>
+                <div class="kpi-card accent-amber">
+                    <div class="kpi-title">Extended Dwell (&gt;4h)</div>
+                    <div class="kpi-val" id="recExtended4h" style="color:#d97706;">--</div>
+                    <div class="kpi-sub">Longer than mall average stay</div>
+                </div>
+                <div class="kpi-card accent-red">
+                    <div class="kpi-title">Overstay Alert (&gt;8h)</div>
+                    <div class="kpi-val" id="recOverstay8h" style="color:#dc2626;">--</div>
+                    <div class="kpi-sub">Prime suspects for missed exit scan</div>
+                </div>
+                <div class="kpi-card accent-green">
+                    <div class="kpi-title">Supervisor Overrides Today</div>
+                    <div class="kpi-val" id="recOverridesToday" style="color:#059669;">--</div>
+                    <div class="kpi-sub">Exit gate barrier manual clearances</div>
+                </div>
+            </div>
+
+            <!-- Zero-Drift Physical Head-Count vs System Active Delta Calculator -->
+            <div class="delta-calculator-card">
+                <div class="delta-calc-left">
+                    <h4>
+                        <svg viewBox="0 0 24 24" width="18" height="18" stroke="var(--blue)" fill="none" stroke-width="2.5"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+                        Zero-Drift Physical Count Auditor
+                    </h4>
+                    <p>Enter the actual number of vehicles counted during a physical sweep of the basement parking bays. The system calculates occupancy variance and identifies orphaned ghost sessions.</p>
+                </div>
+                <div class="delta-calc-controls">
+                    <div class="delta-input-wrap">
+                        <span>Physical Sweep</span>
+                        <input type="number" id="deckPhysicalCount" class="delta-input" placeholder="0" min="0" max="60" oninput="calculateDeckDelta()">
+                    </div>
+                    <button type="button" class="btn-primary" onclick="calculateDeckDelta()" style="height:38px;">Verify Delta</button>
+                    <div id="deckDeltaBadge" class="delta-badge balanced" style="display:none;">
+                        <span>Balanced (0 Delta)</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Table Card with Multi-Threshold Tabs -->
+            <div class="table-card">
+                <div class="table-header-bar" style="flex-wrap:wrap; gap:12px;">
+                    <div>
+                        <h3>Basement Active Sessions &amp; Discrepancy Resolution</h3>
+                        <p style="font-size:13px; color:var(--text-sub);">Select a duration threshold to inspect active vehicles and force-close ghost records with audit reasons.</p>
+                    </div>
+                    <div style="display:flex; gap:8px; align-items:center;">
+                        <button type="button" class="btn-primary btn-warning" onclick="loadReconcileList(STATE_ADMIN.reconcileThreshold || 8)">
+                            <svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" fill="none" stroke-width="2" style="vertical-align:-2px; margin-right:4px;"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>Scan Now
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Threshold Filter Pills -->
+                <div class="filter-pills-row" style="margin-bottom:14px;">
+                    <button type="button" class="filter-pill-btn active" data-rthresh="8" onclick="setReconcileThreshold(8, this)">Overstay &gt; 8h</button>
+                    <button type="button" class="filter-pill-btn" data-rthresh="4" onclick="setReconcileThreshold(4, this)">Extended &gt; 4h</button>
+                    <button type="button" class="filter-pill-btn" data-rthresh="12" onclick="setReconcileThreshold(12, this)">Overnight &gt; 12h</button>
+                    <button type="button" class="filter-pill-btn" data-rthresh="0" onclick="setReconcileThreshold(0, this)">All Active Inside (Deck Sweep)</button>
+                </div>
+
                 <table class="data-table">
                     <thead>
                         <tr>
-                            <th>Plate</th>
-                            <th>Ticket</th>
-                            <th>Driver</th>
+                            <th>Vehicle Plate</th>
+                            <th>Ticket ID</th>
+                            <th>Driver &amp; Destination</th>
                             <th>Entry Time</th>
                             <th>Dwell Duration</th>
+                            <th>Status Urgency</th>
                             <th>Reconcile Action</th>
                         </tr>
                     </thead>
-                    <tbody id="reconcileTableBody"></tbody>
+                    <tbody id="reconcileTableBody">
+                        <tr><td colspan="7" style="text-align:center; padding:30px; color:#64748b;">Scanning sessions...</td></tr>
+                    </tbody>
                 </table>
+            </div>
+
+            <!-- Shift Handover Sign-Off Card -->
+            <div class="shift-card">
+                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+                    <div>
+                        <h4 style="font-size:15px; font-weight:800; color:var(--text-main); margin-bottom:4px;">Supervisor Shift Handover &amp; Sign-Off</h4>
+                        <p style="font-size:12.5px; color:var(--text-sub);">Formal sign-off stamps opening/closing occupancy, physical delta, and override records into the immutable audit trail.</p>
+                    </div>
+                    <button type="button" class="btn-primary btn-success" onclick="openShiftSignoffModal()">
+                        <svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" fill="none" stroke-width="2" style="vertical-align:-2px; margin-right:4px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/></svg>
+                        Sign Off Shift
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================================================== -->
+        <!-- 9B. CLOUD SYNCHRONIZATION & MIRROR -->
+        <!-- ============================================================== -->
+        <section id="sec-cloud" class="section-content">
+            <div class="kpi-grid">
+                <div class="kpi-card accent-green">
+                    <div class="kpi-title">Cloud Mirror Status</div>
+                    <div class="kpi-val" id="cloudConnStatus" style="color:#059669;">ONLINE</div>
+                    <div class="kpi-sub" id="cloudConnSub">HMAC-SHA256 Encrypted</div>
+                </div>
+                <div class="kpi-card accent-amber">
+                    <div class="kpi-title">Pending Sync Queue</div>
+                    <div class="kpi-val" id="cloudPendingCount" style="color:#d97706;">0</div>
+                    <div class="kpi-sub">Local records awaiting mirror</div>
+                </div>
+                <div class="kpi-card accent-blue">
+                    <div class="kpi-title">Last Cloud Sync</div>
+                    <div class="kpi-val" id="cloudLastSync" style="font-size:18px;">Just now</div>
+                    <div class="kpi-sub">Background cycle runs every 60s</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-title">Remote Portal</div>
+                    <div class="kpi-val" style="font-size:15px; margin-top:6px;">
+                        <a href="../cloud/" target="_blank" class="btn-primary" style="display:inline-block; padding:6px 14px; text-decoration:none; font-size:12px;">Open Cloud Portal &#x2197;</a>
+                    </div>
+                    <div class="kpi-sub">Executive remote dashboard</div>
+                </div>
+            </div>
+
+            <!-- Cloud Actions Bar -->
+            <div class="table-card" style="margin-top:20px; padding:20px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+                    <div>
+                        <h3 style="margin-bottom:4px;">Edge PC Synchronization Control</h3>
+                        <p style="font-size:13px; color:var(--text-sub);">Push local basement parking records to the remote executive cloud repository with cryptographic integrity verification.</p>
+                    </div>
+                    <div style="display:flex; gap:10px;">
+                        <button type="button" class="btn-primary btn-success" id="btnTriggerCloudSync" onclick="triggerManualCloudSync()">
+                            <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" fill="none" stroke-width="2.5" style="vertical-align:-2px; margin-right:6px;"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+                            Trigger Sync Now
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Sync Console Terminal Output -->
+                <div id="cloudSyncConsole" class="cloud-console-box" style="display:none; margin-top:16px;">[Console initialized...]</div>
             </div>
         </section>
 
@@ -632,6 +779,63 @@ $user = require_role(['supervisor', 'admin'], false);
         </div>
     </div>
 
+        <!-- Modal: Reconcile Justification -->
+    <div id="reconcileJustificationModal" class="admin-modal-overlay">
+        <div class="admin-modal" style="max-width:520px;">
+            <div class="modal-header">
+                <h3 style="color:#d97706;">Reconcile &amp; Clear Session</h3>
+                <button onclick="closeAdminModal('reconcileJustificationModal')" style="background:none; border:none; color:#cbd5e1; font-size:24px; cursor:pointer;">✕</button>
+            </div>
+            <p style="font-size:13px; color:var(--text-sub); line-height:1.5; margin-bottom:14px;">
+                Force closing session for vehicle <strong id="recPlateNumber" style="font-family:monospace; background:#eef5fc; padding:2px 6px; border-radius:4px; border:1px solid #b0cfec;">KDA 123A</strong> (Ticket: <span id="recTicketId" style="color:var(--blue); font-weight:700;">MM-001</span>). This clears the vehicle from active occupancy.
+            </p>
+            <input type="hidden" id="recSessionId" value="0">
+            <div style="margin-bottom:14px;">
+                <label style="display:block; font-size:10.5px; font-weight:800; text-transform:uppercase; color:var(--text-sub); margin-bottom:6px;">Select Verification Justification</label>
+                <div style="display:flex; flex-direction:column; gap:6px;">
+                    <button type="button" class="rec-preset-btn" onclick="selectRecPreset(this)">Tailgated through exit barrier behind another vehicle</button>
+                    <button type="button" class="rec-preset-btn" onclick="selectRecPreset(this)">Physical deck sweep confirmed parking bay is vacant</button>
+                    <button type="button" class="rec-preset-btn" onclick="selectRecPreset(this)">CCTV audit confirmed vehicle exited without ticket scan</button>
+                    <button type="button" class="rec-preset-btn" onclick="selectRecPreset(this)">Customer lost ticket and departed via security override</button>
+                </div>
+            </div>
+            <div style="margin-bottom:18px;">
+                <label style="display:block; font-size:10.5px; font-weight:800; text-transform:uppercase; color:var(--text-sub); margin-bottom:6px;">Custom Audit Justification</label>
+                <input type="text" id="recReasonInput" class="filter-input" style="width:100%;" placeholder="Enter reason or choose preset above...">
+            </div>
+            <div style="display:flex; justify-content:flex-end; gap:10px;">
+                <button type="button" class="btn-primary" style="background:#fff; color:var(--text-sub); border:1px solid var(--border);" onclick="closeAdminModal('reconcileJustificationModal')">Cancel</button>
+                <button type="button" class="btn-primary btn-warning" id="btnConfirmReconcile" onclick="submitReconcileForceClose()">Confirm Reconciliation</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Supervisor Shift Sign-Off -->
+    <div id="shiftSignoffModal" class="admin-modal-overlay">
+        <div class="admin-modal" style="max-width:480px;">
+            <div class="modal-header">
+                <h3 style="color:#059669;">Complete Shift Sign-Off</h3>
+                <button onclick="closeAdminModal('shiftSignoffModal')" style="background:none; border:none; color:#cbd5e1; font-size:24px; cursor:pointer;">✕</button>
+            </div>
+            <p style="font-size:13px; color:var(--text-sub); line-height:1.5; margin-bottom:14px;">
+                Sign off on your shift deck count. This permanently locks the audit timestamp and hands over occupancy records to the incoming supervisor.
+            </p>
+            <div style="display:flex; flex-direction:column; gap:12px; margin-bottom:18px;">
+                <div>
+                    <label style="display:block; font-size:10.5px; font-weight:800; text-transform:uppercase; margin-bottom:4px;">Physical Vehicle Headcount</label>
+                    <input type="number" id="signoffPhysicalCount" class="filter-input" style="width:100%; font-size:16px; font-weight:700;" placeholder="Counted vehicles in bays">
+                </div>
+                <div>
+                    <label style="display:block; font-size:10.5px; font-weight:800; text-transform:uppercase; margin-bottom:4px;">Shift Handover Notes</label>
+                    <textarea id="signoffNotes" class="filter-input" style="width:100%; height:75px;" placeholder="e.g. All bays swept, Gate 1 camera lens cleaned, 0 pending tickets."></textarea>
+                </div>
+            </div>
+            <div style="display:flex; justify-content:flex-end; gap:10px;">
+                <button type="button" class="btn-primary" style="background:#fff; color:var(--text-sub); border:1px solid var(--border);" onclick="closeAdminModal('shiftSignoffModal')">Cancel</button>
+                <button type="button" class="btn-primary btn-success" id="btnConfirmSignoff" onclick="submitShiftSignoff()">Complete &amp; Record Sign-Off</button>
+            </div>
+        </div>
+    </div>
     <!-- Bundled Libraries (No CDN!) -->
     <script src="../assets/vendor/chartjs/chart.umd.min.js"></script>
     <script src="../assets/vendor/gsap/gsap.min.js"></script>

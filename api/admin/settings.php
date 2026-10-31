@@ -29,6 +29,24 @@ try {
             $map[$s['key']] = $s['value'];
         }
 
+        $defaults = [
+            'nvr_ip'               => '192.168.0.3',
+            'nvr_port'             => '80',
+            'nvr_rtsp_port'        => '554',
+            'nvr_channel_entrance' => '1',
+            'nvr_channel_exit'     => '2',
+            'camera_entrance_ip'   => '192.168.0.3',
+            'camera_exit_ip'       => '192.168.0.3',
+            'capacity'             => '60',
+            'overstay_hours'       => '8',
+            'mall_name'            => 'Mombasa Mall Basement Parking',
+        ];
+        foreach ($defaults as $k => $v) {
+            if (!isset($map[$k])) {
+                $map[$k] = $v;
+            }
+        }
+
         echo json_encode(['ok' => true, 'data' => $map]);
         exit;
     }
@@ -45,6 +63,8 @@ try {
             'whatsapp_enabled', 'whatsapp_template_entry', 'whatsapp_template_exit',
             'alpr_confidence_threshold', 'alpr_debounce_seconds',
             'cloud_sync_enabled', 'cloud_sync_url', 'language_default', 'dpa_notice',
+            'nvr_ip', 'nvr_port', 'nvr_rtsp_port', 'nvr_channel_entrance', 'nvr_channel_exit',
+            'camera_entrance_ip', 'camera_exit_ip',
         ];
 
         $updates = $input['settings'] ?? [];

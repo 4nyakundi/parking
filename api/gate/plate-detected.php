@@ -1,7 +1,7 @@
 <?php
 /**
- * Mombasa Mall Basement Parking - ALPR Ingestion Endpoint
- * Authenticated via X-API-Key from Python ALPR Worker.
+ * Mombasa Mall Basement Parking - ALPR Ingestion & Dahua NVR Endpoint
+ * Authenticated via X-API-Key from Python ALPR Worker, or direct Dahua NVR Push (192.168.0.3).
  * Matches entrance requests or exit candidates in real-time.
  */
 
@@ -17,8 +17,17 @@ require_once __DIR__ . '/../../includes/events.php';
 $config = require __DIR__ . '/../../config/config.php';
 $expectedApiKey = $config['alpr']['api_key'] ?? '';
 
+// Client IP resolution
+$clientIp = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
+if (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
+    $clientIp = trim(explode(',', $_SERVER['HTTP_X_FORWARDED_FOR'])[0]);
+}
+
+// Allow direct machine push from Dahua NVR (192.168.0.3), local PC (192.168.0.7), or local loopback
+$isTrustedMachine = str_starts_with($clientIp, '192.168.0.') || in_array($clientIp, ['127.0.0.1', '::1', 'localhost'], true);
+
 // Check API Key
-$providedKey = $_SERVER['HTTP_X_API_KEY'] ?? $_POST['api_key'] ?? null;
+$providedKey = $_SERVER['HTTP_X_API_KEY'] ?? $_POST['api_key'] ?? $_GET['api_key'] ?? null;
 $rawInput = file_get_contents('php://input');
 $jsonInput = json_decode($rawInput, true) ?? [];
 
@@ -26,16 +35,44 @@ if ($providedKey === null && isset($jsonInput['api_key'])) {
     $providedKey = $jsonInput['api_key'];
 }
 
-if (empty($providedKey) || !hash_equals($expectedApiKey, (string)$providedKey)) {
+if (!$isTrustedMachine && (empty($providedKey) || !hash_equals($expectedApiKey, (string)$providedKey))) {
     http_response_code(401);
     echo json_encode(['ok' => false, 'error' => 'Unauthorized machine access: Invalid ALPR API Key.']);
     exit;
 }
 
-$camera     = strtolower(trim((string)($jsonInput['camera'] ?? $_POST['camera'] ?? 'entrance')));
-$rawPlate   = trim((string)($jsonInput['plate'] ?? $_POST['plate'] ?? ''));
-$confidence = (float)($jsonInput['confidence'] ?? $_POST['confidence'] ?? 0.0);
-$imageBase64= $jsonInput['image_base64'] ?? $_POST['image_base64'] ?? null;
+// Extract camera channel (Channel 1 = Entrance, Channel 2 = Exit)
+$camera = 'entrance';
+if (isset($jsonInput['channel'])) {
+    $camera = ((int)$jsonInput['channel'] === 2) ? 'exit' : 'entrance';
+} elseif (isset($jsonInput['Events'][0]['Index'])) {
+    $camera = ((int)$jsonInput['Events'][0]['Index'] === 1) ? 'exit' : 'entrance';
+} elseif (isset($jsonInput['camera'])) {
+    $camera = strtolower(trim((string)$jsonInput['camera'])) === 'exit' ? 'exit' : 'entrance';
+} elseif (isset($_POST['camera'])) {
+    $camera = strtolower(trim((string)$_POST['camera'])) === 'exit' ? 'exit' : 'entrance';
+}
+
+// Extract raw plate from standard payload or native Dahua NVR payload
+$rawPlate = trim((string)(
+    $jsonInput['plate'] 
+    ?? $jsonInput['PlateNumber'] 
+    ?? $jsonInput['Events'][0]['Data']['PlateNumber'] 
+    ?? $jsonInput['Events'][0]['Data']['Plate'] 
+    ?? $_POST['plate'] 
+    ?? $_POST['PlateNumber'] 
+    ?? ''
+));
+
+// Extract confidence
+$rawConf = $jsonInput['confidence'] 
+    ?? $jsonInput['Events'][0]['Data']['Confidence'] 
+    ?? $_POST['confidence'] 
+    ?? 0.95;
+$confidence = (float)$rawConf;
+if ($confidence > 1.0) $confidence = $confidence / 100.0;
+
+$imageBase64 = $jsonInput['image_base64'] ?? $_POST['image_base64'] ?? null;
 
 if (!in_array($camera, ['entrance', 'exit'], true) || empty($rawPlate)) {
     echo json_encode(['ok' => false, 'error' => 'Missing camera ("entrance" or "exit") or plate value.']);
@@ -46,7 +83,7 @@ $cleanPlate   = PlateHelper::clean($rawPlate);
 if (!PlateHelper::validate($cleanPlate)) {
     echo json_encode([
         'ok'    => false,
-        'error' => "Plate '{$rawPlate}' does not match allowed Kenyan vehicle plate format (Cars and TukTuks starting with K, G, or County Gov only)."
+        'error' => "Plate '{$rawPlate}' does not match allowed vehicle plate format."
     ]);
     exit;
 }
@@ -54,13 +91,21 @@ $displayPlate = PlateHelper::format($cleanPlate);
 
 // Snapshot storage path: storage/snapshots/YYYY/MM/DD/
 $relSnapshotPath = null;
-if (!empty($imageBase64)) {
-    $dateFolder = date('Y/m/d');
-    $fullDir = __DIR__ . '/../../storage/snapshots/' . $dateFolder;
-    if (!is_dir($fullDir)) {
-        mkdir($fullDir, 0777, true);
-    }
+$dateFolder = date('Y/m/d');
+$fullDir = __DIR__ . '/../../storage/snapshots/' . $dateFolder;
 
+// 1. Handle Multipart File upload from Dahua NVR
+if (!empty($_FILES['image']['tmp_name']) && is_uploaded_file($_FILES['image']['tmp_name'])) {
+    if (!is_dir($fullDir)) mkdir($fullDir, 0777, true);
+    $fileName = sprintf('cam_%s_%s_%s.jpg', $camera, $cleanPlate, date('His'));
+    $filePath = $fullDir . '/' . $fileName;
+    if (move_uploaded_file($_FILES['image']['tmp_name'], $filePath)) {
+        $relSnapshotPath = 'storage/snapshots/' . $dateFolder . '/' . $fileName;
+    }
+}
+// 2. Handle Base64 image
+elseif (!empty($imageBase64)) {
+    if (!is_dir($fullDir)) mkdir($fullDir, 0777, true);
     $fileName = sprintf('cam_%s_%s_%s.jpg', $camera, $cleanPlate, date('His'));
     $filePath = $fullDir . '/' . $fileName;
 
@@ -73,6 +118,19 @@ if (!empty($imageBase64)) {
 
 try {
     $db = get_db();
+
+    // Update camera device health in database
+    $camDeviceKey = ($camera === 'exit') ? 'exit_cam' : 'entrance_cam';
+    try {
+        $db->prepare('
+            INSERT INTO device_health (device, status, last_checked_at, message)
+            VALUES (:device, "OK", NOW(), :msg)
+            ON DUPLICATE KEY UPDATE status = "OK", last_checked_at = NOW(), message = VALUES(message)
+        ')->execute([
+            ':device' => $camDeviceKey,
+            ':msg'    => "Dahua NVR (192.168.0.3 Ch " . ($camera === 'exit' ? '2' : '1') . ") active detection",
+        ]);
+    } catch (Throwable) {}
 
     $matchedRequestId = null;
     $matchedSessionId = null;

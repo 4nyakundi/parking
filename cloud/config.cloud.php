@@ -2,11 +2,12 @@
 /**
  * Mombasa Mall Basement Parking - Remote Cloud Management Configuration
  * Standard PHP + MySQL configuration for cPanel shared hosting.
+ * Supports local development override via config.cloud.local.php
  */
 
-return [
+$config = [
     'db' => [
-        'host'     => 'localhost',
+        'host'     => '127.0.0.1',
         'port'     => 3306,
         'dbname'   => 'mombasam_parking',
         'username' => 'mombasam_admin',
@@ -22,3 +23,12 @@ return [
         'capacity' => 60,
     ],
 ];
+
+if (file_exists(__DIR__ . '/config.cloud.local.php')) {
+    $local = require __DIR__ . '/config.cloud.local.php';
+    if (is_array($local)) {
+        $config = array_replace_recursive($config, $local);
+    }
+}
+
+return $config;

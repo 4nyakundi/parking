@@ -344,7 +344,7 @@ function selectStoreByName(storeName) {
     if (destErr) destErr.style.display = 'none';
 
     document.querySelectorAll('.dest-card').forEach(c => {
-        c.classList.toggle('selected', c.getAttribute('data-store') === storeName);
+        const matches = (c.getAttribute('data-name') === storeName || c.getAttribute('data-store') === storeName); c.classList.toggle('selected', matches);
     });
 
     const banner = document.getElementById('selectedDestBanner');
@@ -584,43 +584,47 @@ async function submitDriverSignIn() {
     let submitted = false;
     let responseData = null;
 
-    // 1. Try Firebase Cloud Firestore first if available
-    const isCloudHost = window.location.hostname.includes('web.app') || 
-                        window.location.hostname.includes('firebaseapp.com') ||
-                        window.location.hostname.includes('github.io');
-
-    if (window.firebaseBridge && typeof window.firebaseBridge.submitDriverRequest === 'function') {
-        try {
-            const fbResult = await window.firebaseBridge.submitDriverRequest(payload);
-            if (fbResult && fbResult.ok) {
-                submitted = true;
-                responseData = { formatted_plate: plate, request_id: fbResult.id };
+    // 1. Authoritative submission to Local Edge MySQL API
+    try {
+        const res = await fetch('../api/driver/submit.php', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify(payload),
+        });
+        const json = await res.json();
+        if (json && json.ok) {
+            submitted = true;
+            responseData = json.data;
+        } else {
+            showDriverToast(json?.error || 'Failed to submit check-in. Please see the guard.', 'error');
+            if (btn) { btn.disabled = false; btn.textContent = 'Submit Sign-In Request'; }
+            return;
+        }
+    } catch (localErr) {
+        console.warn('Local API error, checking cloud fallback:', localErr);
+        // Fallback to Firebase Cloud Firestore only if local PHP failed or pure static cloud
+        if (window.firebaseBridge && typeof window.firebaseBridge.submitDriverRequest === 'function') {
+            try {
+                const fbResult = await window.firebaseBridge.submitDriverRequest(payload);
+                if (fbResult && fbResult.ok) {
+                    submitted = true;
+                    responseData = { formatted_plate: plate, request_id: fbResult.id, driver_name: name, driver_phone: phone, destination: selectedDestination };
+                }
+            } catch (fbErr) {
+                console.error('Firebase fallback error:', fbErr);
             }
-        } catch (e) {
-            console.warn('[Firebase] Firestore direct submission error:', e);
         }
     }
 
-    // 2. If not strictly on cloud host or if Firestore didn't complete, submit to local PHP API
-    if (!isCloudHost) {
-        try {
-            const res = await fetch('../api/driver/submit.php', {
-                method:  'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body:    JSON.stringify(payload),
-            });
-            const json = await res.json();
-            if (json.ok) {
-                submitted = true;
-                responseData = json.data;
-            } else if (!submitted) {
-                showDriverToast(json.error || 'Failed to submit check-in. Please try again.', 'error');
-                if (btn) { btn.disabled = false; btn.textContent = 'Submit Sign-In Request'; }
-                return;
-            }
-        } catch (err) {
-            console.warn('Local API check-in error:', err);
-        }
+    if (!submitted) {
+        showDriverToast('Connection error. Please drive forward to the Guard booth for direct entry.', 'error');
+        if (btn) { btn.disabled = false; btn.textContent = 'Submit Sign-In Request'; }
+        return;
+    }
+
+    // 2. Asynchronously mirror submission to Cloud Firestore for remote sync
+    if (window.firebaseBridge && typeof window.firebaseBridge.submitDriverRequest === 'function') {
+        window.firebaseBridge.submitDriverRequest(payload).catch(e => console.warn('[Cloud Mirror]', e));
     }
 
     if (submitted) {

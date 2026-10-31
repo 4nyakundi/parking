@@ -459,6 +459,13 @@ function startPolling() {
     if (STATE.pollTimer) clearInterval(STATE.pollTimer);
     runPoll();
     STATE.pollTimer = setInterval(runPoll, 2000);
+
+    // Fast queue sync every 3.5s to ensure zero drift between Driver submissions and Guard Screen
+    if (STATE.queueSyncTimer) clearInterval(STATE.queueSyncTimer);
+    STATE.queueSyncTimer = setInterval(() => {
+        loadPendingRequests();
+    }, 3500);
+
     initFirestoreSync();
 }
 
@@ -573,8 +580,8 @@ function updateDeviceStatusDisplay(devices) {
     };
 
     updatePill('pnlPrinterStatus', devices.printer, 'Ready');
-    updatePill('pnlCam1Status', devices.entrance_cam, 'Online (192.168.1.230)');
-    updatePill('pnlCam2Status', devices.exit_cam, 'Online (192.168.1.210)');
+    updatePill('pnlCam1Status', devices.entrance_cam, 'Online (192.168.0.3 Ch 1)');
+    updatePill('pnlCam2Status', devices.exit_cam, 'Online (192.168.0.3 Ch 2)');
     updatePill('pnlAlprStatus', devices.alpr_worker, 'Active');
 }
 
@@ -1216,6 +1223,7 @@ function createPendingRowElement(item) {
     row.id = `req-row-${reqId}`;
     row.setAttribute('data-plate', item.plate_number);
     row.setAttribute('data-req-id', reqId);
+    row.setAttribute('data-driver-name', item.driver_name || '');
     row.setAttribute('role', 'button');
     row.onclick = () => openVehicleIntakeModal(reqId);
 
@@ -1259,6 +1267,7 @@ function createPendingCardElement(item) {
     card.id = `req-card-${reqId}`;
     card.setAttribute('data-plate', item.plate_number);
     card.setAttribute('data-req-id', reqId);
+    card.setAttribute('data-driver-name', item.driver_name || '');
     card.setAttribute('tabindex', '0');
     card.setAttribute('role', 'button');
     card.setAttribute('aria-label', `Vehicle ${item.formatted_plate}, tap to admit`);
@@ -1872,7 +1881,7 @@ async function triggerCameraPlateFetch(targetCam = 'entrance') {
 
     if (btn) {
         btn.disabled = true;
-        if (btnText) btnText.textContent = isExit ? 'Scanning Exit Cam (192.168.1.210)...' : 'Scanning Entry Cam (192.168.1.230)...';
+        if (btnText) btnText.textContent = isExit ? 'Scanning Dahua NVR (192.168.0.3 Ch 2)...' : 'Scanning Dahua NVR (192.168.0.3 Ch 1)...';
     }
 
     try {
@@ -1909,20 +1918,20 @@ async function triggerCameraPlateFetch(targetCam = 'entrance') {
             } else if (json.is_duplicate && !isExit) {
                 showToast(`⚠️ Vehicle ${json.formatted_plate} is already inside.`);
             } else {
-                showToast(json.message || `${isExit ? 'Exit (192.168.1.210)' : 'Entrance (192.168.1.230)'} camera is live.`);
+                showToast(json.message || `Dahua NVR (${isExit ? '192.168.0.3 Ch 2' : '192.168.0.3 Ch 1'}) is live.`);
             }
 
             const statusLabel = document.getElementById(isExit ? 'camExitStatusLabel' : 'camEntranceStatusLabel');
             if (statusLabel) {
                 statusLabel.textContent = json.camera_online 
-                    ? (isExit ? 'Exit Camera (192.168.1.210): Online' : 'Entrance Camera (192.168.1.230): Online')
-                    : (isExit ? 'Exit Camera (192.168.1.210): Connecting...' : 'Entrance Camera (192.168.1.230): Connecting...');
+                    ? (isExit ? 'Dahua NVR Exit (192.168.0.3 Ch 2): Online' : 'Dahua NVR (192.168.0.3 Ch 1): Online')
+                    : (isExit ? 'Dahua NVR Exit (192.168.0.3 Ch 2): Connecting...' : 'Dahua NVR (192.168.0.3 Ch 1): Connecting...');
             }
         } else {
             showToast(json.error || 'Failed to fetch camera plate.');
         }
     } catch (e) {
-        showToast(`Could not reach ${isExit ? 'exit (192.168.1.210)' : 'entrance (192.168.1.230)'} camera endpoint.`);
+        showToast(`Could not reach Dahua NVR ${isExit ? 'Exit (192.168.0.3 Ch 2)' : 'Entrance (192.168.0.3 Ch 1)'} endpoint.`);
     } finally {
         if (btn) {
             btn.disabled = false;

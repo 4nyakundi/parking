@@ -1,8 +1,9 @@
 <?php
 /**
  * Mombasa Mall Basement Parking - Fetch Camera Plate & Snapshot Endpoint
- * Fetches real-time snapshot and plate data from Dahua ANPR camera (192.168.1.230)
- * and creates a pending intake card for the guard station.
+ * Fetches real-time snapshot and plate data from Dahua NVR (192.168.0.3)
+ * Channel 1 = Entrance Camera, Channel 2 = Exit Camera
+ * and synchronizes live queue intake with the guard and driver portals.
  */
 
 declare(strict_types=1);
@@ -25,33 +26,39 @@ $targetCamera = in_array(strtolower((string)($json['camera'] ?? $_POST['camera']
 $camConfig = $config['alpr'][$targetCamera] ?? [];
 $nvrConfig = $config['alpr']['nvr'] ?? [];
 
-$camIp   = $camConfig['ip'] ?? ($targetCamera === 'exit' ? '192.168.1.210' : '192.168.1.230');
+$camIp   = $camConfig['ip'] ?? ($targetCamera === 'exit' ? '192.168.0.3' : '192.168.0.3');
 $camUser = $camConfig['username'] ?? 'admin';
 $camPass = $camConfig['password'] ?? 'Mall@2024';
 $directSnapUrl = $camConfig['snapshot_url'] ?? "http://{$camIp}/cgi-bin/snapshot.cgi?channel=1";
 
 $nvrChannel = (int)($camConfig['nvr_channel'] ?? ($targetCamera === 'exit' ? 2 : 1));
-$nvrIp = $nvrConfig['ip'] ?? '192.168.1.3';
+$nvrIp = $nvrConfig['ip'] ?? '192.168.0.3';
 $nvrUser = $nvrConfig['username'] ?? 'admin';
 $nvrPass = $nvrConfig['password'] ?? 'Mall@2024';
 $nvrSnapUrl = $camConfig['nvr_snapshot_url'] ?? "http://{$nvrIp}/cgi-bin/snapshot.cgi?channel={$nvrChannel}";
 
 $endpoints = [
     [
-        'url'    => $directSnapUrl,
-        'user'   => $camUser,
-        'pass'   => $camPass,
-        'source' => "Camera Direct ({$camIp})",
-    ],
-    [
         'url'    => $nvrSnapUrl,
         'user'   => $nvrUser,
         'pass'   => $nvrPass,
         'source' => "Dahua NVR ({$nvrIp} Ch {$nvrChannel})",
     ],
+    [
+        'url'    => "https://192.168.0.3/cgi-bin/snapshot.cgi?channel={$nvrChannel}",
+        'user'   => $nvrUser,
+        'pass'   => $nvrPass,
+        'source' => "Dahua NVR Direct (192.168.0.3 Ch {$nvrChannel})",
+    ],
+    [
+        'url'    => $directSnapUrl,
+        'user'   => $camUser,
+        'pass'   => $camPass,
+        'source' => "Camera Direct ({$camIp})",
+    ],
 ];
 
-if (!empty($nvrConfig['ip_lan'])) {
+if (!empty($nvrConfig['ip_lan']) && $nvrConfig['ip_lan'] !== '192.168.0.3') {
     $endpoints[] = [
         'url'    => "http://{$nvrConfig['ip_lan']}/cgi-bin/snapshot.cgi?channel={$nvrChannel}",
         'user'   => $nvrUser,
@@ -67,7 +74,7 @@ $activeSource = '';
 $imageBinary = null;
 $lastErr = '';
 
-// 1. Fetch live snapshot from Dahua camera or Dahua NVR
+// 1. Fetch live snapshot from Dahua NVR (192.168.0.3)
 foreach ($endpoints as $ep) {
     $ch = curl_init($ep['url']);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -76,6 +83,8 @@ foreach ($endpoints as $ep) {
     curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 2);
     curl_setopt($ch, CURLOPT_TIMEOUT, 3);
     curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
     $res = curl_exec($ch);
     $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     $err = curl_error($ch);
@@ -150,6 +159,15 @@ try {
             ');
             $detStmt2->execute([':cam' => $targetCamera]);
             $detectedPlate = $detStmt2->fetchColumn() ?: '';
+
+            // Check pending queue if no recent detection
+            if (empty($detectedPlate) && $targetCamera === 'entrance') {
+                $visStmtPend = $db->query('SELECT plate_number FROM visitors WHERE status = "PENDING" ORDER BY id DESC LIMIT 1');
+                $detectedPlate = $visStmtPend->fetchColumn() ?: '';
+            } elseif (empty($detectedPlate) && $targetCamera === 'exit') {
+                $actStmtExit = $db->query('SELECT plate_number FROM parking_sessions WHERE status = "ACTIVE" ORDER BY entry_time ASC LIMIT 1');
+                $detectedPlate = $actStmtExit->fetchColumn() ?: '';
+            }
         }
     }
 
@@ -160,7 +178,7 @@ try {
             'camera_online' => $cameraOnline,
             'snapshot_url'  => $snapshotRelPath,
             'plate_found'   => false,
-            'message'       => 'Camera is live. No qualifying vehicle plate (Cars/Tuktuks starting with K, G, or County Gov) in detection zone.',
+            'message'       => 'Dahua NVR (192.168.0.3) is active. No vehicle plate currently in detection zone.',
         ]);
         exit;
     }
@@ -224,9 +242,10 @@ try {
         // Save detection record
         $insDet = $db->prepare('
             INSERT INTO alpr_detections (camera, plate_raw, plate_clean, confidence, snapshot_path, matched_request_id, created_at)
-            VALUES ("entrance", :plate, :clean, 0.95, :snap, :req_id, NOW())
+            VALUES (:cam, :plate, :clean, 0.95, :snap, :req_id, NOW())
         ');
         $insDet->execute([
+            ':cam'    => $targetCamera,
             ':plate'  => $detectedPlate,
             ':clean'  => $cleanPlate,
             ':snap'   => $snapshotRelPath,
