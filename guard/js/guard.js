@@ -458,13 +458,13 @@ function switchTab(tabName) {
 function startPolling() {
     if (STATE.pollTimer) clearInterval(STATE.pollTimer);
     runPoll();
-    STATE.pollTimer = setInterval(runPoll, 2000);
+    STATE.pollTimer = setInterval(runPoll, 1500);
 
-    // Fast queue sync every 3.5s to ensure zero drift between Driver submissions and Guard Screen
+    // Fast queue sync every 2.5s to ensure zero drift between Driver submissions and Guard Screen
     if (STATE.queueSyncTimer) clearInterval(STATE.queueSyncTimer);
     STATE.queueSyncTimer = setInterval(() => {
         loadPendingRequests();
-    }, 3500);
+    }, 2500);
 
     initFirestoreSync();
 }
@@ -1277,6 +1277,19 @@ function createPendingCardElement(item) {
     card.setAttribute('tabindex', '0');
     card.setAttribute('role', 'button');
     card.setAttribute('aria-label', `Vehicle ${item.formatted_plate}, tap to admit`);
+    card.style.cursor = 'pointer';
+
+    // Direct tap on card immediately opens intake modal for the guard
+    card.onclick = (e) => {
+        if (e.target.closest('button')) return; // let buttons handle their own actions
+        openVehicleIntakeModal(reqId);
+    };
+    card.onkeydown = (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            openVehicleIntakeModal(reqId);
+        }
+    };
 
     // Snapshot preview thumbnail or placeholder
     let snapHtml = '';
