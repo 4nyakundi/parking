@@ -1,12 +1,44 @@
 /**
  * Mombasa Mall Basement Parking — Driver Mobile Self Sign-In Logic
- * v4.0 — Full 48-Store Directory (Ground, 1st, 2nd, 3rd Floor & Basement)
+ * v4.0 — Full 45-Store Directory (Ground Floor, First Floor, Second Floor, Third Floor)
  * Offline-first, instant search, floor tabs filter, remembers repeat visitors.
  */
 
 let selectedDestination = '';
 let activeFloor = 'ALL';
 let storesList = [];
+
+/**
+ * Soft Driver Floating Toast
+ */
+function showDriverToast(msg, type = 'info') {
+    const toast = document.getElementById('driverToast');
+    const text  = document.getElementById('driverToastText');
+    const icon  = document.getElementById('driverToastIcon');
+    if (!toast || !text) return;
+
+    text.textContent = msg;
+    toast.className = `driver-toast show ${type}`;
+    if (icon) {
+        icon.textContent = type === 'warn' ? '⚠️' : (type === 'error' ? '✕' : 'ℹ️');
+    }
+
+    if (window.gsap) {
+        gsap.fromTo(toast, { y: 25, opacity: 0 }, { y: 0, opacity: 1, duration: 0.3, ease: 'back.out(1.4)' });
+    }
+
+    clearTimeout(window._driverToastTimer);
+    window._driverToastTimer = setTimeout(() => {
+        if (window.gsap) {
+            gsap.to(toast, {
+                y: 20, opacity: 0, duration: 0.25, ease: 'power2.in',
+                onComplete: () => toast.classList.remove('show')
+            });
+        } else {
+            toast.classList.remove('show');
+        }
+    }, 4500);
+}
 
 // Fallback catalog of all 48 stores across all levels of Mombasa Mall
 const DEFAULT_STORES = [
@@ -61,12 +93,7 @@ const DEFAULT_STORES = [
     { id: 41, name: 'T-01 Gamers Vault', unit_code: 'T-01', floor_level: '3rd Floor', category: 'Esports Lounge' },
     { id: 42, name: 'T-02 Legacy Gym', unit_code: 'T-02', floor_level: '3rd Floor', category: 'Gym & Fitness' },
     { id: 43, name: 'T-03 Westerwelle Foundation / Startup Haus', unit_code: 'T-03', floor_level: '3rd Floor', category: 'Tech Incubator' },
-    { id: 44, name: 'T-04 Equity Afia CBD', unit_code: 'T-04', floor_level: '3rd Floor', category: 'Medical Center' },
-
-    // Basement (Level B1)
-    { id: 45, name: 'B-01 Valet & Parking Services', unit_code: 'B-01', floor_level: 'Basement', category: 'Valet Concierge' },
-    { id: 46, name: 'B-02 Secure Basement Parking Deck', unit_code: 'B-02', floor_level: 'Basement', category: 'Parking Deck' },
-    { id: 48, name: 'Loading Bay & Deliveries', unit_code: 'LOG', floor_level: 'Basement', category: 'Logistics' }
+    { id: 44, name: 'T-04 Equity Afia CBD', unit_code: 'T-04', floor_level: '3rd Floor', category: 'Medical Center' }
 ];
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -127,7 +154,255 @@ document.addEventListener('DOMContentLoaded', () => {
             renderStoresGrid();
         });
     }
+
+    // 8. Automatically query entrance camera for arriving vehicle plate
+    fetchCameraDetectedPlate();
+
+    // 9. Sync plate input typing with camera carousel cards
+    const plateIn = document.getElementById('inputPlate');
+    if (plateIn) {
+        plateIn.addEventListener('input', () => {
+            const val = plateIn.value.replace(/[^A-Z0-9]/gi, '').toUpperCase();
+            document.querySelectorAll('.cam-car-card').forEach(el => {
+                const cardPlate = (el.getAttribute('data-plate') || '').replace(/[^A-Z0-9]/gi, '').toUpperCase();
+                const matches = val.length >= 3 && cardPlate.includes(val);
+                el.classList.toggle('selected', matches);
+                const btn = el.querySelector('.btn-select-car');
+                if (btn) btn.textContent = matches ? '✓ Selected' : 'Select Car';
+            });
+        });
+    }
 });
+
+let detectedCameraCars = [];
+let selectedCameraCar = null;
+let driverCountdownTimer = null;
+
+/**
+ * Fetch list of vehicles detected by Gate 1 Entrance Camera
+ */
+async function fetchCameraDetectedPlate(manualTrigger = false) {
+    try {
+        const btnRefresh = document.getElementById('btnCamRefresh');
+        if (manualTrigger && btnRefresh) {
+            btnRefresh.classList.add('rotating');
+            setTimeout(() => btnRefresh.classList.remove('rotating'), 650);
+        }
+
+        const res = await fetch('../api/driver/camera-plate.php');
+        const json = await res.json();
+
+        const section = document.getElementById('camDetectedSection');
+        const carousel = document.getElementById('camCarsCarousel');
+        const countBadge = document.getElementById('camCarsCountBadge');
+        if (!section || !carousel) return;
+
+        if (json.ok && json.found && json.cars && json.cars.length > 0) {
+            detectedCameraCars = json.cars;
+            if (countBadge) {
+                countBadge.textContent = `${json.cars.length} Cars`;
+            }
+
+            renderDetectedCars(json.cars);
+
+            section.style.display = 'flex';
+            if (window.gsap) {
+                gsap.fromTo(section, 
+                    { opacity: 0, y: -15, scale: 0.98 },
+                    { opacity: 1, y: 0, scale: 1, duration: 0.35, ease: 'back.out(1.2)' }
+                );
+            }
+
+            if (manualTrigger) {
+                showDriverToast(`✓ Found ${json.cars.length} recent vehicles at Gate 1. Tap yours to select.`, 'info');
+            }
+        } else {
+            section.style.display = 'none';
+            if (manualTrigger) {
+                showDriverToast('No vehicles detected by the entrance camera right now. Please type your plate below.', 'info');
+            }
+        }
+    } catch (err) {
+        console.warn('Camera cars fetch error:', err);
+    }
+}
+
+/**
+ * Render all detected vehicles in the horizontal carousel
+ */
+function renderDetectedCars(cars) {
+    const carousel = document.getElementById('camCarsCarousel');
+    if (!carousel) return;
+
+    carousel.innerHTML = '';
+    const currentPlateInput = (document.getElementById('inputPlate')?.value || '').replace(/\s+/g, '').toUpperCase();
+
+    cars.forEach(car => {
+        const isSelected = (selectedCameraCar && selectedCameraCar.plate_number === car.plate_number) ||
+                           (currentPlateInput && car.plate_number.replace(/\s+/g, '') === currentPlateInput);
+
+        const card = document.createElement('div');
+        card.className = 'cam-car-card' + (isSelected ? ' selected' : '');
+        card.setAttribute('data-plate', car.plate_number);
+        card.onclick = () => selectCameraCar(car.plate_number);
+
+        const thumbHtml = car.snapshot_url 
+            ? `<img src="../${car.snapshot_url}" alt="${car.formatted_plate}" class="cam-car-thumb" loading="lazy">`
+            : `<div class="cam-car-placeholder-thumb"><span>🚗</span></div>`;
+
+        const statusClass = car.has_pending_info ? 'prefilled' : 'needs';
+        const statusText  = car.has_pending_info ? '✓ Pre-Filled' : 'Awaiting Data';
+
+        card.innerHTML = `
+            <div class="cam-car-card-top">
+                <span class="cam-car-time">${car.time_ago}</span>
+                <span class="cam-car-status-pill ${statusClass}">${statusText}</span>
+            </div>
+            ${thumbHtml}
+            <div class="cam-car-plate-wrap">
+                <div class="cam-car-plate">
+                    <span class="plate-flag">KE</span>
+                    <span>${car.formatted_plate}</span>
+                </div>
+            </div>
+            <button type="button" class="btn-select-car" onclick="event.stopPropagation(); selectCameraCar('${car.plate_number}')">
+                ${isSelected ? '✓ Selected' : 'Select Car'}
+            </button>
+        `;
+
+        carousel.appendChild(card);
+    });
+}
+
+/**
+ * Select a detected car from the camera list and auto-fill the form
+ */
+function selectCameraCar(plateNumber) {
+    const car = detectedCameraCars.find(c => c.plate_number === plateNumber);
+    if (!car) return;
+
+    selectedCameraCar = car;
+
+    // Fill plate input
+    const plateInput = document.getElementById('inputPlate');
+    if (plateInput) {
+        plateInput.value = car.formatted_plate || car.plate_number;
+        const plateErr = document.getElementById('plateError');
+        if (plateErr) plateErr.style.display = 'none';
+
+        if (window.gsap) {
+            gsap.fromTo(plateInput,
+                { scale: 1.05, borderColor: '#10b981', boxShadow: '0 0 0 5px rgba(16,185,129,0.25)' },
+                { scale: 1, borderColor: '#609FDA', boxShadow: 'none', duration: 0.5, ease: 'power2.out' }
+            );
+        }
+    }
+
+    // Pre-fill existing driver details if available
+    const nameInput  = document.getElementById('inputName');
+    const phoneInput = document.getElementById('inputPhone');
+
+    if (car.existing_driver && nameInput && !nameInput.value) {
+        nameInput.value = car.existing_driver;
+    }
+    if (car.existing_phone && phoneInput && !phoneInput.value) {
+        phoneInput.value = car.existing_phone;
+    }
+    if (car.existing_dest) {
+        selectStoreByName(car.existing_dest);
+    }
+
+    // Update active highlight across carousel cards
+    document.querySelectorAll('.cam-car-card').forEach(el => {
+        const isThis = el.getAttribute('data-plate') === plateNumber;
+        el.classList.toggle('selected', isThis);
+        const btn = el.querySelector('.btn-select-car');
+        if (btn) btn.textContent = isThis ? '✓ Selected' : 'Select Car';
+    });
+
+    showDriverToast(`✓ Selected ${car.formatted_plate}. Complete your details below.`, 'info');
+
+    // Smoothly focus on next field
+    setTimeout(() => {
+        if (nameInput && !nameInput.value) {
+            nameInput.focus();
+            nameInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        } else if (phoneInput && !phoneInput.value) {
+            phoneInput.focus();
+            phoneInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        } else {
+            const destSearch = document.getElementById('destSearchInput');
+            if (destSearch) destSearch.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    }, 200);
+}
+
+function selectStoreByName(storeName) {
+    if (!storeName) return;
+    selectedDestination = storeName;
+    const destErr = document.getElementById('destError');
+    if (destErr) destErr.style.display = 'none';
+
+    document.querySelectorAll('.dest-card').forEach(c => {
+        c.classList.toggle('selected', c.getAttribute('data-store') === storeName);
+    });
+
+    const banner = document.getElementById('selectedDestBanner');
+    const text   = document.getElementById('selectedDestText');
+    if (banner && text) {
+        text.textContent = storeName;
+        banner.style.display = 'block';
+    }
+}
+
+function focusManualPlateInput() {
+    const input = document.getElementById('inputPlate');
+    if (input) {
+        input.focus();
+        input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+}
+
+/**
+ * Live Countdown timer on successful check-in
+ */
+function startDriverSuccessCountdown() {
+    if (driverCountdownTimer) clearInterval(driverCountdownTimer);
+    let secondsLeft = 120 * 60; // 2 hours = 7200 seconds
+
+    const timerEl = document.getElementById('successCountdownTimer');
+    const updateDisplay = () => {
+        if (!timerEl) return;
+        const hrs = Math.floor(secondsLeft / 3600);
+        const mins = Math.floor((secondsLeft % 3600) / 60);
+        const secs = secondsLeft % 60;
+        const pad = (n) => String(n).padStart(2, '0');
+        timerEl.textContent = `${pad(hrs)}:${pad(mins)}:${pad(secs)}`;
+
+        if (secondsLeft <= 0) {
+            clearInterval(driverCountdownTimer);
+            timerEl.textContent = 'EXPIRED (Overstay)';
+            timerEl.style.color = '#dc2626';
+        }
+        secondsLeft--;
+    };
+
+    updateDisplay();
+    driverCountdownTimer = setInterval(updateDisplay, 1000);
+}
+
+/**
+ * Normalizes floor names between word format (First Floor) and ordinal format (1st Floor)
+ */
+function normalizeFloorName(fl) {
+    if (!fl) return '';
+    const s = fl.toString().trim().toLowerCase();
+    if (s.includes('ground') || s === 'g' || s === '0') return 'ground';
+    if (s.includes('1st') || s.includes('first') || s === '1') return 'first';
+    if (s.includes('2nd') || s.includes('second') || s === '2') return 'second';
+    if (s.includes('3rd') || s.includes('third') || s === '3') return 'third';
+    return s;
+}
 
 /**
  * Fetch stores from backend API and update grid
@@ -137,7 +412,8 @@ async function loadDestinationsFromApi() {
         const res = await fetch('../api/driver/destinations.php');
         const json = await res.json();
         if (json.ok && Array.isArray(json.data) && json.data.length > 0) {
-            storesList = json.data;
+            // Exclude Basement stores from public driver catalogue
+            storesList = json.data.filter(s => (s.floor_level || '').toLowerCase() !== 'basement');
             renderStoresGrid();
         }
     } catch (err) {
@@ -155,9 +431,12 @@ function renderStoresGrid() {
     const query = (document.getElementById('destSearchInput')?.value || '').trim().toLowerCase();
 
     const filtered = storesList.filter(s => {
-        // Floor filter
+        // Exclude Basement
+        if ((s.floor_level || '').toLowerCase() === 'basement') return false;
+
+        // Floor filter with normalized comparison (e.g. "First Floor" matches "1st Floor")
         if (activeFloor !== 'ALL') {
-            if ((s.floor_level || '').toLowerCase() !== activeFloor.toLowerCase()) {
+            if (normalizeFloorName(s.floor_level) !== normalizeFloorName(activeFloor)) {
                 return false;
             }
         }
@@ -243,8 +522,12 @@ async function submitDriverSignIn() {
 
     // Validate name (at least 2 chars)
     if (!name || name.length < 2) {
-        alert('Please enter your full name.');
-        nameInput?.focus();
+        showDriverToast('Please enter your full name.', 'warn');
+        if (nameInput) {
+            nameInput.classList.add('input-shake');
+            setTimeout(() => nameInput.classList.remove('input-shake'), 600);
+            nameInput.focus();
+        }
         valid = false;
     }
 
@@ -253,7 +536,11 @@ async function submitDriverSignIn() {
         const cleanPhone = phone.replace(/[^0-9]/g, '');
         if (cleanPhone.length < 9) {
             document.getElementById('phoneError').style.display = 'block';
-            phoneInput?.focus();
+            if (phoneInput) {
+                phoneInput.classList.add('input-shake');
+                setTimeout(() => phoneInput.classList.remove('input-shake'), 600);
+                phoneInput.focus();
+            }
             valid = false;
         }
     }
@@ -261,12 +548,17 @@ async function submitDriverSignIn() {
     // Validate destination
     if (valid && !selectedDestination) {
         document.getElementById('destError').style.display = 'block';
-        document.getElementById('destSearchInput')?.focus();
+        const destInput = document.getElementById('destSearchInput');
+        if (destInput) {
+            destInput.classList.add('input-shake');
+            setTimeout(() => destInput.classList.remove('input-shake'), 600);
+            destInput.focus();
+        }
         valid = false;
     }
 
     if (valid && !consent) {
-        alert('Please check the Data Protection consent box to proceed.');
+        showDriverToast('Please check the Data Protection consent box to proceed.', 'warn');
         valid = false;
     }
 
@@ -322,7 +614,7 @@ async function submitDriverSignIn() {
                 submitted = true;
                 responseData = json.data;
             } else if (!submitted) {
-                alert(json.error || 'Failed to submit check-in. Please try again.');
+                showDriverToast(json.error || 'Failed to submit check-in. Please try again.', 'error');
                 if (btn) { btn.disabled = false; btn.textContent = 'Submit Sign-In Request'; }
                 return;
             }
@@ -372,6 +664,7 @@ async function submitDriverSignIn() {
         const box = document.getElementById('successBox');
         if (box) {
             box.classList.add('show');
+            startDriverSuccessCountdown();
             if (window.gsap) {
                 gsap.from(box, { opacity: 0, y: 20, duration: 0.3, ease: 'power2.out' });
             }
@@ -385,7 +678,7 @@ async function submitDriverSignIn() {
             });
         }
     } else {
-        alert('Connection error. Please drive forward to the Guard booth for direct entry.');
+        showDriverToast('Connection error. Please drive forward to the Guard booth for direct entry.', 'error');
         if (btn) { btn.disabled = false; btn.textContent = 'Submit Sign-In Request'; }
     }
 }
@@ -419,6 +712,10 @@ function resetForm() {
     if (form) { form.style.display = 'block'; form.reset(); }
     if (box)  { box.classList.remove('show'); }
     if (btn)  { btn.disabled = false; btn.textContent = 'Submit Sign-In Request'; }
+    if (driverCountdownTimer) clearInterval(driverCountdownTimer);
+
+    // Re-check camera detection for next vehicle
+    fetchCameraDetectedPlate();
 
     // Restore saved plate for convenience
     const savedPlate = localStorage.getItem('mm_last_plate') || '';

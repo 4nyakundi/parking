@@ -45,6 +45,7 @@ try {
         LEFT JOIN registered_vehicles rv ON rv.plate_number = v.plate_number AND rv.is_active = 1
         WHERE v.status = "PENDING"
         ORDER BY v.id DESC
+        LIMIT 100
     ');
 
     $rows = $stmt->fetchAll();

@@ -81,7 +81,7 @@
             <svg class="i-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
             <span class="btn-lbl">Help</span>
         </button>
-        <button class="icon-btn danger" onclick="location.href='../api/auth/logout.php'" title="Logout">
+        <button type="button" class="icon-btn danger" onclick="openLogoutConfirmModal()" title="Sign Out of Guard Terminal">
             <svg class="i-icon" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
             <span class="btn-lbl">Logout</span>
         </button>
@@ -114,164 +114,211 @@
 </section>
 
 <!-- ================================================================
-     MODE TABS
+     MOBILE / TABLET VIEW SWITCHER TABS (Hidden on Desktop)
      ================================================================ -->
 <nav class="mode-tabs-container">
-    <button class="mode-tab entering active" data-tab="entering">
-        <svg class="i-icon" viewBox="0 0 24 24"><polyline points="5 12 19 12"/><polyline points="12 5 19 12 12 19"/></svg>
-        Vehicles Entering
+    <button class="mode-tab inside active" data-tab="inside" onclick="switchMainTab('inside')">
+        <svg class="i-icon" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+        <span>Basement Roster</span>
+        <span id="rosterCountBadge" class="tab-badge inside-badge">0</span>
+    </button>
+    <button class="mode-tab entering" data-tab="entering" onclick="switchMainTab('entering')">
+        <svg class="i-icon" viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+        <span>Gate Camera Queue</span>
         <span id="pendingCountBadge" class="tab-badge" style="display:none;">0</span>
     </button>
-    <button class="mode-tab leaving" data-tab="leaving">
+    <button class="mode-tab leaving" data-tab="leaving" onclick="switchMainTab('leaving')">
         <svg class="i-icon" viewBox="0 0 24 24"><polyline points="19 12 5 12"/><polyline points="12 19 5 12 12 5"/></svg>
-        Vehicles Exiting
-    </button>
-    <button class="mode-tab inside" data-tab="inside">
-        <svg class="i-icon" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
-        Current Roster
+        <span>Vehicles Exiting</span>
     </button>
 </nav>
 
 <!-- ================================================================
-     MAIN LAYOUT: LEFT PANEL + RIGHT CONTENT
+     MAIN WORKSPACE LAYOUT: 3-COLUMN UNIFIED COMMAND CENTER
+     Left Panel (Stats & Actions) | Center (Basement Roster) | Right (Camera Queue)
      ================================================================ -->
-<div class="guard-two-col">
+<div class="guard-main-layout" id="guardMainLayout">
 
-    <!-- LEFT COMMAND PANEL -->
+    <!-- 1. LEFT COMMAND PANEL -->
     <aside class="left-panel">
 
-        <!-- Logo block -->
-        <div style="text-align:center; padding:10px 0 4px; border-bottom:1px solid var(--border);">
-            <img src="../assets/img/logo-wordmark.png" alt="Mombasa Mall" style="height:30px; width:auto; object-fit:contain; opacity:0.6;">
+        <!-- Station Brand Block -->
+        <div class="panel-brand-header">
+            <img src="../assets/img/logo-wordmark.png" alt="Mombasa Mall" class="panel-brand-logo">
+            <div class="panel-station-tag">Guard Station #1</div>
         </div>
 
-        <!-- Live Stats -->
+        <!-- Live Session Stats (2x2 Matrix) -->
         <div class="panel-section">
             <div class="panel-section-title">Live Session Stats</div>
-            <div class="panel-stat-row">
-                <span class="panel-stat-label">Today Entries</span>
-                <span class="panel-stat-value amber" id="pnlTodayIn">--</span>
+            <div class="panel-stats-grid">
+                <div class="panel-stat-card in">
+                    <span class="panel-stat-label">In Today</span>
+                    <span class="panel-stat-value blue" id="pnlTodayIn">--</span>
+                </div>
+                <div class="panel-stat-card out">
+                    <span class="panel-stat-label">Out Today</span>
+                    <span class="panel-stat-value green" id="pnlTodayOut">--</span>
+                </div>
+                <div class="panel-stat-card overstay">
+                    <span class="panel-stat-label">Overstay</span>
+                    <span class="panel-stat-value red" id="pnlOverstay">0</span>
+                </div>
+                <div class="panel-stat-card dwell">
+                    <span class="panel-stat-label">Avg Stay</span>
+                    <span class="panel-stat-value" id="pnlAvgDwell">--</span>
+                </div>
             </div>
-            <div class="panel-stat-row">
-                <span class="panel-stat-label">Today Exits</span>
-                <span class="panel-stat-value" id="pnlTodayOut">--</span>
-            </div>
-            <div class="panel-stat-row">
-                <span class="panel-stat-label">Overstays</span>
-                <span class="panel-stat-value red" id="pnlOverstay">--</span>
-            </div>
-            <div class="panel-stat-row">
-                <span class="panel-stat-label">Avg. Dwell Time</span>
-                <span class="panel-stat-value" id="pnlAvgDwell">-- min</span>
-            </div>
-            <div class="panel-stat-row">
-                <span class="panel-stat-label">Pending Approval</span>
-                <span class="panel-stat-value amber" id="pnlPending">--</span>
+            <div class="panel-queue-strip">
+                <span class="panel-queue-label">Gate Intake Queue:</span>
+                <span class="panel-queue-pill" id="pnlPending">0</span>
             </div>
         </div>
 
         <!-- Quick Actions -->
         <div class="panel-section">
             <div class="panel-section-title">Quick Actions</div>
-            <button class="panel-quick-btn amber-action" id="btnOpenManualAdd2">
-                <svg class="i-icon" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                Register Vehicle Manually
-            </button>
-            <button class="panel-quick-btn" onclick="switchTab('leaving'); document.getElementById('exitSearchInput').focus();">
-                <svg class="i-icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                Search for Exiting Vehicle
-            </button>
-            <button class="panel-quick-btn" onclick="switchTab('inside'); loadActiveSessions();">
-                <svg class="i-icon" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-                View Full Roster
-            </button>
-            <button class="panel-quick-btn" onclick="window.open('../admin/', '_blank')">
-                <svg class="i-icon" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-                Admin Panel
-            </button>
+            <div class="panel-actions-list">
+                <button class="panel-quick-btn amber-action" id="btnOpenManualAdd2">
+                    <svg class="i-icon" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    <span>Register Vehicle</span>
+                </button>
+                <button class="panel-quick-btn" onclick="switchCenterView('exit'); document.getElementById('exitSearchInput')?.focus();">
+                    <svg class="i-icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                    <span>Find Exiting Car</span>
+                </button>
+                <button class="panel-quick-btn" onclick="switchCenterView('roster'); loadActiveSessions(true);">
+                    <svg class="i-icon" viewBox="0 0 24 24"><path d="M23 4v6h-6M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                    <span>Refresh Roster</span>
+                </button>
+                <button class="panel-quick-btn" onclick="window.open('../admin/', '_blank')">
+                    <svg class="i-icon" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                    <span>Admin Portal</span>
+                </button>
+            </div>
         </div>
 
-        <!-- Device Status -->
+        <!-- Device Telemetry -->
         <div class="panel-section">
-            <div class="panel-section-title">Device Status</div>
-            <div class="panel-stat-row">
-                <span class="panel-stat-label">Thermal Printer</span>
-                <span class="panel-stat-value" id="pnlPrinterStatus">Unknown</span>
-            </div>
-            <div class="panel-stat-row">
-                <span class="panel-stat-label">Entry Camera</span>
-                <span class="panel-stat-value" id="pnlCam1Status">Unknown</span>
-            </div>
-            <div class="panel-stat-row">
-                <span class="panel-stat-label">Exit Camera</span>
-                <span class="panel-stat-value" id="pnlCam2Status">Unknown</span>
-            </div>
-            <div class="panel-stat-row">
-                <span class="panel-stat-label">ALPR Worker</span>
-                <span class="panel-stat-value" id="pnlAlprStatus">Unknown</span>
-            </div>
-        </div>
-
-        <!-- Activity Log -->
-        <div class="panel-section" style="flex:1; min-height:0;">
-            <div class="panel-section-title">Activity Log</div>
-            <div class="panel-log" id="activityLog">
-                <div class="panel-log-entry log-ok">
-                    <span class="log-time">--:--:--</span> System ready
+            <div class="panel-section-title">Device Telemetry</div>
+            <div class="panel-device-grid">
+                <div class="device-chip" title="Thermal Ticket Printer">
+                    <span class="device-dot online"></span>
+                    <span class="device-name">Printer:</span>
+                    <span class="device-val" id="pnlPrinterStatus">Ready</span>
+                </div>
+                <div class="device-chip" title="Gate 1 Entrance Camera (192.168.1.230)">
+                    <span class="device-dot online"></span>
+                    <span class="device-name">Entry:</span>
+                    <span class="device-val" id="pnlCam1Status">Online</span>
+                </div>
+                <div class="device-chip" title="Gate 2 Exit Camera (192.168.1.210)">
+                    <span class="device-dot online"></span>
+                    <span class="device-name">Exit:</span>
+                    <span class="device-val" id="pnlCam2Status">Online</span>
+                </div>
+                <div class="device-chip" title="ALPR OCR Camera Worker">
+                    <span class="device-dot online"></span>
+                    <span class="device-name">ALPR:</span>
+                    <span class="device-val" id="pnlAlprStatus">Active</span>
                 </div>
             </div>
         </div>
 
-        <!-- Danger zone -->
-        <div class="panel-section">
-            <div class="panel-section-title">Supervisor Actions</div>
+        <!-- Terminal Activity Log -->
+        <div class="panel-section panel-section-log">
+            <div class="panel-section-title">Terminal Log</div>
+            <div class="panel-log" id="activityLog">
+                <div class="panel-log-entry log-ok">
+                    <span class="log-time">--:--:--</span> Station ready
+                </div>
+            </div>
+        </div>
+
+        <!-- Supervisor Override Action -->
+        <div class="panel-section panel-section-sup">
             <button class="panel-quick-btn danger" onclick="openSupervisorOverrideModal('')">
                 <svg class="i-icon" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-                Override Exit (No Ticket)
+                <span>Supervisor Override</span>
             </button>
         </div>
 
     </aside>
 
-    <!-- RIGHT MAIN CONTENT -->
-    <div class="right-content-area" id="mainStage">
+    <!-- 2. CENTER MAIN PAGE: BASEMENT ACTIVE PARKING ROSTER -->
+    <main class="center-main-area" id="mainStage">
 
-        <!-- VIEW 1: VEHICLES ENTERING -->
-        <section id="viewEntering">
-            <!-- Action Bar: Fetch Live Camera Plate -->
-            <div class="entering-action-bar">
-                <button class="btn-fetch-camera" id="btnFetchCameraPlate" onclick="triggerCameraPlateFetch()">
-                    <svg class="i-icon" viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-                    <span id="btnFetchCamText">Fetch Camera Plate Now</span>
-                </button>
-                <div class="cam-status-pill">
-                    <span class="pulse-dot"></span>
-                    <span id="camEntranceStatusLabel">Entrance Camera (192.168.1.230): Online</span>
+        <!-- Center Stage Header & Filters -->
+        <div class="roster-header-bar">
+            <div class="roster-title-group">
+                <div class="roster-badge-icon">
+                    <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+                </div>
+                <div>
+                    <h2 class="roster-title" id="centerStageTitle">Basement Parking — Active Vehicles Inside</h2>
+                    <p class="roster-subtitle" id="centerStageSubtitle">Live real-time parking dwell &amp; overstay monitoring &bull; Free up to 2 Hours (120 Mins)</p>
                 </div>
             </div>
 
-            <!-- ALPR Live Detection Banner -->
-            <div id="alprEntranceBanner" class="alpr-live-banner" style="display:none;">
-                <div class="alpr-banner-left">
-                    <div class="cam-live-indicator">
-                        <span class="pulse-dot"></span>
-                        CAMERA LIVE
-                    </div>
-                    <span style="font-weight:700; font-size:12px; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.06em;">Entry Camera Detected:</span>
-                    <span id="alprBannerPlate" class="alpr-plate-display">KDA 123A</span>
+            <div class="roster-actions-row">
+                <!-- Search input -->
+                <div class="roster-search-wrapper">
+                    <svg class="search-icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                    <input type="text" id="rosterSearchInput" class="roster-search-input"
+                           placeholder="Filter by plate, driver name, or store..." autocomplete="off">
+                    <button class="btn-clear-search" id="btnClearRosterSearch" onclick="clearRosterSearch()">&#x2715;</button>
                 </div>
-                <div id="alprBannerMeta" class="alpr-meta">Awaiting match</div>
-            </div>
 
-            <!-- Pending Request Cards -->
-            <div id="pendingCardsGrid" class="cards-grid">
-                <!-- Populated dynamically -->
+                <!-- Status Filter Pills -->
+                <div class="roster-filter-pills" id="rosterFilterPills">
+                    <button class="roster-pill active" data-filter="all">All Inside (<span id="countPillAll">0</span>)</button>
+                    <button class="roster-pill safe" data-filter="safe">Safe (<span id="countPillSafe">0</span>)</button>
+                    <button class="roster-pill warning" data-filter="warning">Approaching (<span id="countPillWarn">0</span>)</button>
+                    <button class="roster-pill danger" data-filter="critical">Overstay (&gt;2h) (<span id="countPillCrit">0</span>)</button>
+                </div>
+
+                <!-- View Switcher Tabs inside Center Area -->
+                <div class="view-switch-btns">
+                    <button class="btn-view-toggle active" id="btnToggleRoster" onclick="switchCenterView('roster')">
+                        <svg class="i-icon" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+                        Basement Roster
+                    </button>
+                    <button class="btn-view-toggle" id="btnToggleExit" onclick="switchCenterView('exit')">
+                        <svg class="i-icon" viewBox="0 0 24 24"><polyline points="19 12 5 12"/><polyline points="12 19 5 12 12 5"/></svg>
+                        Exit Clearance
+                    </button>
+                    <button class="btn-roster-refresh" id="btnRefreshRoster" onclick="loadActiveSessions(true)" title="Refresh Basement Roster">
+                        <svg class="i-icon refresh-icon" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- VIEW A: BASEMENT ACTIVE VEHICLES ROSTER -->
+        <section id="viewBasementRoster" class="center-content-section active">
+            <div class="table-responsive roster-table-wrapper">
+                <table class="roster-cars-table">
+                    <thead>
+                        <tr>
+                            <th style="min-width:140px;">Vehicle Number Plate</th>
+                            <th>Driver &amp; Info</th>
+                            <th>Destination Store</th>
+                            <th>Time Entered</th>
+                            <th>Expected Leave Time</th>
+                            <th style="min-width:145px;">Stay Length (Live Timer)</th>
+                            <th>Parking Status</th>
+                            <th style="text-align:right;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="insideTableBody">
+                        <!-- Populated dynamically with live ticking duration timers by guard.js -->
+                    </tbody>
+                </table>
             </div>
         </section>
 
-        <!-- VIEW 2: VEHICLES EXITING -->
-        <section id="viewLeaving" style="display:none;">
-            <!-- Action Bar: Fetch Live Exit Camera Plate (192.168.1.210) -->
+        <!-- VIEW B: EXIT CLEARANCE SEARCH & CAMERA -->
+        <section id="viewExitClearance" class="center-content-section" style="display:none;">
             <div class="entering-action-bar">
                 <button class="btn-fetch-camera" id="btnFetchExitCameraPlate" onclick="triggerCameraPlateFetch('exit')">
                     <svg class="i-icon" viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
@@ -297,37 +344,120 @@
             <div id="exitSearchResults" class="cards-grid"></div>
         </section>
 
-        <!-- VIEW 3: CURRENT ROSTER -->
-        <section id="viewInside" style="display:none;">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-                <h2 class="section-heading" style="margin:0; border:none; padding:0;">Basement Parking Roster</h2>
-                <button class="btn-search-clear" onclick="loadActiveSessions()">
-                    <svg class="i-icon" style="display:inline; vertical-align:middle;" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-                    Refresh
+    </main>
+
+    <!-- 3. RIGHT SIDEBAR: INCOMING CAMERA CAPTURES & CARS NEEDING DATA -->
+    <aside class="right-queue-sidebar" id="rightQueueSidebar">
+
+        <!-- Sidebar Header -->
+        <div class="queue-sidebar-header">
+            <div class="queue-header-top">
+                <div class="queue-title-badge">
+                    <span class="radar-dot"></span>
+                    <h3 class="queue-title">Gate Camera Entries</h3>
+                </div>
+                <span id="pendingCountBadge" class="queue-counter-badge">0 Waiting</span>
+            </div>
+            <p class="queue-subtitle">Captured cars entered awaiting data or driver details</p>
+
+            <!-- Hardware Telemetry Status Strip -->
+            <div class="queue-cam-telemetry-row">
+                <div class="queue-cam-status-pill" title="Dahua Gate 1 ANPR Camera Online: 192.168.1.230">
+                    <span class="pulse-dot"></span>
+                    <span id="camEntranceStatusLabel">Gate 1 Cam (192.168.1.230)</span>
+                </div>
+                <span class="cam-feed-badge">Live ANPR</span>
+            </div>
+
+            <!-- Action Buttons: Clean 2-Button Row (Live Camera Plate + Fast Queue Sync) -->
+            <div class="queue-cam-actions">
+                <button class="btn-queue-scan" id="btnFetchCameraPlate" onclick="triggerCameraPlateFetch()" title="Fetch and analyze latest plate from entrance camera">
+                    <svg class="i-icon" viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                    <span id="btnFetchCamText">Fetch Cam Plate</span>
+                </button>
+                <button type="button" class="btn-queue-fast-refresh" id="btnFastRefreshQueue" onclick="fastRefreshEntryQueue(true)" title="Instant live sync with entrance camera & pending intake queue (Hotkey: R)">
+                    <svg class="i-icon-refresh" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                    <span class="refresh-lbl">Sync Queue</span>
+                    <span class="refresh-hotkey">R</span>
                 </button>
             </div>
-            <div class="table-responsive">
-                <table class="cars-table">
-                    <thead>
-                        <tr>
-                            <th>Number Plate</th>
-                            <th>Driver Name</th>
-                            <th>Destination</th>
-                            <th>Entry Time</th>
-                            <th>Duration</th>
-                            <th>Status</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="insideTableBody">
-                    </tbody>
-                </table>
+        </div>
+
+        <!-- ALPR Live Detection Banner (Collapsible) -->
+        <div id="alprEntranceBanner" class="alpr-live-banner" style="display:none;">
+            <div class="alpr-banner-top">
+                <div class="alpr-cam-pill">
+                    <span class="pulse-dot"></span>
+                    <span>LIVE GATE CAPTURE</span>
+                </div>
+                <div id="alprBannerMeta" class="alpr-meta-tag">Confidence: 95% at 14:56:19</div>
             </div>
-        </section>
 
-    </div><!-- /right-content-area -->
+            <div class="alpr-banner-body">
+                <div class="alpr-plate-kenya-wrap">
+                    <span class="plate-flag-ke">KE</span>
+                    <span id="alprBannerPlate" class="alpr-plate-text">KDA 123A</span>
+                </div>
+            </div>
 
-</div><!-- /guard-two-col -->
+            <div class="alpr-banner-actions">
+                <button type="button" class="btn-alpr-quick-admit" id="btnAlprAdmit" onclick="admitCurrentAlprBanner()">
+                    <svg class="i-icon" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+                    <span>Enter Details &amp; Admit</span>
+                </button>
+                <button type="button" class="btn-alpr-close" onclick="dismissAlprBanner()" title="Dismiss banner">
+                    &#x2715;
+                </button>
+            </div>
+        </div>
+
+        <!-- Queue High-Volume Toolbar: Search, Filters & View Toggle -->
+        <div class="queue-control-strip">
+            <div class="queue-search-row">
+                <div class="queue-search-box">
+                    <svg class="i-icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                    <input type="text" id="queueSearchInput" placeholder="Filter queue by plate or driver..." autocomplete="off">
+                    <button type="button" id="btnClearQueueSearch" onclick="clearQueueSearch()" style="display:none;" title="Clear search">✕</button>
+                </div>
+                <div class="queue-view-toggle">
+                    <button type="button" class="btn-view-toggle" id="btnViewCompact" onclick="setQueueViewMode('compact')" title="Compact High-Density Rows (View 15+ cars at once)">
+                        <svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" fill="none" stroke-width="2.5"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+                        <span>Rows</span>
+                    </button>
+                    <button type="button" class="btn-view-toggle active" id="btnViewCards" onclick="setQueueViewMode('cards')" title="Detailed Cards View with Snapshots">
+                        <svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" fill="none" stroke-width="2.5"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                        <span>Cards</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Queue Category Filter Pills -->
+            <div class="queue-filter-row">
+                <div class="queue-filter-pills">
+                    <button type="button" class="q-filter-pill active" data-qfilter="all" onclick="setQueueFilter('all')">
+                        All (<span id="qCountAll">0</span>)
+                    </button>
+                    <button type="button" class="q-filter-pill needs" data-qfilter="needs-data" onclick="setQueueFilter('needs-data')">
+                        Needs Data (<span id="qCountNeeds">0</span>)
+                    </button>
+                    <button type="button" class="q-filter-pill prefilled" data-qfilter="self-checkin" onclick="setQueueFilter('self-checkin')">
+                        Pre-Filled (<span id="qCountPre">0</span>)
+                    </button>
+                </div>
+                <button type="button" class="btn-batch-approve" id="btnBatchApprove" onclick="batchApprovePreFilled()" style="display:none;" title="Approve all waiting pre-filled driver sign-ins at once">
+                    ⚡ Approve All (<span id="qBatchCount">0</span>)
+                </button>
+            </div>
+        </div>
+
+        <!-- Scrollable list of pending / captured vehicle cards needing data -->
+        <div id="pendingCardsGrid" class="queue-cards-list view-cards">
+            <!-- Dynamically populated with cars entered needing data by guard.js -->
+        </div>
+
+    </aside>
+
+</div><!-- /guard-main-layout -->
 
 <!-- ================================================================
      MODAL 1: GUARD PIN LOGIN
@@ -415,12 +545,11 @@
                            style="flex:1; padding:7px 10px; font-size:12px; border:1px solid var(--border); border-radius:4px; outline:none; background:var(--bg-input);">
                 </div>
                 <div class="floor-pill-tabs" id="wizFloorTabs" style="display:flex; gap:4px; flex-wrap:wrap; margin-bottom:6px;">
-                    <button type="button" class="floor-pill active" data-floor="ALL">All (48)</button>
-                    <button type="button" class="floor-pill" data-floor="Ground Floor">Level G</button>
-                    <button type="button" class="floor-pill" data-floor="1st Floor">Level 1</button>
-                    <button type="button" class="floor-pill" data-floor="2nd Floor">Level 2</button>
-                    <button type="button" class="floor-pill" data-floor="3rd Floor">Level 3</button>
-                    <button type="button" class="floor-pill" data-floor="Basement">Basement</button>
+                    <button type="button" class="floor-pill active" data-floor="ALL">All (45)</button>
+                    <button type="button" class="floor-pill" data-floor="Ground Floor">Ground Floor</button>
+                    <button type="button" class="floor-pill" data-floor="1st Floor">First Floor</button>
+                    <button type="button" class="floor-pill" data-floor="2nd Floor">Second Floor</button>
+                    <button type="button" class="floor-pill" data-floor="3rd Floor">Third Floor</button>
                 </div>
                 <div id="wizDestinationsGrid" class="destinations-grid" style="max-height:180px; overflow-y:auto; padding:2px;">
                     <!-- Populated by guard.js loadDestinations() -->
@@ -503,22 +632,19 @@
                     <span style="font-size:10px; color:var(--text-muted); font-weight:700;">Tap floor then shop:</span>
                 </div>
 
-                <!-- Floor Level Tabs: Ground, 1st, 2nd, 3rd, Basement -->
+                <!-- Floor Level Tabs: Ground Floor, First Floor, Second Floor, Third Floor -->
                 <div class="intake-floor-tabs" id="intakeFloorTabs">
                     <button type="button" class="intake-floor-tab active" data-floor="Ground Floor" onclick="switchIntakeFloor('Ground Floor', this)">
                         Ground Floor
                     </button>
                     <button type="button" class="intake-floor-tab" data-floor="1st Floor" onclick="switchIntakeFloor('1st Floor', this)">
-                        1st Floor
+                        First Floor
                     </button>
                     <button type="button" class="intake-floor-tab" data-floor="2nd Floor" onclick="switchIntakeFloor('2nd Floor', this)">
-                        2nd Floor
+                        Second Floor
                     </button>
                     <button type="button" class="intake-floor-tab" data-floor="3rd Floor" onclick="switchIntakeFloor('3rd Floor', this)">
-                        3rd Floor
-                    </button>
-                    <button type="button" class="intake-floor-tab" data-floor="Basement" onclick="switchIntakeFloor('Basement', this)">
-                        Basement
+                        Third Floor
                     </button>
                 </div>
 
@@ -737,6 +863,106 @@
         <button class="btn-submit-checkin" style="width:100%;" onclick="closeHelpModal()">
             Acknowledged — Close Guide
         </button>
+    </div>
+</div>
+
+<!-- ================================================================
+     SOFT LOGOUT CONFIRMATION MODAL
+     ================================================================ -->
+<div id="logoutConfirmModal" class="modal-overlay" onclick="if(event.target===this) closeLogoutConfirmModal()">
+    <div class="modal-box logout-modal-box" role="dialog" aria-modal="true" aria-labelledby="logoutModalTitle">
+        <div class="logout-modal-header">
+            <div class="logout-icon-bubble">
+                <svg viewBox="0 0 24 24" class="logout-icon"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            </div>
+            <div class="logout-modal-title-wrap">
+                <h2 id="logoutModalTitle" class="modal-title" style="color:var(--text-primary); font-size:17px; margin:0;">End Guard Shift &amp; Sign Out?</h2>
+                <div class="logout-modal-meta">Gate 1 Terminal &bull; Active Shift: <strong><?= htmlspecialchars($guardName ?? 'Gate Officer') ?></strong></div>
+            </div>
+            <button type="button" onclick="closeLogoutConfirmModal()" class="modal-close-btn" title="Cancel">&#x2715;</button>
+        </div>
+        <div class="logout-modal-body">
+            <p>You are about to sign out of the guard terminal. Any vehicles currently waiting in the gate intake queue will remain preserved for the relieving officer.</p>
+        </div>
+        <div class="modal-footer logout-modal-footer">
+            <button type="button" class="btn-cancel-modal" onclick="closeLogoutConfirmModal()">
+                Stay Signed In
+            </button>
+            <button type="button" id="btnConfirmLogout" class="btn-confirm-logout" onclick="executeLogout()">
+                <svg class="i-icon" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                <span id="logoutBtnLabel">Confirm Sign Out</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ================================================================
+     SOFT VEHICLE EXIT CLEARANCE CONFIRMATION MODAL
+     ================================================================ -->
+<div id="exitConfirmModal" class="modal-overlay" onclick="if(event.target===this) closeExitConfirmModal()">
+    <div class="modal-box exit-confirm-modal-box" role="dialog" aria-modal="true" aria-labelledby="exitModalTitle">
+        <div class="exit-modal-header">
+            <div class="exit-icon-bubble">
+                <svg viewBox="0 0 24 24" class="exit-icon"><polyline points="9 18 15 12 9 6"/><line x1="19" y1="12" x2="5" y2="12"/></svg>
+            </div>
+            <div class="exit-modal-title-wrap">
+                <h2 id="exitModalTitle" class="modal-title" style="color:var(--blue); font-size:17px; margin:0;">Confirm Vehicle Departure</h2>
+                <div class="exit-modal-subtitle">Basement Parking Departure Clearance</div>
+            </div>
+            <button type="button" onclick="closeExitConfirmModal()" class="modal-close-btn" title="Cancel">&#x2715;</button>
+        </div>
+        <div class="exit-modal-body">
+            <div class="exit-plate-card">
+                <div class="alpr-plate-kenya-wrap">
+                    <span class="plate-flag-ke">KE</span>
+                    <span id="exitConfirmPlate" class="alpr-plate-text">KDA 123A</span>
+                </div>
+                <div class="exit-meta-grid">
+                    <div class="exit-meta-item">
+                        <span class="lbl">Assigned Bay</span>
+                        <strong id="exitConfirmBay">--</strong>
+                    </div>
+                    <div class="exit-meta-item">
+                        <span class="lbl">Stay Duration</span>
+                        <strong id="exitConfirmDwell">--</strong>
+                    </div>
+                    <div class="exit-meta-item">
+                        <span class="lbl">Entry Time</span>
+                        <strong id="exitConfirmEntryTime">--</strong>
+                    </div>
+                </div>
+            </div>
+            <p class="exit-confirm-notice">This will record the departure time in the audit log, open the exit barrier, and release 1 parking bay back to total capacity.</p>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn-cancel-modal" onclick="closeExitConfirmModal()">Cancel / Keep Parked</button>
+            <button type="button" id="btnConfirmClearExit" class="btn-confirm-exit" onclick="commitClearExit()">
+                <svg class="i-icon" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+                <span id="exitBtnLabel">Clear Exit &amp; Lift Barrier</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ================================================================
+     SOFT BATCH APPROVE CONFIRMATION MODAL
+     ================================================================ -->
+<div id="batchApproveModal" class="modal-overlay" onclick="if(event.target===this) closeBatchApproveModal()">
+    <div class="modal-box" style="max-width:460px;" role="dialog" aria-modal="true">
+        <div class="modal-header-row">
+            <h2 class="modal-title" style="color:var(--blue); font-size:16px;">⚡ Batch Approve Pre-Filled Vehicles</h2>
+            <button onclick="closeBatchApproveModal()" class="modal-close-btn">&#x2715;</button>
+        </div>
+        <div style="padding:10px 0; font-size:13px; color:var(--text-secondary); line-height:1.5;">
+            <p id="batchModalPrompt">Approve all pre-filled vehicles in the queue?</p>
+            <p style="margin-top:8px; font-size:12px; color:var(--text-muted);">This will auto-assign parking bays and send gate entry tickets to the thermal printer in sequence.</p>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn-cancel-modal" onclick="closeBatchApproveModal()">Cancel</button>
+            <button type="button" id="btnExecuteBatchApprove" class="btn-submit-checkin" onclick="executeBatchApproveConfirmed()">
+                Confirm &amp; Print Tickets
+            </button>
+        </div>
     </div>
 </div>
 

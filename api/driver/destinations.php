@@ -24,7 +24,7 @@ try {
             icon, 
             sort_order 
         FROM destinations 
-        WHERE is_active = 1 
+        WHERE is_active = 1 AND floor_level != 'Basement' 
         ORDER BY sort_order ASC, name ASC
     ');
     $destinations = $stmt->fetchAll();

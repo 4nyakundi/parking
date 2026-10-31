@@ -180,11 +180,81 @@
             border: none; border-radius: 6px; height: 50px;
             font-size: 13px; font-weight: 800; letter-spacing: 0.07em;
             text-transform: uppercase; cursor: pointer;
-            transition: background 0.15s; font-family: var(--font);
+            transition: all 0.15s ease; font-family: var(--font);
             box-shadow: 0 2px 8px rgba(17,111,199,0.25);
         }
         .btn-submit:hover    { background: var(--blue-hover); }
         .btn-submit:disabled { opacity: 0.45; cursor: not-allowed; }
+
+        /* Button Tactile Micro-Interactions */
+        button, .btn-submit, .btn-confirm-cam-plate, .btn-diff-plate, .btn-cam-refresh, .btn-again, .floor-tab {
+            user-select: none;
+            -webkit-user-select: none;
+            transition: transform 0.12s cubic-bezier(0.16, 1, 0.3, 1),
+                        background 0.15s ease,
+                        border-color 0.15s ease,
+                        box-shadow 0.15s ease;
+        }
+        button:active:not(:disabled),
+        .btn-submit:active:not(:disabled),
+        .btn-confirm-cam-plate:active:not(:disabled),
+        .btn-diff-plate:active:not(:disabled),
+        .btn-cam-refresh:active:not(:disabled),
+        .btn-again:active:not(:disabled) {
+            transform: translateY(1px) scale(0.975);
+        }
+        button:focus-visible {
+            outline: 2px solid var(--blue-mid);
+            outline-offset: 2px;
+        }
+
+        /* Soft Driver Floating Toast */
+        .driver-toast {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%) translateY(120%);
+            background: #ffffff;
+            border: 1px solid var(--border);
+            border-left: 4px solid var(--blue);
+            color: var(--text);
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 700;
+            box-shadow: 0 10px 25px rgba(17, 111, 199, 0.18);
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            pointer-events: none;
+            opacity: 0;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            max-width: 90vw;
+            line-height: 1.4;
+        }
+        .driver-toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+            pointer-events: auto;
+        }
+        .driver-toast.warn {
+            border-left-color: #f59e0b;
+        }
+        .driver-toast.error {
+            border-left-color: var(--red);
+        }
+
+        @keyframes softShake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-4px); }
+            40%, 80% { transform: translateX(4px); }
+        }
+        .input-shake {
+            animation: softShake 0.4s ease-in-out;
+            border-color: var(--red) !important;
+            box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15) !important;
+        }
 
         /* Parking Policy Banner on Form */
         .parking-policy-banner {
@@ -218,6 +288,267 @@
             color: #7c2d12;
             line-height: 1.45;
             margin: 0;
+        }
+
+        /* Multi-Car Camera Detection Live Section on Driver Self Sign-In */
+        .cam-detected-section {
+            margin: 14px 20px 0;
+            background: linear-gradient(135deg, #f0f7ff 0%, #e6f1fc 100%);
+            border: 1.5px solid var(--blue-mid);
+            border-left: 4px solid var(--blue);
+            border-radius: 8px;
+            padding: 12px 14px;
+            box-shadow: 0 4px 14px rgba(17,111,199,0.12);
+            display: flex;
+            flex-direction: column;
+            gap: 9px;
+        }
+        .cam-section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+        .cam-header-title {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            font-size: 11px;
+            font-weight: 800;
+            color: var(--blue);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            flex-wrap: wrap;
+        }
+        .live-pulse-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: #10b981;
+            box-shadow: 0 0 0 3px rgba(16,185,129,0.25);
+            animation: pulse-ring 1.6s infinite;
+        }
+        @keyframes pulse-ring {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.3); opacity: 0.6; }
+        }
+        .cam-count-chip {
+            background: #dbeafe;
+            color: var(--blue);
+            border: 1px solid var(--blue-mid);
+            font-size: 9.5px;
+            font-weight: 800;
+            padding: 1px 6px;
+            border-radius: 10px;
+            letter-spacing: 0;
+        }
+        .btn-cam-refresh {
+            height: 28px;
+            padding: 0 10px;
+            border-radius: 4px;
+            background: #fff;
+            border: 1px solid var(--border);
+            color: var(--blue);
+            font-size: 11px;
+            font-weight: 700;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .btn-cam-refresh:hover {
+            background: #eff6ff;
+            border-color: var(--blue-mid);
+        }
+        .btn-cam-refresh.rotating svg {
+            animation: refreshSpin 0.7s linear infinite;
+        }
+        .cam-section-hint {
+            font-size: 11.5px;
+            color: var(--text-sub);
+            font-weight: 600;
+            margin: 0;
+            line-height: 1.4;
+        }
+        
+        /* Carousel / Grid of Cars */
+        .cam-cars-carousel {
+            display: flex;
+            gap: 10px;
+            overflow-x: auto;
+            padding: 4px 2px 10px;
+            margin: 0 -2px;
+            scroll-behavior: smooth;
+            -webkit-overflow-scrolling: touch;
+        }
+        .cam-cars-carousel::-webkit-scrollbar {
+            height: 5px;
+        }
+        .cam-cars-carousel::-webkit-scrollbar-track {
+            background: #e2e8f0;
+            border-radius: 3px;
+        }
+        .cam-cars-carousel::-webkit-scrollbar-thumb {
+            background: #93c5fd;
+            border-radius: 3px;
+        }
+
+        /* Individual Vehicle Card */
+        .cam-car-card {
+            flex: 0 0 172px;
+            max-width: 172px;
+            background: #ffffff;
+            border: 1.5px solid var(--border);
+            border-radius: 8px;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(17,111,199,0.06);
+            transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+            position: relative;
+            user-select: none;
+        }
+        .cam-car-card:hover {
+            border-color: var(--blue-mid);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 14px rgba(17,111,199,0.15);
+        }
+        .cam-car-card.selected {
+            border-color: #059669;
+            background: #f0fdf4;
+            box-shadow: 0 0 0 2px #059669, 0 6px 16px rgba(5,150,105,0.18);
+            transform: translateY(-2px);
+        }
+        .cam-car-card-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 9.5px;
+            color: var(--text-mut);
+            font-weight: 700;
+        }
+        .cam-car-time {
+            font-size: 9.5px;
+            color: var(--text-mut);
+        }
+        .cam-car-thumb {
+            width: 100%;
+            height: 54px;
+            border-radius: 4px;
+            object-fit: cover;
+            border: 1px solid var(--border);
+            background: #f1f5f9;
+        }
+        .cam-car-placeholder-thumb {
+            width: 100%;
+            height: 54px;
+            border-radius: 4px;
+            border: 1px solid var(--border-l);
+            background: #f1f7fc;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+        }
+        .cam-car-plate-wrap {
+            display: flex;
+            justify-content: center;
+            margin: 2px 0;
+        }
+        .cam-car-plate {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            background: #fef08a;
+            border: 1.5px solid #000;
+            color: #000;
+            font-family: 'Courier New', 'Consolas', monospace;
+            font-weight: 900;
+            font-size: 14.5px;
+            letter-spacing: 1.5px;
+            padding: 2px 7px;
+            border-radius: 3px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .cam-car-plate .plate-flag {
+            background: #116FC7;
+            color: #fff;
+            font-size: 8px;
+            font-weight: 900;
+            padding: 1px 3px;
+            border-radius: 2px;
+            letter-spacing: 0;
+        }
+        .cam-car-status-pill {
+            font-size: 9px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            padding: 2px 6px;
+            border-radius: 3px;
+            text-align: center;
+        }
+        .cam-car-status-pill.needs {
+            background: #fef3c7;
+            color: #b45309;
+            border: 1px solid #fde68a;
+        }
+        .cam-car-status-pill.prefilled {
+            background: #eff6ff;
+            color: #1d4ed8;
+            border: 1px solid #bfdbfe;
+        }
+        .btn-select-car {
+            height: 28px;
+            background: var(--blue);
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            font-size: 10.5px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            transition: all 0.12s ease;
+            margin-top: 2px;
+        }
+        .btn-select-car:hover {
+            background: var(--blue-hover);
+        }
+        .cam-car-card.selected .btn-select-car {
+            background: #059669;
+        }
+        .cam-section-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding-top: 6px;
+            border-top: 1px dashed var(--border);
+            font-size: 11px;
+        }
+        .cam-footer-note {
+            color: var(--text-mut);
+            font-weight: 600;
+        }
+        .btn-manual-toggle {
+            background: none;
+            border: none;
+            color: var(--blue);
+            font-size: 11px;
+            font-weight: 700;
+            text-decoration: underline;
+            cursor: pointer;
+            padding: 2px 4px;
+        }
+        .btn-manual-toggle:hover {
+            color: var(--blue-hover);
         }
 
         /* Success screen */
@@ -440,6 +771,33 @@
                 </div>
             </div>
 
+            <!-- Camera Live Detection & Vehicle Selection Strip for Arriving Drivers -->
+            <div id="camDetectedSection" class="cam-detected-section" style="display:none;">
+                <div class="cam-section-header">
+                    <div class="cam-header-title">
+                        <span class="live-pulse-dot"></span>
+                        <span>GATE 1 LIVE ARRIVALS &bull; TAP YOUR CAR</span>
+                        <span class="cam-count-chip" id="camCarsCountBadge">0 Cars</span>
+                    </div>
+                    <button type="button" class="btn-cam-refresh" id="btnCamRefresh" onclick="fetchCameraDetectedPlate(true)" title="Check entrance camera again for latest captures">
+                        <svg class="i-icon-cam-sync" viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" fill="none" stroke-width="2.2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                        <span>Refresh</span>
+                    </button>
+                </div>
+                <p class="cam-section-hint">Select your vehicle captured by the entrance camera to auto-fill your plate number:</p>
+
+                <!-- Horizontal scrollable list of detected vehicles -->
+                <div class="cam-cars-carousel" id="camCarsCarousel">
+                    <!-- Populated dynamically by driver.js with detected cars -->
+                </div>
+
+                <!-- Footer helper with manual entry fallback link -->
+                <div class="cam-section-footer">
+                    <span class="cam-footer-note">Don't see your car in the camera list?</span>
+                    <button type="button" class="btn-manual-toggle" onclick="focusManualPlateInput()">Enter Plate Manually &darr;</button>
+                </div>
+            </div>
+
             <form id="driverForm" onsubmit="return false;">
                 <div class="form-body">
 
@@ -467,7 +825,7 @@
                         </div>
                     </div>
 
-                    <div class="form-section-label">Destination / Store (48 Stores)</div>
+                    <div class="form-section-label">Destination / Store (45 Stores)</div>
 
                     <!-- Selected store confirmation badge -->
                     <div id="selectedDestBanner" class="selected-dest-banner">
@@ -480,17 +838,16 @@
                                placeholder="Search store (e.g. Naivas, NCBA, Lovisa, Gym, Pizza)...">
                         
                         <div class="floor-tabs" id="driverFloorTabs">
-                            <button type="button" class="floor-tab active" data-floor="ALL">All (48)</button>
-                            <button type="button" class="floor-tab" data-floor="Ground Floor">Level G (5)</button>
-                            <button type="button" class="floor-tab" data-floor="1st Floor">Level 1 (17)</button>
-                            <button type="button" class="floor-tab" data-floor="2nd Floor">Level 2 (19)</button>
-                            <button type="button" class="floor-tab" data-floor="3rd Floor">Level 3 (4)</button>
-                            <button type="button" class="floor-tab" data-floor="Basement">Basement (3)</button>
+                            <button type="button" class="floor-tab active" data-floor="ALL">All (45)</button>
+                            <button type="button" class="floor-tab" data-floor="Ground Floor">Ground Floor (5)</button>
+                            <button type="button" class="floor-tab" data-floor="1st Floor">First Floor (17)</button>
+                            <button type="button" class="floor-tab" data-floor="2nd Floor">Second Floor (19)</button>
+                            <button type="button" class="floor-tab" data-floor="3rd Floor">Third Floor (4)</button>
                         </div>
                     </div>
 
                     <div class="dest-grid" id="driverDestGrid">
-                        <!-- Populated dynamically with all 48 shops by driver.js -->
+                        <!-- Populated dynamically with all 45 shops by driver.js -->
                     </div>
                     <span id="destError" class="dest-error">Please select your destination store</span>
 
@@ -556,6 +913,10 @@
                         <span class="timing-label" style="color:#c2410c;">Expected Time Out:</span>
                         <span class="timing-val out" id="successTimeOut">--:--:--</span>
                     </div>
+                    <div class="timing-row" style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:6px; padding:6px 10px; margin:5px 0;">
+                        <span class="timing-label" style="color:#166534; font-weight:800;">Remaining Free Time:</span>
+                        <span class="timing-val" id="successCountdownTimer" style="color:#15803d; font-size:13.5px; font-weight:900;">02:00:00</span>
+                    </div>
                     <div class="penalty-warning-note">
                         <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" fill="none" stroke-width="2.5" style="flex-shrink:0;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
                         <span>Parking is limited to 2 hours. Extension beyond 2 hours may lead to penalty fees.</span>
@@ -580,6 +941,12 @@
     <footer class="sys-footer">
         <div>Mombasa Mall Basement Parking &mdash; Jomo Kenyatta Avenue, Mombasa &mdash; Kenya Data Protection Act 2019 Compliant</div>
     </footer>
+
+    <!-- Soft Driver Toast Alert -->
+    <div id="driverToast" class="driver-toast">
+        <span id="driverToastIcon">ℹ️</span>
+        <span id="driverToastText">Notification</span>
+    </div>
 
     <script src="../assets/vendor/gsap/gsap.min.js"></script>
     <script src="js/driver.js?v=20261005_1722"></script>

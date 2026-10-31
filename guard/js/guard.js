@@ -195,6 +195,32 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // 11. Basement Active Parking Roster Search & Filter Listeners
+    const rosterSearch = document.getElementById('rosterSearchInput');
+    if (rosterSearch) {
+        rosterSearch.addEventListener('input', () => {
+            applyRosterFilters();
+        });
+    }
+
+    document.querySelectorAll('.roster-pill').forEach(pill => {
+        pill.addEventListener('click', () => {
+            document.querySelectorAll('.roster-pill').forEach(p => p.classList.remove('active'));
+            pill.classList.add('active');
+            applyRosterFilters(true);
+        });
+    });
+
+    // 12. Right Sidebar Queue Search Listener & View Mode Init
+    const qSearch = document.getElementById('queueSearchInput');
+    if (qSearch) {
+        qSearch.addEventListener('input', () => {
+            applyQueueFilters();
+        });
+    }
+    const savedQueueMode = localStorage.getItem('mm_queue_view_mode') || 'cards';
+    setQueueViewMode(savedQueueMode);
+
     // Global ESC key listener to dismiss open modals
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
@@ -343,28 +369,87 @@ function setAuthenticatedUser(user) {
 }
 
 // --------------------------------------------------------------------
-// Tab Switching with Animations
+// Tab & View Switching (Basement Roster, Exit Clearance, Camera Queue)
 // --------------------------------------------------------------------
-function switchTab(tabName) {
+function switchCenterView(viewName) {
+    const vRoster = document.getElementById('viewBasementRoster');
+    const vExit = document.getElementById('viewExitClearance');
+    const btnRoster = document.getElementById('btnToggleRoster');
+    const btnExit = document.getElementById('btnToggleExit');
+    const titleEl = document.getElementById('centerStageTitle');
+    const subTitleEl = document.getElementById('centerStageSubtitle');
+
+    if (viewName === 'exit') {
+        if (vRoster) vRoster.style.display = 'none';
+        if (vExit) {
+            vExit.style.display = 'flex';
+            if (window.gsap) gsap.from(vExit, { opacity: 0, y: 12, duration: 0.3, ease: 'power2.out' });
+        }
+        btnRoster?.classList.remove('active');
+        btnExit?.classList.add('active');
+        if (titleEl) titleEl.textContent = 'Vehicles Exiting — Gate Departure Clearance';
+        if (subTitleEl) subTitleEl.textContent = 'Scan departing plate or search by ticket/mobile to clear parking departure';
+        setTimeout(() => document.getElementById('exitSearchInput')?.focus(), 150);
+    } else {
+        if (vExit) vExit.style.display = 'none';
+        if (vRoster) {
+            vRoster.style.display = 'flex';
+            if (window.gsap) gsap.from(vRoster, { opacity: 0, y: 12, duration: 0.3, ease: 'power2.out' });
+        }
+        btnRoster?.classList.add('active');
+        btnExit?.classList.remove('active');
+        if (titleEl) titleEl.textContent = 'Basement Parking — Active Vehicles Inside';
+        if (subTitleEl) subTitleEl.textContent = 'Live real-time parking dwell & overstay monitoring • Free up to 2 Hours (120 Mins)';
+        loadActiveSessions();
+    }
+}
+
+function switchMainTab(tabName) {
     STATE.currentTab = tabName;
     document.querySelectorAll('.mode-tab').forEach(tab => {
         tab.classList.toggle('active', tab.getAttribute('data-tab') === tabName);
     });
 
-    const stage = document.getElementById('mainStage');
-    if (stage) {
-        stage.classList.remove('leaving-theme', 'inside-theme');
-        if (tabName === 'leaving') stage.classList.add('leaving-theme');
-        if (tabName === 'inside') stage.classList.add('inside-theme');
-    }
+    const qSidebar = document.getElementById('rightQueueSidebar');
 
-    document.getElementById('viewEntering').style.display = tabName === 'entering' ? 'block' : 'none';
-    document.getElementById('viewLeaving').style.display = tabName === 'leaving' ? 'block' : 'none';
-    document.getElementById('viewInside').style.display = tabName === 'inside' ? 'block' : 'none';
-
-    if (tabName === 'inside') {
-        loadActiveSessions();
+    if (tabName === 'entering') {
+        if (qSidebar) {
+            qSidebar.classList.add('mobile-open');
+            qSidebar.style.display = 'flex';
+            if (window.gsap) gsap.from(qSidebar, { x: 80, opacity: 0, duration: 0.35, ease: 'power2.out' });
+        }
+    } else {
+        if (qSidebar) {
+            qSidebar.classList.remove('mobile-open');
+            if (window.innerWidth <= 992) {
+                qSidebar.style.display = 'none';
+            } else {
+                qSidebar.style.display = '';
+            }
+        }
+        if (tabName === 'leaving') {
+            switchCenterView('exit');
+        } else {
+            switchCenterView('roster');
+        }
     }
+}
+
+// Window resize handler to maintain side panel visibility seamlessly
+window.addEventListener('resize', () => {
+    const qSidebar = document.getElementById('rightQueueSidebar');
+    if (qSidebar) {
+        if (window.innerWidth > 992) {
+            qSidebar.classList.remove('mobile-open');
+            qSidebar.style.display = '';
+        } else if (STATE.currentTab !== 'entering') {
+            qSidebar.style.display = 'none';
+        }
+    }
+});
+
+function switchTab(tabName) {
+    switchMainTab(tabName);
 }
 
 // --------------------------------------------------------------------
@@ -589,12 +674,14 @@ function handleServerEvent(event) {
 
         case 'session_created':
             removePendingCard(p.plate_number);
+            loadActiveSessions();
             logActivity(`Session created: ${p.plate_number || ''} — Ticket #${p.ticket_id || ''}`, 'ok');
             break;
 
         case 'session_completed':
             logActivity(`Exit cleared: ${p.formatted_plate || ''} — ${p.duration_text || ''}`, 'ok');
             removePendingCard(p.plate_number);
+            loadActiveSessions();
             if (STATE.activeExitSession && STATE.activeExitSession.ticket_id === p.ticket_id) {
                 document.getElementById('exitCandidateArea').innerHTML = `
                     <div style="text-align:center; padding:28px; color:var(--green-lt); border:1px solid var(--border); border-radius:8px;">
@@ -614,19 +701,76 @@ function handleServerEvent(event) {
 }
 
 function showEntranceAlprBanner(p) {
-    STATE.latestEntrancePlate = p.plate_number;
+    if (!p) return;
+    STATE.latestEntrancePlate = p.formatted_plate || p.plate_number;
     const banner = document.getElementById('alprEntranceBanner');
     const plateText = document.getElementById('alprBannerPlate');
     const meta = document.getElementById('alprBannerMeta');
 
     if (banner && plateText) {
-        plateText.textContent = p.formatted_plate;
-        if (meta) meta.textContent = `Confidence: ${(p.confidence * 100).toFixed(0)}% at ${p.time}`;
+        plateText.textContent = p.formatted_plate || p.plate_number || 'UNKNOWN';
+        const rawConf = Number(p.confidence);
+        const conf = isNaN(rawConf) ? 95 : (rawConf > 1 ? Math.round(rawConf) : Math.round(rawConf * 100));
+        const timeStr = p.time || new Date().toLocaleTimeString('en-GB');
+        if (meta) meta.textContent = `Confidence: ${conf}% at ${timeStr}`;
         banner.style.display = 'flex';
 
         // Animate banner with GSAP
         if (window.gsap) {
-            gsap.fromTo(banner, { y: -20, opacity: 0 }, { y: 0, opacity: 1, duration: 0.4 });
+            gsap.fromTo(banner, 
+                { y: -15, opacity: 0, scale: 0.97 }, 
+                { y: 0, opacity: 1, scale: 1, duration: 0.35, ease: 'back.out(1.4)' }
+            );
+        }
+    }
+}
+
+function dismissAlprBanner() {
+    const banner = document.getElementById('alprEntranceBanner');
+    if (!banner) return;
+    if (window.gsap) {
+        gsap.to(banner, {
+            y: -15,
+            opacity: 0,
+            scale: 0.97,
+            duration: 0.2,
+            ease: 'power2.in',
+            onComplete: () => { banner.style.display = 'none'; }
+        });
+    } else {
+        banner.style.display = 'none';
+    }
+}
+
+function admitCurrentAlprBanner() {
+    const plate = STATE.latestEntrancePlate;
+    dismissAlprBanner();
+    if (!plate) return;
+
+    // Check if there is an existing pending request in STATE.pendingRequestsMap
+    let foundReqId = null;
+    if (STATE.pendingRequestsMap) {
+        for (const [id, req] of Object.entries(STATE.pendingRequestsMap)) {
+            const reqPlate = (req.plate_number || req.formatted_plate || '').replace(/\s+/g, '').toUpperCase();
+            const targetPlate = plate.replace(/\s+/g, '').toUpperCase();
+            if (reqPlate && targetPlate && reqPlate === targetPlate) {
+                foundReqId = id;
+                break;
+            }
+        }
+    }
+
+    if (foundReqId) {
+        openVehicleIntakeModal(foundReqId);
+    } else {
+        // Open manual wizard with prefilled plate
+        const btnManual = document.getElementById('btnOpenManualAdd');
+        if (btnManual) btnManual.click();
+        const plateInput = document.getElementById('wizPlateInput');
+        if (plateInput) {
+            plateInput.value = plate;
+            const nameInput = document.getElementById('wizNameInput');
+            if (nameInput) setTimeout(() => nameInput.focus(), 150);
         }
     }
 }
@@ -694,8 +838,11 @@ function showExitWithoutDetailsBanner(p) {
 }
 
 // --------------------------------------------------------------------
-// Pending Queue (Cars Entering)
+// Pending Queue (Cars Entered & Awaiting Data / Approval in Right Sidebar)
+// High-Capacity Architecture: Non-destructive diffing, Cards & Compact Views
 // --------------------------------------------------------------------
+let activeQueueFilter = 'all';
+
 async function loadPendingRequests() {
     try {
         const res = await fetch('../api/requests/pending.php');
@@ -706,27 +853,295 @@ async function loadPendingRequests() {
 
         STATE.pendingRequestsMap = STATE.pendingRequestsMap || {};
 
+        const badge = document.getElementById('pendingCountBadge');
+        const pnlPending = document.getElementById('pnlPending');
+
         if (!json.ok || !json.data || json.data.length === 0) {
-            grid.innerHTML = `<div style="grid-column: 1/-1; text-align:center; padding:60px; color:#64748b; font-size:22px;">
-                ${t('no_pending')}
-            </div>`;
+            STATE.latestPendingItems = [];
+            grid.innerHTML = `
+                <div class="queue-empty-box">
+                    <div class="queue-empty-radar">
+                        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 2a10 10 0 0 1 10 10"/></svg>
+                    </div>
+                    <div class="queue-empty-text">Camera Active &amp; Ready.<br>Cars arriving at Gate 1 will appear here.</div>
+                </div>`;
+            if (badge) {
+                badge.textContent = '0 Waiting';
+                badge.classList.remove('has-items');
+            }
+            if (pnlPending) pnlPending.textContent = '0';
+            updateQueueFilterCounts(0, 0, 0);
             return;
         }
 
-        grid.innerHTML = '';
-        json.data.forEach(item => {
-            const reqId = item.id || item.request_id;
-            STATE.pendingRequestsMap[reqId] = item;
-            grid.appendChild(createPendingCardElement(item));
-        });
-
-        // Stagger animation with GSAP
-        if (window.gsap) {
-            gsap.from('.car-card', { opacity: 0, y: 20, duration: 0.35, stagger: 0.05 });
+        STATE.latestPendingItems = json.data;
+        const count = json.data.length;
+        if (badge) {
+            badge.textContent = `${count} Waiting`;
+            badge.classList.add('has-items');
         }
+        if (pnlPending) pnlPending.textContent = String(count);
+
+        // Smart DOM Reconciliation (Diffing) — Preserves Scroll Position & Eliminates Jumps
+        renderPendingRequestsDiff(json.data);
+
     } catch (e) {
         console.error('Error loading pending requests:', e);
     }
+}
+
+function renderPendingRequestsDiff(items) {
+    const grid = document.getElementById('pendingCardsGrid');
+    if (!grid) return;
+
+    // Remove empty placeholder if present
+    const emptyBox = grid.querySelector('.queue-empty-box');
+    if (emptyBox) emptyBox.remove();
+
+    const mode = STATE.queueViewMode || 'cards';
+    const incomingIds = new Set(items.map(it => String(it.id || it.request_id)));
+
+    // 1. Remove DOM elements that are no longer in incoming list (e.g. admitted, exited, declined)
+    const existingDomElements = grid.querySelectorAll('[data-req-id]');
+    existingDomElements.forEach(domEl => {
+        const domId = domEl.getAttribute('data-req-id');
+        if (!incomingIds.has(domId)) {
+            if (window.gsap) {
+                gsap.to(domEl, {
+                    x: 40,
+                    opacity: 0,
+                    height: 0,
+                    marginBottom: 0,
+                    duration: 0.22,
+                    ease: 'power2.in',
+                    onComplete: () => domEl.remove()
+                });
+            } else {
+                domEl.remove();
+            }
+        }
+    });
+
+    // 2. Insert new items or update existing items
+    let lastDomElement = null;
+    items.forEach((item, index) => {
+        const reqId = String(item.id || item.request_id);
+        STATE.pendingRequestsMap[reqId] = item;
+        let existingCard = grid.querySelector(`[data-req-id="${reqId}"]`);
+
+        if (!existingCard) {
+            // New item! Create in chosen view mode (compact or card)
+            const newEl = createPendingItemElement(item, mode);
+            if (index === 0) {
+                grid.prepend(newEl);
+            } else if (lastDomElement && lastDomElement.nextSibling) {
+                grid.insertBefore(newEl, lastDomElement.nextSibling);
+            } else {
+                grid.appendChild(newEl);
+            }
+            if (window.gsap) {
+                gsap.from(newEl, { x: 30, opacity: 0, duration: 0.3, ease: 'power2.out' });
+            }
+            existingCard = newEl;
+        } else {
+            // Update dynamic text (e.g. wait time ago) without re-rendering node
+            updateExistingPendingItem(existingCard, item, mode);
+        }
+        lastDomElement = existingCard;
+    });
+
+    // Apply active search filter & category filter
+    applyQueueFilters();
+}
+
+function updateExistingPendingItem(el, item, mode) {
+    if (mode === 'compact') {
+        const timeEl = el.querySelector('.cqr-time');
+        if (timeEl && item.wait_text) timeEl.textContent = `• ${item.wait_text}`;
+    } else {
+        const timeEl = el.querySelector('.cqc-time-ago');
+        if (timeEl && item.wait_text) timeEl.textContent = item.wait_text;
+    }
+}
+
+function setQueueViewMode(mode) {
+    STATE.queueViewMode = mode;
+    localStorage.setItem('mm_queue_view_mode', mode);
+
+    const btnCards = document.getElementById('btnViewCards');
+    const btnCompact = document.getElementById('btnViewCompact');
+    if (btnCards) btnCards.classList.toggle('active', mode === 'cards');
+    if (btnCompact) btnCompact.classList.toggle('active', mode === 'compact');
+
+    const grid = document.getElementById('pendingCardsGrid');
+    if (!grid) return;
+
+    grid.classList.toggle('view-compact', mode === 'compact');
+    grid.classList.toggle('view-cards', mode === 'cards');
+
+    // Re-render items in the selected layout mode
+    if (STATE.latestPendingItems && STATE.latestPendingItems.length > 0) {
+        grid.innerHTML = '';
+        STATE.latestPendingItems.forEach(item => {
+            grid.appendChild(createPendingItemElement(item, mode));
+        });
+        applyQueueFilters();
+    }
+}
+
+function setQueueFilter(filterType) {
+    activeQueueFilter = filterType;
+    document.querySelectorAll('.q-filter-pill').forEach(pill => {
+        pill.classList.toggle('active', pill.getAttribute('data-qfilter') === filterType);
+    });
+    applyQueueFilters();
+}
+
+function applyQueueFilters() {
+    const query = (document.getElementById('queueSearchInput')?.value || '').trim().toLowerCase();
+    const btnClear = document.getElementById('btnClearQueueSearch');
+    if (btnClear) btnClear.style.display = query.length > 0 ? 'inline-block' : 'none';
+
+    const grid = document.getElementById('pendingCardsGrid');
+    if (!grid) return;
+
+    const elements = grid.querySelectorAll('[data-req-id]');
+    let totalCount = elements.length;
+    let needsCount = 0;
+    let prefilledCount = 0;
+
+    elements.forEach(el => {
+        const reqId = el.getAttribute('data-req-id');
+        const data = STATE.pendingRequestsMap[reqId] || {};
+        const plate = (data.plate_number || data.formatted_plate || '').toLowerCase();
+        const driver = (data.driver_name || '').toLowerCase();
+        const dest = (data.destination || '').toLowerCase();
+        const isSelf = (data.source === 'self_signin' || data.source === 'cloud_mobile' || data.source === 'firebase_web');
+
+        if (isSelf) prefilledCount++;
+        else needsCount++;
+
+        const matchesQuery = !query || plate.includes(query) || driver.includes(query) || dest.includes(query);
+        let matchesFilter = true;
+        if (activeQueueFilter === 'needs-data') matchesFilter = !isSelf;
+        else if (activeQueueFilter === 'self-checkin') matchesFilter = isSelf;
+
+        el.style.display = (matchesQuery && matchesFilter) ? '' : 'none';
+    });
+
+    updateQueueFilterCounts(totalCount, needsCount, prefilledCount);
+}
+
+function updateQueueFilterCounts(total, needs, prefilled) {
+    const elAll = document.getElementById('qCountAll');
+    const elNeeds = document.getElementById('qCountNeeds');
+    const elPre = document.getElementById('qCountPre');
+    const btnBatch = document.getElementById('btnBatchApprove');
+    const batchCount = document.getElementById('qBatchCount');
+
+    if (elAll) elAll.textContent = String(total);
+    if (elNeeds) elNeeds.textContent = String(needs);
+    if (elPre) elPre.textContent = String(prefilled);
+
+    if (btnBatch && batchCount) {
+        batchCount.textContent = String(prefilled);
+        btnBatch.style.display = prefilled >= 2 ? 'inline-flex' : 'none';
+    }
+}
+
+function clearQueueSearch() {
+    const input = document.getElementById('queueSearchInput');
+    if (input) input.value = '';
+    applyQueueFilters();
+    input?.focus();
+}
+
+let pendingBatchItems = [];
+
+function openBatchApproveModal(items) {
+    pendingBatchItems = items || [];
+    const modal = document.getElementById('batchApproveModal');
+    if (!modal) return;
+
+    const prompt = document.getElementById('batchModalPrompt');
+    if (prompt) {
+        prompt.textContent = `Approve all ${pendingBatchItems.length} pre-filled vehicles in the queue?`;
+    }
+
+    modal.classList.add('open');
+    if (window.gsap) {
+        gsap.fromTo('#batchApproveModal .modal-box',
+            { scale: 0.94, opacity: 0, y: 15 },
+            { scale: 1, opacity: 1, y: 0, duration: 0.25, ease: 'back.out(1.4)' }
+        );
+    }
+}
+
+function closeBatchApproveModal() {
+    const modal = document.getElementById('batchApproveModal');
+    if (!modal) return;
+    modal.classList.remove('open');
+    pendingBatchItems = [];
+}
+
+async function executeBatchApproveConfirmed() {
+    if (!pendingBatchItems || pendingBatchItems.length === 0) {
+        closeBatchApproveModal();
+        return;
+    }
+
+    const btn = document.getElementById('btnExecuteBatchApprove');
+    if (btn) {
+        btn.disabled = true;
+        btn.classList.add('btn-loading');
+        btn.textContent = 'Printing Tickets…';
+    }
+
+    const itemsToProcess = [...pendingBatchItems];
+    closeBatchApproveModal();
+
+    showToast(`⚡ Batch approving ${itemsToProcess.length} vehicles...`);
+    for (const item of itemsToProcess) {
+        try {
+            await fetch('../api/requests/action.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    request_id: item.id || item.request_id,
+                    action: 'accept',
+                    driver_name: item.driver_name || 'Visitor',
+                    driver_phone: item.driver_phone || '',
+                    destination: item.destination || 'Mombasa Mall',
+                })
+            });
+        } catch (e) {
+            console.warn('Batch approve error for:', item.plate_number, e);
+        }
+    }
+
+    if (btn) {
+        btn.disabled = false;
+        btn.classList.remove('btn-loading');
+        btn.textContent = 'Confirm & Print Tickets';
+    }
+
+    playDingSound();
+    showToast(`✓ All ${itemsToProcess.length} pre-filled vehicles approved!`);
+    await loadPendingRequests();
+    await loadActiveSessions();
+}
+
+async function batchApprovePreFilled() {
+    const prefilledItems = Object.values(STATE.pendingRequestsMap || {}).filter(it => 
+        it.source === 'self_signin' || it.source === 'cloud_mobile' || it.source === 'firebase_web'
+    );
+
+    if (prefilledItems.length === 0) {
+        showToast('ℹ️ No pre-filled sign-ins waiting for approval.');
+        return;
+    }
+
+    openBatchApproveModal(prefilledItems);
 }
 
 function prependPendingCard(item) {
@@ -734,19 +1149,47 @@ function prependPendingCard(item) {
     if (!grid) return;
 
     // Check if empty message is present
-    if (grid.children.length === 1 && grid.children[0].textContent.includes('No cars waiting')) {
-        grid.innerHTML = '';
-    }
+    const emptyBox = grid.querySelector('.queue-empty-box');
+    if (emptyBox) emptyBox.remove();
 
     STATE.pendingRequestsMap = STATE.pendingRequestsMap || {};
-    const reqId = item.id || item.request_id;
+    const reqId = String(item.id || item.request_id);
     STATE.pendingRequestsMap[reqId] = item;
 
-    const card = createPendingCardElement(item);
+    const mode = STATE.queueViewMode || 'cards';
+    const card = createPendingItemElement(item, mode);
     grid.prepend(card);
 
+    updatePendingQueueBadge();
+    applyQueueFilters();
+
     if (window.gsap) {
-        gsap.from(card, { scale: 0.85, opacity: 0, duration: 0.35, ease: "back.out(1.5)" });
+        gsap.from(card, { x: 50, opacity: 0, duration: 0.4, ease: "back.out(1.3)" });
+    }
+}
+
+function updatePendingQueueBadge() {
+    const grid = document.getElementById('pendingCardsGrid');
+    if (!grid) return;
+    const cards = grid.querySelectorAll('[data-req-id]');
+    const count = cards.length;
+    const badge = document.getElementById('pendingCountBadge');
+    const pnlPending = document.getElementById('pnlPending');
+
+    if (badge) {
+        badge.textContent = count > 0 ? `${count} Waiting` : '0 Waiting';
+        badge.classList.toggle('has-items', count > 0);
+    }
+    if (pnlPending) pnlPending.textContent = String(count);
+
+    if (count === 0 && !grid.querySelector('.queue-empty-box')) {
+        grid.innerHTML = `
+            <div class="queue-empty-box">
+                <div class="queue-empty-radar">
+                    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 2a10 10 0 0 1 10 10"/></svg>
+                </div>
+                <div class="queue-empty-text">Camera Active &amp; Ready.<br>Cars arriving at Gate 1 will appear here.</div>
+            </div>`;
     }
 }
 
@@ -760,122 +1203,148 @@ function escapeHtml(str) {
         .replace(/'/g, '&#039;');
 }
 
+function createPendingItemElement(item, mode = 'cards') {
+    return mode === 'compact' ? createPendingRowElement(item) : createPendingCardElement(item);
+}
+
+function createPendingRowElement(item) {
+    const row = document.createElement('div');
+    const reqId = String(item.id || item.request_id);
+    const isSelf = (item.source === 'self_signin' || item.source === 'cloud_mobile' || item.source === 'firebase_web');
+
+    row.className = `camera-queue-row ${isSelf ? 'self-checkin' : 'needs-data'}`;
+    row.id = `req-row-${reqId}`;
+    row.setAttribute('data-plate', item.plate_number);
+    row.setAttribute('data-req-id', reqId);
+    row.setAttribute('role', 'button');
+    row.onclick = () => openVehicleIntakeModal(reqId);
+
+    const plateDisplay = escapeHtml(item.formatted_plate || item.plate_number);
+    const driverDisplay = escapeHtml(item.driver_name || (isSelf ? 'Visitor' : 'Awaiting Name'));
+    const destDisplay = escapeHtml(item.destination || 'Mall Store');
+    const waitDisplay = escapeHtml(item.wait_text || 'Just now');
+
+    row.innerHTML = `
+        <div class="cqr-plate-col">
+            <span class="cqr-plate">${plateDisplay}</span>
+            <span class="cqr-tag ${isSelf ? 'self' : 'intake'}">${isSelf ? 'Pre-Filled' : 'Needs Intake'}</span>
+        </div>
+        <div class="cqr-info-col">
+            <span class="cqr-driver">${driverDisplay}</span>
+            <span class="cqr-dest">• ${destDisplay}</span>
+            <span class="cqr-time">• ${waitDisplay}</span>
+        </div>
+        <div class="cqr-action-col">
+            <button class="btn-cqr-admit ${isSelf ? 'approve' : ''}" onclick="event.stopPropagation(); openVehicleIntakeModal('${reqId}');" title="${isSelf ? 'Approve & Print Pass' : 'Enter Details & Admit'}">
+                ${isSelf ? 'Approve' : 'Admit'}
+            </button>
+            <button class="btn-cqr-del" onclick="event.stopPropagation(); declineIntakeFromCard('${reqId}');" title="Decline entry">
+                ✕
+            </button>
+        </div>
+    `;
+
+    return row;
+}
+
 function createPendingCardElement(item) {
     const card = document.createElement('div');
-    const reqId = item.id || item.request_id;
+    const reqId = String(item.id || item.request_id);
     STATE.pendingRequestsMap = STATE.pendingRequestsMap || {};
     STATE.pendingRequestsMap[reqId] = item;
 
     const isSelfCheckin = (item.source === 'self_signin' || item.source === 'cloud_mobile' || item.source === 'firebase_web');
 
-    card.className = `car-card ${item.alpr_verified ? 'verified' : ''} ${item.category === 'blacklisted' ? 'blacklisted' : ''} ${item.category === 'vip' ? 'vip' : ''} ${isSelfCheckin ? 'self-checkin' : ''}`;
+    card.className = `camera-queue-card ${isSelfCheckin ? 'self-checkin' : 'needs-data'} ${item.category === 'blacklisted' ? 'blacklisted' : ''} ${item.category === 'vip' ? 'vip' : ''}`;
     card.id = `req-card-${reqId}`;
     card.setAttribute('data-plate', item.plate_number);
     card.setAttribute('data-req-id', reqId);
     card.setAttribute('tabindex', '0');
     card.setAttribute('role', 'button');
     card.setAttribute('aria-label', `Vehicle ${item.formatted_plate}, tap to admit`);
-    card.onclick = () => openVehicleIntakeModal(reqId);
-    card.onkeydown = (e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            openVehicleIntakeModal(reqId);
-        }
-    };
-
-    let alertBadge = '';
-    if (item.category === 'blacklisted') {
-        alertBadge = `<div class="badge-alert">⚠️ ${t('blacklisted_alert')}: ${escapeHtml(item.category_notes || 'DO NOT ADMIT')}</div>`;
-    } else if (item.category === 'vip') {
-        alertBadge = `<div class="badge-alert" style="background:#7c3aed;color:#fff;">⭐ ${t('vip_alert')}</div>`;
-    }
 
     // Snapshot preview thumbnail or placeholder
     let snapHtml = '';
     if (item.snapshot_url) {
-        snapHtml = `<img src="../${item.snapshot_url}" class="card-snap-thumb" alt="Camera Snapshot" loading="lazy">`;
+        snapHtml = `<img src="../${item.snapshot_url}" class="cqc-thumb-img" alt="Camera Snapshot" loading="lazy" onclick="window.open(this.src, '_blank')">`;
     } else {
-        snapHtml = `<div class="card-snap-thumb" style="display:flex;align-items:center;justify-content:center;color:#64748b;">
-            <svg class="i-icon" style="width:28px;height:28px;" viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-        </div>`;
+        snapHtml = `<svg class="i-icon" style="width:24px;height:24px;color:var(--blue-mid);" viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>`;
     }
 
-    // Source badge
-    let sourceBadge = '';
-    if (isSelfCheckin) {
-        sourceBadge = `<span class="cam-source-badge" style="background:#059669;color:#fff;font-weight:900;letter-spacing:0.04em;">📱 DRIVER SELF CHECK-IN</span>`;
-    } else if (item.source === 'alpr_camera') {
-        sourceBadge = `<span class="cam-source-badge">📷 CAMERA</span>`;
-    }
+    // Wait & Entry Time
+    const waitText = item.wait_text || 'Just now';
 
-    // Vehicle type badge (Car, Tuktuk, Government)
-    let typeBadge = '';
-    if (item.vehicle_type === 'tuktuk') {
-        typeBadge = `<span class="cam-source-badge" style="background:#f59e0b;color:#000;font-weight:800;">🛺 TUKTUK</span>`;
-    } else if (item.vehicle_type === 'government') {
-        typeBadge = `<span class="cam-source-badge" style="background:#0284c7;color:#fff;font-weight:800;">🏛️ GOVT</span>`;
-    }
-
-    // Driver details tag on the card
-    let driverTag = '';
+    // Driver & Destination Info
+    let driverInfoHtml = '';
     if (isSelfCheckin || (item.driver_name && item.driver_name !== 'Visitor')) {
-        driverTag = `
-            <div class="card-driver-tag" style="margin-top:5px; font-size:12px; color:var(--text); line-height:1.35; background:var(--card-alt, #f8fafc); padding:5px 8px; border-radius:6px; border:1px solid var(--border-l, #e2e8f0);">
-                <div style="font-weight:800; color:#0f172a; display:flex; align-items:center; gap:5px;">
-                    <span>👤 ${escapeHtml(item.driver_name || 'Driver')}</span>
-                    ${item.driver_phone ? `<span style="color:#64748b; font-weight:600; font-size:11px;">(${escapeHtml(item.driver_phone)})</span>` : ''}
-                </div>
-                <div style="color:#116FC7; font-weight:700; font-size:11.5px; margin-top:2px;">
-                    📍 ${escapeHtml(item.destination || 'Mombasa Mall')}
-                </div>
+        driverInfoHtml = `
+            <div class="cqc-driver-info">
+                <span>👤</span>
+                <span>${escapeHtml(item.driver_name || 'Driver')}</span>
+                ${item.driver_phone ? `<span style="font-size:11px;color:var(--text-muted);">(${escapeHtml(item.driver_phone)})</span>` : ''}
+            </div>
+            <div class="cqc-dest-info">
+                <span>📍</span>
+                <span>${escapeHtml(item.destination || 'Mombasa Mall')}</span>
+            </div>
+        `;
+    } else {
+        driverInfoHtml = `
+            <div class="cqc-driver-info" style="color:var(--amber); font-weight:800;">
+                <span>⚠️</span>
+                <span>Awaiting Details Input</span>
+            </div>
+            <div class="cqc-dest-info" style="color:var(--text-muted); font-size:11px;">
+                <span>Tap below to assign store</span>
             </div>
         `;
     }
 
-    // Entry timestamp & wait duration
-    const entryTimeLabel = item.entry_time_display 
-        ? item.entry_time_display 
-        : (item.entry_time ? item.entry_time.split(' ')[1] : '');
-    const waitAndEntryTime = entryTimeLabel 
-        ? `🕒 In: ${escapeHtml(entryTimeLabel)} (${escapeHtml(item.wait_text || 'Just now')})` 
-        : `⏱️ ${escapeHtml(item.wait_text || 'Just now')}`;
+    // Tag badge
+    const tagBadge = isSelfCheckin 
+        ? `<span class="cqc-badge-tag self-checkin">📱 Pre-Filled</span>`
+        : `<span class="cqc-badge-tag needs-data">⚠️ Needs Data</span>`;
 
-    // Footer strip
-    const footerStrip = isSelfCheckin ? `
-        <div class="card-footer-strip" style="background:rgba(5,150,105,0.08); border-top:1px solid rgba(5,150,105,0.2);">
-            <span class="card-wait-text" style="color:#047857; font-weight:700;">${waitAndEntryTime}</span>
-            <span class="card-tap-cta" style="background:#059669; color:#fff; font-weight:800; border-radius:4px; padding:3px 9px;">
-                ✓ Approve Entry ➔
-            </span>
-        </div>
-    ` : `
-        <div class="card-footer-strip">
-            <span class="card-wait-text">${waitAndEntryTime}</span>
-            <span class="card-tap-cta">
-                Tap to Admit
-                <svg class="i-icon" style="width:12px;height:12px;display:inline;" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
-            </span>
-        </div>
-    `;
+    // Action button
+    const actionBtn = isSelfCheckin
+        ? `<button class="btn-cqc-primary approve" onclick="event.stopPropagation(); openVehicleIntakeModal('${reqId}');">
+               ✓ Approve &amp; Print
+           </button>`
+        : `<button class="btn-cqc-primary" onclick="event.stopPropagation(); openVehicleIntakeModal('${reqId}');">
+               ✎ Enter Details &amp; Admit
+           </button>`;
 
     card.innerHTML = `
-        <div class="car-card-main">
-            ${snapHtml}
-            <div class="card-plate-col">
-                <div class="card-plate">${escapeHtml(item.formatted_plate)}</div>
-                <div class="card-meta-row">
-                    ${sourceBadge}
-                    ${typeBadge}
-                    ${item.alpr_verified ? `<span class="badge-verified">✓ ${t('verified_badge')}</span>` : ''}
+        <div class="cqc-header" onclick="openVehicleIntakeModal('${reqId}')">
+            <div class="cqc-thumb-wrap">
+                ${snapHtml}
+            </div>
+            <div class="cqc-plate-wrap">
+                <div class="cqc-plate-badge">${escapeHtml(item.formatted_plate || item.plate_number)}</div>
+                <div class="cqc-meta-row">
+                    ${tagBadge}
+                    <span class="cqc-time-ago">${escapeHtml(waitText)}</span>
                 </div>
-                ${driverTag}
-                ${alertBadge}
             </div>
         </div>
-        ${footerStrip}
+        <div class="cqc-body" onclick="openVehicleIntakeModal('${reqId}')">
+            ${driverInfoHtml}
+        </div>
+        <div class="cqc-actions">
+            ${actionBtn}
+            <button class="btn-cqc-dismiss" onclick="event.stopPropagation(); declineIntakeFromCard('${reqId}');" title="Decline vehicle entry">
+                ✕
+            </button>
+        </div>
     `;
 
     return card;
+}
+
+function declineIntakeFromCard(reqId) {
+    if (typeof openRejectDialog === 'function') {
+        openRejectDialog(reqId);
+    }
 }
 
 // --------------------------------------------------------------------
@@ -1147,10 +1616,23 @@ function selectIntakeShop(storeName, btnEl) {
 
 function closeVehicleIntakeModal() {
     const modal = document.getElementById('vehicleIntakeModal');
-    if (modal) {
+    if (!modal) return;
+    const box = modal.querySelector('.intake-modal-box');
+    if (box && window.gsap) {
+        gsap.to(box, {
+            scale: 0.93,
+            opacity: 0,
+            duration: 0.16,
+            ease: 'power2.in',
+            onComplete: () => {
+                modal.classList.remove('open');
+                STATE.currentIntakeReqId = null;
+            }
+        });
+    } else {
         modal.classList.remove('open');
+        STATE.currentIntakeReqId = null;
     }
-    STATE.currentIntakeReqId = null;
 }
 
 function declineCurrentIntake() {
@@ -1221,6 +1703,9 @@ async function submitIntakeFromModal() {
                 delete STATE.pendingRequestsMap[requestId];
             }
 
+            // Immediately refresh basement roster to show the newly parked car!
+            loadActiveSessions();
+
             // Update stats
             runPoll();
 
@@ -1239,17 +1724,26 @@ async function submitIntakeFromModal() {
 }
 
 function removePendingCard(plate) {
-    document.querySelectorAll('.car-card').forEach(card => {
-        if (card.getAttribute('data-plate') === plate) {
+    if (!plate) return;
+    const clean = plate.replace(/[^A-Z0-9]/gi, '').toUpperCase();
+    document.querySelectorAll('.camera-queue-card, .car-card').forEach(card => {
+        const cPlate = (card.getAttribute('data-plate') || '').replace(/[^A-Z0-9]/gi, '').toUpperCase();
+        if (cPlate === clean) {
             if (window.gsap) {
                 gsap.to(card, {
-                    scale: 0.8,
+                    x: 40,
                     opacity: 0,
+                    height: 0,
+                    marginBottom: 0,
                     duration: 0.3,
-                    onComplete: () => card.remove()
+                    onComplete: () => {
+                        card.remove();
+                        if (typeof updatePendingQueueBadge === 'function') updatePendingQueueBadge();
+                    }
                 });
             } else {
                 card.remove();
+                if (typeof updatePendingQueueBadge === 'function') updatePendingQueueBadge();
             }
         }
     });
@@ -1401,6 +1895,12 @@ async function triggerCameraPlateFetch(targetCam = 'entrance') {
                     }
                     searchExitSessions(json.data.plate_number);
                 } else {
+                    showEntranceAlprBanner({
+                        formatted_plate: json.data.formatted_plate,
+                        plate_number: json.data.plate_number,
+                        confidence: json.data.confidence || 0.95,
+                        time: new Date().toLocaleTimeString('en-GB')
+                    });
                     await loadPendingRequests();
                     setTimeout(() => {
                         openVehicleIntakeModal(json.data.request_id);
@@ -1429,6 +1929,50 @@ async function triggerCameraPlateFetch(targetCam = 'entrance') {
             if (btnText) btnText.textContent = origText;
         }
     }
+}
+
+// --------------------------------------------------------------------
+// Fast Queue & Gate Synchronization Capability
+// --------------------------------------------------------------------
+let isFastSyncing = false;
+
+async function fastRefreshEntryQueue(userFeedback = false) {
+    if (isFastSyncing) return;
+    isFastSyncing = true;
+
+    const btn = document.getElementById('btnFastRefreshQueue');
+    const icon = btn ? btn.querySelector('.i-icon-refresh') : null;
+    if (btn) btn.classList.add('syncing');
+    if (icon) icon.classList.add('spinning');
+
+    try {
+        await Promise.allSettled([
+            loadPendingRequests(),
+            loadActiveSessions(),
+            runPoll()
+        ]);
+
+        if (userFeedback) {
+            playDingSound();
+            const count = (STATE.latestPendingItems && Array.isArray(STATE.latestPendingItems)) ? STATE.latestPendingItems.length : 0;
+            showToast(`✓ Gate queue synced with live camera (${count} waiting)`);
+        }
+    } catch (e) {
+        console.error('Fast refresh error:', e);
+        if (userFeedback) {
+            showToast('⚠️ Sync error connecting to gate services.');
+        }
+    } finally {
+        setTimeout(() => {
+            if (btn) btn.classList.remove('syncing');
+            if (icon) icon.classList.remove('spinning');
+            isFastSyncing = false;
+        }, 500);
+    }
+}
+
+async function simulateDemoArrival() {
+    showToast('ℹ️ Simulation disabled. Live Dahua ANPR camera feed is active.');
 }
 
 async function scanCameraIntoWizard() {
@@ -1609,12 +2153,90 @@ async function searchExitSessions(term) {
     }
 }
 
-async function executeClearExit(sessionId, plateNumber = '') {
-    const isUncollected = !sessionId && plateNumber;
-    const confirmMsg = isUncollected 
-        ? `Clear exit for uncollected vehicle ${plateNumber}? Vehicle will be allowed out and alert recorded.`
-        : 'Are you sure you want to clear this vehicle for exit?';
-    if (!confirm(confirmMsg)) return;
+// --------------------------------------------------------------------
+// Soft Exit Clearance Confirmation Modal
+// --------------------------------------------------------------------
+let pendingExitData = null;
+
+function openExitConfirmModal(sessionId, plateNumber) {
+    const modal = document.getElementById('exitConfirmModal');
+    if (!modal) return;
+
+    let session = null;
+    if (STATE.activeSessionsList && Array.isArray(STATE.activeSessionsList)) {
+        session = STATE.activeSessionsList.find(s => 
+            (sessionId && s.session_id == sessionId) || 
+            (plateNumber && s.plate_number == plateNumber)
+        );
+    }
+
+    const plate = session ? (session.formatted_plate || session.plate_number) : (plateNumber || 'UNKNOWN');
+    const bay = session ? (session.space_code || session.parking_space_code || 'General') : 'General Bay';
+    const entryTime = session ? (session.entry_time_display || '--') : new Date().toLocaleTimeString('en-GB');
+    
+    let dwell = '--';
+    if (session && session.entry_timestamp) {
+        const mins = Math.max(0, Math.floor((Date.now() - session.entry_timestamp) / 60000));
+        dwell = mins < 60 ? `${mins}m` : `${Math.floor(mins / 60)}h ${mins % 60}m`;
+    }
+
+    const plateEl = document.getElementById('exitConfirmPlate');
+    const bayEl = document.getElementById('exitConfirmBay');
+    const dwellEl = document.getElementById('exitConfirmDwell');
+    const timeEl = document.getElementById('exitConfirmEntryTime');
+
+    if (plateEl) plateEl.textContent = plate;
+    if (bayEl) bayEl.textContent = bay;
+    if (dwellEl) dwellEl.textContent = dwell;
+    if (timeEl) timeEl.textContent = entryTime;
+
+    pendingExitData = { sessionId, plateNumber, plate };
+
+    const btn = document.getElementById('btnConfirmClearExit');
+    const lbl = document.getElementById('exitBtnLabel');
+    if (btn) {
+        btn.disabled = false;
+        btn.classList.remove('btn-loading');
+    }
+    if (lbl) lbl.textContent = 'Clear Exit & Lift Barrier';
+
+    modal.classList.add('open');
+    if (window.gsap) {
+        gsap.fromTo('.exit-confirm-modal-box',
+            { scale: 0.94, opacity: 0, y: 15 },
+            { scale: 1, opacity: 1, y: 0, duration: 0.25, ease: 'back.out(1.4)' }
+        );
+    }
+}
+
+function closeExitConfirmModal() {
+    const modal = document.getElementById('exitConfirmModal');
+    if (!modal) return;
+    if (window.gsap) {
+        gsap.to('.exit-confirm-modal-box', {
+            scale: 0.96, opacity: 0, y: 10, duration: 0.18, ease: 'power2.in',
+            onComplete: () => {
+                modal.classList.remove('open');
+                pendingExitData = null;
+            }
+        });
+    } else {
+        modal.classList.remove('open');
+        pendingExitData = null;
+    }
+}
+
+async function commitClearExit() {
+    if (!pendingExitData) return;
+
+    const { sessionId, plateNumber, plate } = pendingExitData;
+    const btn = document.getElementById('btnConfirmClearExit');
+    const lbl = document.getElementById('exitBtnLabel');
+    if (btn) {
+        btn.disabled = true;
+        btn.classList.add('btn-loading');
+    }
+    if (lbl) lbl.textContent = 'Lifting Barrier…';
 
     try {
         const payload = sessionId ? { session_id: sessionId } : { plate_number: plateNumber };
@@ -1627,26 +2249,41 @@ async function executeClearExit(sessionId, plateNumber = '') {
 
         if (json.ok) {
             playSuccessChime();
-            const plate = json.data.formatted_plate || json.data.plate_number || plateNumber;
+            const confirmedPlate = json.data.formatted_plate || json.data.plate_number || plate;
             removePendingCard(json.data.plate_number || plateNumber);
+            closeExitConfirmModal();
+            loadActiveSessions();
 
             if (json.data.details_uncollected) {
-                showToast(`⚠️ Vehicle ${plate} cleared without details. In: ${json.data.entry_time_display || '--'} • Out: ${json.data.exit_time_display || '--'}`);
-                logActivity(`⚠️ Vehicle ${plate} exited without details. Gate cleared.`, 'warn');
+                showToast(`⚠️ Vehicle ${confirmedPlate} cleared without details. Gate barrier opened.`);
+                logActivity(`⚠️ Vehicle ${confirmedPlate} exited without details. Gate cleared.`, 'warn');
             } else {
-                showToast(`✓ Vehicle ${plate} cleared. Total time: ${json.data.duration_text}`);
+                showToast(`✓ Barrier Lifted: Vehicle ${confirmedPlate} cleared (Stay: ${json.data.duration_text || 'Completed'})`);
             }
 
-            document.getElementById('exitCandidateArea').innerHTML = '';
-            document.getElementById('exitSearchResults').innerHTML = '';
+            const candidateArea = document.getElementById('exitCandidateArea');
+            if (candidateArea) candidateArea.innerHTML = '';
+            const searchResults = document.getElementById('exitSearchResults');
+            if (searchResults) searchResults.innerHTML = '';
             const searchInput = document.getElementById('exitSearchInput');
             if (searchInput) searchInput.value = '';
         } else {
-            showToast(json.error || 'Failed to clear exit.');
+            showToast('✕ ' + (json.error || 'Failed to clear exit.'));
         }
     } catch (e) {
-        showToast('Network error while clearing exit.');
+        showToast('✕ Network error while clearing vehicle exit.');
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.classList.remove('btn-loading');
+        }
+        if (lbl) lbl.textContent = 'Clear Exit & Lift Barrier';
     }
+}
+
+async function executeClearExit(sessionId, plateNumber = '') {
+    // Replaced harsh browser confirm with soft exit modal
+    openExitConfirmModal(sessionId, plateNumber);
 }
 
 // --------------------------------------------------------------------
@@ -1670,7 +2307,13 @@ async function submitSupervisorOverride() {
     const reason = document.getElementById('supOverrideReason').value;
 
     if (!pin) {
-        alert('Please enter Supervisor PIN');
+        showToast('⚠️ Please enter the 4-digit Supervisor PIN.');
+        const pinInput = document.getElementById('supOverridePin');
+        if (pinInput) {
+            pinInput.classList.add('input-shake');
+            setTimeout(() => pinInput.classList.remove('input-shake'), 600);
+            pinInput.focus();
+        }
         return;
     }
 
@@ -1692,53 +2335,303 @@ async function submitSupervisorOverride() {
             closeSupervisorOverrideModal();
             document.getElementById('exitSearchResults').innerHTML = '';
         } else {
-            alert(json.error || 'Supervisor authorization failed.');
+            showToast('✕ ' + (json.error || 'Supervisor authorization failed.'));
         }
     } catch (e) {
-        alert('Failed to contact server for override.');
+        showToast('✕ Failed to contact server for override.');
     }
 }
 
 // --------------------------------------------------------------------
-// Cars Inside Tab
+// BASEMENT ACTIVE PARKING ROSTER & LIVE DURATION MONITORING
 // --------------------------------------------------------------------
-async function loadActiveSessions() {
+STATE.rosterTimerInterval = null;
+STATE.activeSessionsList = [];
+
+async function loadActiveSessions(manualTrigger = false) {
     try {
+        const btnRefresh = document.getElementById('btnRefreshRoster');
+        if (manualTrigger && btnRefresh) {
+            btnRefresh.classList.add('spinning');
+            setTimeout(() => btnRefresh.classList.remove('spinning'), 600);
+        }
+
         const res = await fetch('../api/gate/active-sessions.php');
         const json = await res.json();
         const tbody = document.getElementById('insideTableBody');
         if (!tbody) return;
 
-        if (!json.ok || json.data.sessions.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:40px; color:#64748b;">No cars currently parked in basement.</td></tr>`;
+        if (!json.ok || !json.data || !json.data.sessions || json.data.sessions.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="8" style="text-align:center; padding:60px 20px; color:var(--text-muted);">
+                        <div style="font-size:32px; margin-bottom:10px;">🅿️</div>
+                        <div style="font-size:16px; font-weight:800; color:var(--text-primary);">No vehicles currently parked in the basement.</div>
+                        <div style="font-size:12px; margin-top:4px; color:var(--text-secondary);">When vehicles enter via Gate 1, they will be listed here with real-time stay duration.</div>
+                    </td>
+                </tr>`;
+            updateRosterFilterCounters(0, 0, 0, 0);
             return;
         }
 
-        tbody.innerHTML = '';
-        json.data.sessions.forEach(sess => {
-            const tr = document.createElement('tr');
-            if (sess.overstay_level === 'critical') tr.className = 'overstay-critical';
-            else if (sess.overstay_level === 'warning') tr.className = 'overstay-warning';
+        STATE.activeSessionsList = json.data.sessions;
+        renderActiveSessionsTable(STATE.activeSessionsList);
 
-            tr.innerHTML = `
-                <td>
-                    <span style="font-weight:900; font-size:20px;">${sess.formatted_plate}</span>
-                    ${sess.overstay_level === 'critical' ? `<span style="color:#ef4444; font-weight:900; margin-left:8px;">⚠️ OVERSTAY</span>` : ''}
-                </td>
-                <td>${sess.driver_name}</td>
-                <td>${sess.destination}</td>
-                <td>${sess.entry_time.split(' ')[1]}</td>
-                <td style="font-weight:800; color:#38bdf8;">${sess.dwell_string}</td>
-                <td>
-                    <button class="btn-search-clear" onclick="reprintTicket(${sess.id})">🖨️ Reprint</button>
-                    <button class="btn-search-clear" style="background:#ea580c; margin-left:6px;" onclick="executeClearExit(${sess.id})">Exit</button>
-                </td>
-            `;
-            tbody.appendChild(tr);
-        });
+        // Start real-time ticking stay duration timers
+        startRosterLiveTimers();
+
     } catch (e) {
         console.error('Error loading active sessions:', e);
     }
+}
+
+function renderActiveSessionsTable(sessions) {
+    const tbody = document.getElementById('insideTableBody');
+    if (!tbody) return;
+
+    let countSafe = 0, countWarn = 0, countCrit = 0;
+    const now = Date.now();
+
+    tbody.innerHTML = '';
+    sessions.forEach(sess => {
+        const tr = document.createElement('tr');
+        tr.className = 'roster-car-row';
+        tr.id = `roster-row-${sess.id}`;
+
+        const entryTs = sess.entry_timestamp ? (sess.entry_timestamp * 1000) : new Date(sess.entry_time.replace(/-/g, '/')).getTime();
+        const elapsedSecs = Math.max(0, Math.floor((now - entryTs) / 1000));
+
+        // 2-hour policy: 7200 seconds = 120 mins
+        // Warning threshold: 5400 seconds = 90 mins
+        const isCritical = sess.overstay_level === 'critical' || elapsedSecs >= 7200;
+        const isWarning = !isCritical && (sess.overstay_level === 'warning' || elapsedSecs >= 5400);
+
+        if (isCritical) {
+            tr.classList.add('overstay-critical');
+            countCrit++;
+        } else if (isWarning) {
+            tr.classList.add('overstay-warning');
+            countWarn++;
+        } else {
+            countSafe++;
+        }
+
+        tr.setAttribute('data-session-id', sess.id);
+        tr.setAttribute('data-entry-ts', entryTs);
+        tr.setAttribute('data-plate', (sess.plate_number || '').toUpperCase());
+        tr.setAttribute('data-driver', (sess.driver_name || '').toLowerCase());
+        tr.setAttribute('data-dest', (sess.destination || '').toLowerCase());
+        tr.setAttribute('data-overstay-level', isCritical ? 'critical' : (isWarning ? 'warning' : 'safe'));
+
+        // Format live duration
+        const hrs = Math.floor(elapsedSecs / 3600);
+        const mins = Math.floor((elapsedSecs % 3600) / 60);
+        const secs = elapsedSecs % 60;
+        const pad = (n) => String(n).padStart(2, '0');
+        const durationStr = `${pad(hrs)}:${pad(mins)}:${pad(secs)}`;
+
+        // Expected leave time display
+        const expectedExitDisplay = sess.expected_exit_display || (new Date(entryTs + (120 * 60 * 1000)).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+
+        // Category badge
+        let catBadge = '';
+        if (sess.category === 'vip') catBadge = '<span class="category-badge-pill vip">⭐ VIP</span>';
+        else if (sess.category === 'staff') catBadge = '<span class="category-badge-pill staff">👔 STAFF</span>';
+
+        // Status badge
+        let statusBadgeHtml = '';
+        if (isCritical) {
+            const overdueMins = Math.floor((elapsedSecs - 7200) / 60);
+            statusBadgeHtml = `<span class="roster-status-badge critical pulse-badge"><span class="badge-dot red"></span> OVERSTAY (+${overdueMins}m)</span>`;
+        } else if (isWarning) {
+            const remMins = Math.max(1, Math.ceil((7200 - elapsedSecs) / 60));
+            statusBadgeHtml = `<span class="roster-status-badge warning"><span class="badge-dot amber"></span> Approaching (${remMins}m left)</span>`;
+        } else {
+            const remMins = Math.max(1, Math.ceil((7200 - elapsedSecs) / 60));
+            statusBadgeHtml = `<span class="roster-status-badge safe"><span class="badge-dot green"></span> Free (${remMins}m left)</span>`;
+        }
+
+        tr.innerHTML = `
+            <td>
+                <div class="roster-plate-badge" title="${escapeHtml(sess.formatted_plate)}">
+                    <span class="roster-plate-flag">KE</span>
+                    <span>${escapeHtml(sess.formatted_plate)}</span>
+                </div>
+            </td>
+            <td>
+                <div class="roster-driver-meta">
+                    <div class="roster-driver-name">
+                        <span>${escapeHtml(sess.driver_name)}</span>
+                        ${catBadge}
+                    </div>
+                    ${sess.driver_phone ? `<div class="roster-driver-phone">${escapeHtml(sess.driver_phone)}</div>` : ''}
+                </div>
+            </td>
+            <td>
+                <span class="roster-dest-badge" title="${escapeHtml(sess.destination)}">
+                    <span>📍</span>
+                    <span>${escapeHtml(sess.destination)}</span>
+                </span>
+            </td>
+            <td>
+                <span class="roster-time-in">${escapeHtml(sess.entry_time_display || sess.entry_time.split(' ')[1])}</span>
+            </td>
+            <td>
+                <span class="roster-time-expected" title="Expected departure deadline under 2-hour policy">
+                    ⏱️ ${escapeHtml(expectedExitDisplay)}
+                </span>
+            </td>
+            <td>
+                <div class="roster-live-timer">
+                    <span class="timer-pulse-icon"></span>
+                    <span class="timer-text">${durationStr}</span>
+                </div>
+            </td>
+            <td>
+                ${statusBadgeHtml}
+            </td>
+            <td>
+                <div class="roster-actions-cell">
+                    <button class="btn-roster-action reprint" onclick="reprintTicket(${sess.id})" title="Reprint Parking Ticket">
+                        🖨️ Reprint
+                    </button>
+                    <button class="btn-roster-action exit" onclick="executeClearExit(${sess.id})" title="Clear Departure">
+                        Exit ➔
+                    </button>
+                </div>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+
+    updateRosterFilterCounters(sessions.length, countSafe, countWarn, countCrit);
+
+    // Apply any active search or filter
+    applyRosterFilters();
+
+    // GSAP smooth row stagger entrance
+    if (window.gsap) {
+        gsap.from('#insideTableBody tr', {
+            opacity: 0,
+            y: 10,
+            duration: 0.25,
+            stagger: 0.03,
+            ease: 'power1.out'
+        });
+    }
+}
+
+function startRosterLiveTimers() {
+    if (STATE.rosterTimerInterval) clearInterval(STATE.rosterTimerInterval);
+    STATE.rosterTimerInterval = setInterval(() => {
+        const rows = document.querySelectorAll('.roster-car-row');
+        if (rows.length === 0) return;
+        const now = Date.now();
+        const pad = (n) => String(n).padStart(2, '0');
+
+        rows.forEach(row => {
+            const entryTs = parseInt(row.getAttribute('data-entry-ts'), 10);
+            if (!entryTs) return;
+
+            const elapsedSecs = Math.max(0, Math.floor((now - entryTs) / 1000));
+            const hrs = Math.floor(elapsedSecs / 3600);
+            const mins = Math.floor((elapsedSecs % 3600) / 60);
+            const secs = elapsedSecs % 60;
+            const durationStr = `${pad(hrs)}:${pad(mins)}:${pad(secs)}`;
+
+            const timerText = row.querySelector('.timer-text');
+            if (timerText) timerText.textContent = durationStr;
+
+            const isCritical = elapsedSecs >= 7200; // 2 hours
+            const isWarning = !isCritical && elapsedSecs >= 5400; // 1.5 hours
+            const prevLevel = row.getAttribute('data-overstay-level');
+            const newLevel = isCritical ? 'critical' : (isWarning ? 'warning' : 'safe');
+
+            if (prevLevel !== newLevel) {
+                row.setAttribute('data-overstay-level', newLevel);
+                row.classList.toggle('overstay-critical', isCritical);
+                row.classList.toggle('overstay-warning', isWarning);
+
+                const statusCell = row.children[6];
+                if (statusCell) {
+                    if (isCritical) {
+                        const overdueMins = Math.floor((elapsedSecs - 7200) / 60);
+                        statusCell.innerHTML = `<span class="roster-status-badge critical pulse-badge"><span class="badge-dot red"></span> OVERSTAY (+${overdueMins}m)</span>`;
+                        if (window.gsap) gsap.from(statusCell.firstElementChild, { scale: 1.15, duration: 0.3 });
+                    } else if (isWarning) {
+                        const remMins = Math.max(1, Math.ceil((7200 - elapsedSecs) / 60));
+                        statusCell.innerHTML = `<span class="roster-status-badge warning"><span class="badge-dot amber"></span> Approaching (${remMins}m left)</span>`;
+                    } else {
+                        const remMins = Math.max(1, Math.ceil((7200 - elapsedSecs) / 60));
+                        statusCell.innerHTML = `<span class="roster-status-badge safe"><span class="badge-dot green"></span> Free (${remMins}m left)</span>`;
+                    }
+                }
+            } else if (isCritical) {
+                // Update overdue minutes count dynamically
+                const overdueMins = Math.floor((elapsedSecs - 7200) / 60);
+                const badge = row.querySelector('.roster-status-badge.critical');
+                if (badge) badge.innerHTML = `<span class="badge-dot red"></span> OVERSTAY (+${overdueMins}m)`;
+            }
+        });
+    }, 1000);
+}
+
+function updateRosterFilterCounters(total, safe, warn, crit) {
+    const elAll = document.getElementById('countPillAll');
+    const elSafe = document.getElementById('countPillSafe');
+    const elWarn = document.getElementById('countPillWarn');
+    const elCrit = document.getElementById('countPillCrit');
+    const elBadge = document.getElementById('rosterCountBadge');
+
+    if (elAll) elAll.textContent = String(total);
+    if (elSafe) elSafe.textContent = String(safe);
+    if (elWarn) elWarn.textContent = String(warn);
+    if (elCrit) elCrit.textContent = String(crit);
+    if (elBadge) elBadge.textContent = String(total);
+
+    const statOccupied = document.getElementById('statOccupied');
+    if (statOccupied && total > 0 && statOccupied.textContent === '--') {
+        statOccupied.textContent = String(total);
+    }
+}
+
+function applyRosterFilters(shouldAnimate = false) {
+    const query = (document.getElementById('rosterSearchInput')?.value || '').trim().toLowerCase();
+    const activePill = document.querySelector('.roster-pill.active');
+    const filterType = activePill ? activePill.getAttribute('data-filter') : 'all';
+
+    const btnClear = document.getElementById('btnClearRosterSearch');
+    if (btnClear) btnClear.style.display = query.length > 0 ? 'block' : 'none';
+
+    const rows = document.querySelectorAll('.roster-car-row');
+    const visibleRows = [];
+    rows.forEach(row => {
+        const plate = row.getAttribute('data-plate') || '';
+        const driver = row.getAttribute('data-driver') || '';
+        const dest = row.getAttribute('data-dest') || '';
+        const level = row.getAttribute('data-overstay-level') || 'safe';
+
+        const matchesQuery = !query || plate.includes(query) || driver.includes(query) || dest.includes(query);
+        const matchesFilter = (filterType === 'all') || (filterType === level);
+
+        if (matchesQuery && matchesFilter) {
+            row.style.display = '';
+            visibleRows.push(row);
+        } else {
+            row.style.display = 'none';
+        }
+    });
+
+    if (shouldAnimate && window.gsap && visibleRows.length > 0 && visibleRows.length <= 40) {
+        gsap.fromTo(visibleRows, { opacity: 0.35, y: 3 }, { opacity: 1, y: 0, duration: 0.18, stagger: 0.02, ease: 'power1.out' });
+    }
+}
+
+function clearRosterSearch() {
+    const input = document.getElementById('rosterSearchInput');
+    if (input) input.value = '';
+    applyRosterFilters();
+    input?.focus();
 }
 
 // --------------------------------------------------------------------
@@ -1771,6 +2664,10 @@ function initWizard() {
             }
 
             modal.classList.add('open');
+            const box = modal.querySelector('.modal-box');
+            if (box && window.gsap) {
+                gsap.fromTo(box, { scale: 0.94, opacity: 0, y: 12 }, { scale: 1, opacity: 1, y: 0, duration: 0.22, ease: 'power2.out' });
+            }
             if (plateIn) plateIn.focus();
         });
     }
@@ -1795,7 +2692,20 @@ function initWizard() {
 
 function closeWizard() {
     const modal = document.getElementById('manualWizardModal');
-    if (modal) modal.classList.remove('open');
+    if (!modal) return;
+    const box = modal.querySelector('.modal-box');
+    if (box && window.gsap) {
+        gsap.to(box, {
+            scale: 0.94,
+            opacity: 0,
+            y: 10,
+            duration: 0.16,
+            ease: 'power2.in',
+            onComplete: () => modal.classList.remove('open')
+        });
+    } else {
+        modal.classList.remove('open');
+    }
 }
 
 // Stubs — no longer used but kept to avoid JS errors if called from elsewhere
@@ -1823,7 +2733,7 @@ function renderGuardDestGrid() {
 
     const filtered = list.filter(d => {
         if (guardActiveFloor !== 'ALL') {
-            if ((d.floor_level || '').toLowerCase() !== guardActiveFloor.toLowerCase()) {
+            if (normalizeFloorLevel(d.floor_level) !== normalizeFloorLevel(guardActiveFloor)) {
                 return false;
             }
         }
@@ -1869,17 +2779,26 @@ async function submitManualWizard() {
     const dest  = STATE.wizard.destination;
 
     if (plate.length < 4) {
-        alert('Please enter a valid number plate.');
-        document.getElementById('wizPlateInput')?.focus();
+        showToast('⚠️ Please enter a valid vehicle number plate.');
+        const plateInput = document.getElementById('wizPlateInput');
+        if (plateInput) {
+            plateInput.classList.add('input-shake');
+            setTimeout(() => plateInput.classList.remove('input-shake'), 600);
+            plateInput.focus();
+        }
         return;
     }
     if (!dest) {
-        alert('Please select a destination store.');
+        showToast('⚠️ Please select a destination store or office.');
         return;
     }
 
     const btn = document.querySelector('.btn-submit-checkin');
-    if (btn) { btn.disabled = true; btn.textContent = 'Registering…'; }
+    if (btn) {
+        btn.disabled = true;
+        btn.classList.add('btn-loading');
+        btn.textContent = 'Registering…';
+    }
 
     try {
         const res = await fetch('../api/gate/manual-checkin.php', {
@@ -1898,14 +2817,19 @@ async function submitManualWizard() {
             playSuccessChime();
             showToast(`✓ Ticket #${json.data.ticket_id} Printed — ${json.data.formatted_plate}`);
             closeWizard();
+            loadActiveSessions();
             showReceiptModal(json.data);
         } else {
-            alert(json.error || 'Failed to register vehicle.');
+            showToast('✕ ' + (json.error || 'Failed to register vehicle.'));
         }
     } catch (e) {
-        alert('Network error registering vehicle.');
+        showToast('✕ Network error registering vehicle.');
     } finally {
-        if (btn) { btn.disabled = false; btn.textContent = 'Register & Print Ticket'; }
+        if (btn) {
+            btn.disabled = false;
+            btn.classList.remove('btn-loading');
+            btn.textContent = 'Register & Print Ticket';
+        }
     }
 }
 
@@ -1963,8 +2887,21 @@ function showToast(msg, showReprint = false, failedSessionId = null) {
     }
 
     toast.classList.add('show');
+    if (window.gsap) {
+        gsap.fromTo(toast, { y: 25, opacity: 0 }, { y: 0, opacity: 1, duration: 0.3, ease: 'back.out(1.4)' });
+    }
     setTimeout(() => {
-        toast.classList.remove('show');
+        if (window.gsap) {
+            gsap.to(toast, {
+                y: 20,
+                opacity: 0,
+                duration: 0.25,
+                ease: 'power2.in',
+                onComplete: () => toast.classList.remove('show')
+            });
+        } else {
+            toast.classList.remove('show');
+        }
     }, 6000);
 }
 
@@ -1999,3 +2936,105 @@ function debounce(fn, ms) {
         timer = setTimeout(() => fn.apply(this, args), ms);
     };
 }
+
+// --------------------------------------------------------------------
+// Soft Logout Confirmation Modal Handlers
+// --------------------------------------------------------------------
+function openLogoutConfirmModal() {
+    const modal = document.getElementById('logoutConfirmModal');
+    if (!modal) return;
+    modal.classList.add('open');
+    if (window.gsap) {
+        gsap.fromTo('.logout-modal-box', 
+            { scale: 0.94, opacity: 0, y: 15 }, 
+            { scale: 1, opacity: 1, y: 0, duration: 0.25, ease: 'back.out(1.4)' }
+        );
+    }
+}
+
+function closeLogoutConfirmModal() {
+    const modal = document.getElementById('logoutConfirmModal');
+    if (!modal) return;
+    if (window.gsap) {
+        gsap.to('.logout-modal-box', {
+            scale: 0.96, opacity: 0, y: 10, duration: 0.18, ease: 'power2.in',
+            onComplete: () => {
+                modal.classList.remove('open');
+            }
+        });
+    } else {
+        modal.classList.remove('open');
+    }
+}
+
+function executeLogout() {
+    const btn = document.getElementById('btnConfirmLogout');
+    const lbl = document.getElementById('logoutBtnLabel');
+    if (btn) {
+        btn.disabled = true;
+        btn.classList.add('btn-loading');
+    }
+    if (lbl) lbl.textContent = 'Signing Out…';
+    showToast('👋 Ending shift. Signing out…');
+    setTimeout(() => {
+        window.location.href = '../api/auth/logout.php';
+    }, 450);
+}
+
+// --------------------------------------------------------------------
+// Global Keyboard Shortcuts (R: Fast Sync, Escape: Close Modals)
+// --------------------------------------------------------------------
+document.addEventListener('keydown', (e) => {
+    // 1. Escape key: closes topmost modal cleanly
+    if (e.key === 'Escape') {
+        if (document.getElementById('logoutConfirmModal')?.classList.contains('open')) {
+            closeLogoutConfirmModal();
+            return;
+        }
+        if (document.getElementById('exitConfirmModal')?.classList.contains('open')) {
+            closeExitConfirmModal();
+            return;
+        }
+        if (document.getElementById('batchApproveModal')?.classList.contains('open')) {
+            closeBatchApproveModal();
+            return;
+        }
+        if (document.getElementById('vehicleIntakeModal')?.classList.contains('open')) {
+            closeVehicleIntakeModal();
+            return;
+        }
+        if (document.getElementById('helpModal')?.classList.contains('open')) {
+            closeHelpModal();
+            return;
+        }
+        if (document.getElementById('supervisorOverrideModal')?.classList.contains('open')) {
+            closeSupervisorOverrideModal();
+            return;
+        }
+        if (document.getElementById('manualWizardModal')?.classList.contains('open')) {
+            closeWizard();
+            return;
+        }
+        if (document.getElementById('rejectModal')?.classList.contains('open')) {
+            closeRejectDialog();
+            return;
+        }
+        if (document.getElementById('receiptPreviewModal')?.classList.contains('open')) {
+            closeReceiptModal();
+            return;
+        }
+    }
+
+    // 2. 'R' key: Fast Refresh Queue (when not inside form inputs)
+    if (e.key === 'r' || e.key === 'R') {
+        const tag = (e.target && e.target.tagName) ? e.target.tagName.toLowerCase() : '';
+        if (tag === 'input' || tag === 'textarea' || tag === 'select' || e.target.isContentEditable) {
+            return;
+        }
+        if (document.querySelector('.modal-overlay.open')) {
+            return;
+        }
+        e.preventDefault();
+        fastRefreshEntryQueue(true);
+    }
+});
