@@ -656,6 +656,12 @@ function handleServerEvent(event) {
             logActivity(`New request: ${p.plate_number || 'Unknown'}`, 'ok');
             break;
 
+        case 'request_updated':
+            playDingSound();
+            updatePendingCardWithDriverDetails(p);
+            logActivity(`📱 Driver Pre-Filled: ${p.driver_name || ''} (${p.formatted_plate || p.plate_number}) → ${p.destination || ''}`, 'ok');
+            break;
+
         case 'plate_verified_entrance':
             markCardVerified(p.request_id);
             logActivity(`ALPR verified: ${p.plate_number || ''}`, 'ok');
@@ -1773,6 +1779,52 @@ function markCardVerified(reqId) {
             }
         }
     }
+}
+
+function updatePendingCardWithDriverDetails(p) {
+    if (!p) return;
+    const reqId = String(p.request_id || p.id);
+    const grid = document.getElementById('pendingCardsGrid');
+    if (!grid) return;
+
+    STATE.pendingRequestsMap = STATE.pendingRequestsMap || {};
+    const existing = STATE.pendingRequestsMap[reqId] || {};
+    const updated = {
+        ...existing,
+        ...p,
+        source: 'self_signin',
+        driver_name: p.driver_name || existing.driver_name || 'Visitor',
+        driver_phone: p.driver_phone || p.raw_phone || existing.driver_phone || '',
+        destination: p.destination || existing.destination || 'Mombasa Mall',
+        wait_text: existing.wait_text || 'Just now',
+    };
+    STATE.pendingRequestsMap[reqId] = updated;
+
+    let card = document.getElementById(`req-card-${reqId}`) || 
+               grid.querySelector(`[data-plate="${p.plate_number}"]`) || 
+               grid.querySelector(`[data-req-id="${reqId}"]`);
+
+    const mode = STATE.queueViewMode || 'cards';
+    const newCard = createPendingItemElement(updated, mode);
+
+    if (card) {
+        grid.replaceChild(newCard, card);
+        if (window.gsap) {
+            gsap.fromTo(newCard, 
+                { scale: 0.95, backgroundColor: '#dcfce7' },
+                { scale: 1, backgroundColor: '#ffffff', duration: 0.5, ease: 'power2.out' }
+            );
+        }
+    } else {
+        grid.prepend(newCard);
+        if (window.gsap) {
+            gsap.from(newCard, { x: 40, opacity: 0, duration: 0.35, ease: 'power2.out' });
+        }
+    }
+
+    applyQueueFilters();
+    updatePendingQueueBadge();
+    showToast(`📱 Driver ${p.driver_name || 'Visitor'} (${p.formatted_plate || p.plate_number}) self-signed in!`);
 }
 
 // Legacy alias
