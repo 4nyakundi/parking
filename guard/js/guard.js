@@ -1381,9 +1381,18 @@ function declineIntakeFromCard(reqId) {
 STATE.currentIntakeReqId = null;
 
 function openVehicleIntakeModal(requestId) {
-    const item = (STATE.pendingRequestsMap && STATE.pendingRequestsMap[requestId]) || null;
+    let item = (STATE.pendingRequestsMap && STATE.pendingRequestsMap[requestId]) || null;
+    if (!item && requestId) {
+        item = (STATE.pendingRequests || []).find(r => (r.id == requestId || r.request_id == requestId)) || null;
+    }
     if (!item) {
-        acceptWithQuickDetails(requestId);
+        if (!requestId || requestId === 0) {
+            if (typeof openManualCheckinModal === 'function') {
+                openManualCheckinModal();
+                return;
+            }
+        }
+        showToast('Vehicle request is no longer pending or has already been processed.', 'info');
         return;
     }
 
@@ -1842,7 +1851,9 @@ function updatePendingCardWithDriverDetails(p) {
 
 // Legacy alias
 function acceptWithQuickDetails(requestId) {
-    openVehicleIntakeModal(requestId);
+    if (requestId && STATE.pendingRequestsMap && STATE.pendingRequestsMap[requestId]) {
+        openVehicleIntakeModal(requestId);
+    }
 }
 
 function acceptAndPrint(requestId) {

@@ -7,10 +7,10 @@
 require_once __DIR__ . '/../../includes/auth.php';
 require_once __DIR__ . '/../../includes/db.php';
 require_once __DIR__ . '/../../includes/functions.php';
-require_once __DIR__ . '/../../config/config.php';
 
 $user = require_role(['supervisor', 'admin']);
 $pdo  = get_db();
+$config = get_config();
 
 $method = $_SERVER['REQUEST_METHOD'];
 
@@ -24,10 +24,9 @@ if ($method === 'GET') {
 
 // ---- POST: run backup now -----------------------------------------------
 if ($method === 'POST') {
-    $backupDir = defined('BACKUP_PATH') ? BACKUP_PATH : 'D:\\ParkingBackups';
-
+    $backupDir = __DIR__ . '/../../storage/backups';
     if (!is_dir($backupDir)) {
-        @mkdir($backupDir, 0755, true);
+        @mkdir($backupDir, 0777, true);
     }
     if (!is_dir($backupDir)) {
         json_err("Backup directory does not exist and could not be created: $backupDir");
@@ -36,33 +35,49 @@ if ($method === 'POST') {
     $filename = 'parking_' . date('Y-m-d_His') . '.sql';
     $filepath = $backupDir . DIRECTORY_SEPARATOR . $filename;
 
+    $dbCfg = $config['db'];
+    $mysqldumpPath = 'C:\\xampp\\mysql\\bin\\mysqldump.exe';
+    if (!file_exists($mysqldumpPath)) {
+        $mysqldumpPath = 'mysqldump';
+    }
+
+    $pwdArg = !empty($dbCfg['password']) ? '-p' . escapeshellarg($dbCfg['password']) : '';
+
     $cmd = sprintf(
         '"%s" --host=%s --port=%s --user=%s %s %s > "%s" 2>&1',
-        defined('MYSQLDUMP_PATH') ? MYSQLDUMP_PATH : 'C:\\xampp\\mysql\\bin\\mysqldump.exe',
-        DB_HOST, DB_PORT, DB_USER,
-        DB_PASS ? '--password=' . escapeshellarg(DB_PASS) : '',
-        DB_NAME,
+        $mysqldumpPath,
+        escapeshellarg((string)$dbCfg['host']),
+        escapeshellarg((string)$dbCfg['port']),
+        escapeshellarg((string)$dbCfg['username']),
+        $pwdArg,
+        escapeshellarg((string)$dbCfg['dbname']),
         $filepath
     );
 
     exec($cmd, $output, $exitCode);
 
-    if ($exitCode !== 0 || !file_exists($filepath)) {
+    if ($exitCode !== 0 || !file_exists($filepath) || filesize($filepath) === 0) {
         json_err('mysqldump failed. Output: ' . implode(' ', $output));
     }
 
     $size = filesize($filepath);
 
+    // Also copy to secondary backup dir if exists
+    $extDir = $config['paths']['backups'] ?? 'D:\\ParkingBackups';
+    if (is_dir($extDir)) {
+        @copy($filepath, $extDir . DIRECTORY_SEPARATOR . $filename);
+    }
+
     // Record in backups table
     $stmt = $pdo->prepare(
-        "INSERT INTO backups (filename, size, created_at, created_by) VALUES (?, ?, NOW(), ?)"
+        "INSERT INTO backups (filename, size, file_path, created_at, created_by) VALUES (?, ?, ?, NOW(), ?)"
     );
-    $stmt->execute([$filename, $size, $user['full_name']]);
-    $id = $pdo->lastInsertId();
+    $stmt->execute([$filename, $size, $filepath, $user['full_name']]);
+    $id = (int)$pdo->lastInsertId();
 
     // Audit
     if (function_exists('write_audit')) {
-        write_audit($pdo, $user['id'], 'BACKUP_CREATED', 'backups', $id, null,
+        write_audit($pdo, $user['id'], 'BACKUP_CREATED', 'backups', (string)$id, null,
             ['filename' => $filename, 'size' => $size]);
     }
 

@@ -6,18 +6,29 @@
 
 declare(strict_types=1);
 
+if (!function_exists('get_config')) {
+    function get_config(): array
+    {
+        static $cfg = null;
+        if ($cfg === null) {
+            $cfg = require __DIR__ . '/config.php';
+            if (file_exists(__DIR__ . '/config.local.php')) {
+                $localConfig = require __DIR__ . '/config.local.php';
+                if (is_array($localConfig)) {
+                    $cfg = array_replace_recursive($cfg, $localConfig);
+                }
+            }
+        }
+        return $cfg;
+    }
+}
+
 function get_db(): PDO
 {
     static $pdo = null;
 
     if ($pdo === null) {
-        $config = require __DIR__ . '/config.php';
-        if (file_exists(__DIR__ . '/config.local.php')) {
-            $localConfig = require __DIR__ . '/config.local.php';
-            if (is_array($localConfig)) {
-                $config = array_replace_recursive($config, $localConfig);
-            }
-        }
+        $config = get_config();
         $dbCfg = $config['db'];
 
         $dsn = sprintf(

@@ -8,7 +8,7 @@ REM 1. Configuration Paths
 set "MYSQLDUMP=C:\xampp\mysql\bin\mysqldump.exe"
 set "DB_USER=root"
 set "DB_PASS="
-set "DB_NAME=mombasa_parking"
+set "DB_NAME=mombasam_parking"
 
 REM Backup destination directories
 set "BACKUP_DIR_LOCAL=C:\xampp\htdocs\parking\storage\backups"

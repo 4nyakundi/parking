@@ -15,7 +15,7 @@ $action = $_GET['action'] ?? ($_POST['action'] ?? 'list');
 
 try {
     $db = get_db();
-    $config = require __DIR__ . '/../../config/config.php';
+    $config = get_config();
 
     // -------------------------------------------------------------
     // ACTION: DOWNLOAD BACKUP
