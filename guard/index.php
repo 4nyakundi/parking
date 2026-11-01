@@ -207,12 +207,12 @@
                     <span class="device-name">Printer:</span>
                     <span class="device-val" id="pnlPrinterStatus">Ready</span>
                 </div>
-                <div class="device-chip" title="Dahua NVR Gate 1 Entrance Camera (192.168.0.3 Ch 1)">
+                <div class="device-chip" title="Dahua Gate 1 Entrance Camera (192.168.1.230)">
                     <span class="device-dot online"></span>
                     <span class="device-name">Entry:</span>
                     <span class="device-val" id="pnlCam1Status">Online</span>
                 </div>
-                <div class="device-chip" title="Dahua NVR Gate 2 Exit Camera (192.168.0.3 Ch 2)">
+                <div class="device-chip" title="Dahua Gate 2 Exit Camera (192.168.1.210)">
                     <span class="device-dot online"></span>
                     <span class="device-name">Exit:</span>
                     <span class="device-val" id="pnlCam2Status">Online</span>
@@ -362,18 +362,18 @@
 
             <!-- Hardware Telemetry Status Strip -->
             <div class="queue-cam-telemetry-row">
-                <div class="queue-cam-status-pill" title="Dahua NVR Gate 1 ANPR Camera: 192.168.0.3 Channel 1">
+                <div class="queue-cam-status-pill online" title="Dahua Entrance ANPR Camera: 192.168.1.230">
                     <span class="pulse-dot"></span>
-                    <span id="camEntranceStatusLabel">Dahua NVR (192.168.0.3 Ch 1)</span>
+                    <span id="camEntranceStatusLabel">Gate 1 (192.168.1.230): Online</span>
                 </div>
-                <span class="cam-feed-badge">Live ANPR</span>
+                <span class="cam-feed-badge live-streaming" title="Continuous Real-Time Event Stream Active">⚡ AUTO-STREAM</span>
             </div>
 
-            <!-- Action Buttons: Clean 2-Button Row (Live Camera Plate + Fast Queue Sync) -->
+            <!-- Action Buttons: Clean 2-Button Row (Release Stale + Fast Queue Sync) -->
             <div class="queue-cam-actions">
-                <button class="btn-queue-scan" id="btnFetchCameraPlate" onclick="triggerCameraPlateFetch()" title="Fetch and analyze latest plate from entrance camera">
-                    <svg class="i-icon" viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-                    <span id="btnFetchCamText">Fetch Cam Plate</span>
+                <button type="button" class="btn-queue-release-stale" id="btnReleaseStaleQueue" onclick="releaseStaleQueue()" title="Release and clear unhandled records older than 15 mins to ease camera intake">
+                    <svg class="i-icon" viewBox="0 0 24 24"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                    <span id="btnReleaseStaleText">Release Stale</span>
                 </button>
                 <button type="button" class="btn-queue-fast-refresh" id="btnFastRefreshQueue" onclick="fastRefreshEntryQueue(true)" title="Instant live sync with entrance camera & pending intake queue (Hotkey: R)">
                     <svg class="i-icon-refresh" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>

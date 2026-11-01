@@ -39,22 +39,28 @@ $nvrSnapUrl = $camConfig['nvr_snapshot_url'] ?? "http://{$nvrIp}/cgi-bin/snapsho
 
 $endpoints = [
     [
-        'url'    => $nvrSnapUrl,
+        'url'    => $directSnapUrl,
+        'user'   => $camUser,
+        'pass'   => $camPass,
+        'source' => "Dahua ITC Camera Direct ({$camIp})",
+    ],
+    [
+        'url'    => "http://{$camIp}/cgi-bin/snapshot.cgi?channel=1",
+        'user'   => $camUser,
+        'pass'   => $camPass,
+        'source' => "Camera Direct Snapshot ({$camIp})",
+    ],
+    [
+        'url'    => "https://192.168.1.3/cgi-bin/snapshot.cgi?channel={$nvrChannel}",
         'user'   => $nvrUser,
         'pass'   => $nvrPass,
-        'source' => "Dahua NVR ({$nvrIp} Ch {$nvrChannel})",
+        'source' => "Dahua NVR (192.168.1.3 Ch {$nvrChannel})",
     ],
     [
         'url'    => "https://192.168.0.3/cgi-bin/snapshot.cgi?channel={$nvrChannel}",
         'user'   => $nvrUser,
         'pass'   => $nvrPass,
-        'source' => "Dahua NVR Direct (192.168.0.3 Ch {$nvrChannel})",
-    ],
-    [
-        'url'    => $directSnapUrl,
-        'user'   => $camUser,
-        'pass'   => $camPass,
-        'source' => "Camera Direct ({$camIp})",
+        'source' => "Dahua NVR Fallback (192.168.0.3 Ch {$nvrChannel})",
     ],
 ];
 

@@ -23,8 +23,8 @@ if (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
     $clientIp = trim(explode(',', $_SERVER['HTTP_X_FORWARDED_FOR'])[0]);
 }
 
-// Allow direct machine push from Dahua NVR (192.168.0.3), local PC (192.168.0.7), or local loopback
-$isTrustedMachine = str_starts_with($clientIp, '192.168.0.') || in_array($clientIp, ['127.0.0.1', '::1', 'localhost'], true);
+// Allow direct machine push from Dahua NVR (192.168.1.3 / 192.168.0.3), cameras (192.168.1.230 / 192.168.1.210), local PC, or local loopback
+$isTrustedMachine = str_starts_with($clientIp, '192.168.') || str_starts_with($clientIp, '10.') || in_array($clientIp, ['127.0.0.1', '::1', 'localhost'], true);
 
 // Check API Key
 $providedKey = $_SERVER['HTTP_X_API_KEY'] ?? $_POST['api_key'] ?? $_GET['api_key'] ?? null;
@@ -128,7 +128,7 @@ try {
             ON DUPLICATE KEY UPDATE status = "OK", last_checked_at = NOW(), message = VALUES(message)
         ')->execute([
             ':device' => $camDeviceKey,
-            ':msg'    => "Dahua NVR (192.168.0.3 Ch " . ($camera === 'exit' ? '2' : '1') . ") active detection",
+            ':msg'    => "Dahua " . ucfirst($camera) . " Camera (" . ($camera === 'exit' ? '192.168.1.210' : '192.168.1.230') . ") active detection",
         ]);
     } catch (Throwable) {}
 

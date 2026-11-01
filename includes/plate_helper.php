@@ -157,7 +157,7 @@ class PlateHelper
     {
         $clean = self::clean($plate);
 
-        if (strlen($clean) < 4 || strlen($clean) > 10) {
+        if (strlen($clean) < 4 || strlen($clean) > 10 || in_array(strtoupper($clean), ['NULL', 'NONE', 'UNKNOWN', 'NOPLATE', 'UNDEFINED', 'TEST'], true)) {
             return false;
         }
 

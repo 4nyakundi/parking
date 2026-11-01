@@ -20,6 +20,12 @@ date_default_timezone_set('Africa/Nairobi');
 
 $configFile = __DIR__ . '/../config/config.php';
 $config = require $configFile;
+if (file_exists(__DIR__ . '/../config/config.local.php')) {
+    $localConfig = require __DIR__ . '/../config/config.local.php';
+    if (is_array($localConfig)) {
+        $config = array_replace_recursive($config, $localConfig);
+    }
+}
 require_once __DIR__ . '/../includes/plate_helper.php';
 
 $apiKey    = $config['alpr']['api_key'] ?? 'MOMBASA_PARKING_ALPR_SECRET_KEY_2026';
@@ -38,6 +44,7 @@ $cameras = [
         'stream'    => "http://" . ($config['alpr']['entrance']['ip'] ?? '192.168.1.230') . "/cgi-bin/eventManager.cgi?action=attach&codes=[Traffic,TrafficTollGate,PlateDetection,All]",
         'snap'      => [
             "http://" . ($config['alpr']['entrance']['ip'] ?? '192.168.1.230') . "/cgi-bin/snapshot.cgi?channel=1",
+            "https://{$nvrIp}/cgi-bin/snapshot.cgi?channel=1",
             "http://{$nvrIp}/cgi-bin/snapshot.cgi?channel=1",
         ],
         'last_seen' => 0,
@@ -51,6 +58,7 @@ $cameras = [
         'stream'    => "http://" . ($config['alpr']['exit']['ip'] ?? '192.168.1.210') . "/cgi-bin/eventManager.cgi?action=attach&codes=[Traffic,TrafficTollGate,PlateDetection,All]",
         'snap'      => [
             "http://" . ($config['alpr']['exit']['ip'] ?? '192.168.1.210') . "/cgi-bin/snapshot.cgi?channel=1",
+            "https://{$nvrIp}/cgi-bin/snapshot.cgi?channel=2",
             "http://{$nvrIp}/cgi-bin/snapshot.cgi?channel=2",
         ],
         'last_seen' => 0,
@@ -84,6 +92,8 @@ function grab_snapshot_base64(array|string $snapUrls, string $user, string $pass
         curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 2);
         curl_setopt($ch, CURLOPT_TIMEOUT, 3);
         curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
         $data = curl_exec($ch);
         $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);
@@ -242,7 +252,7 @@ function init_camera_stream(string $camKey, array &$camConfig, string $apiUrl, s
                     continue;
                 }
 
-                if (!empty($matchedPlate)) {
+                if (!empty($matchedPlate) && !in_array(strtolower($matchedPlate), ['null', 'none', 'unknown', 'noplate', 'undefined'], true)) {
                     $matchedPlate = trim($matchedPlate);
                     $cleanPlate = PlateHelper::clean($matchedPlate);
 

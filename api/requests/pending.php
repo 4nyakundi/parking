@@ -18,9 +18,9 @@ require_auth(true);
 try {
     $db = get_db();
 
-    // Auto-expire abandoned visitor requests older than 24 hours to keep the guard dashboard clean
+    // Auto-expire abandoned visitor requests older than 30 minutes to keep the guard intake queue clean & fast
     try {
-        $db->query("UPDATE visitors SET status = 'EXPIRED' WHERE status = 'PENDING' AND created_at < DATE_SUB(NOW(), INTERVAL 24 HOUR)");
+        $db->query("UPDATE visitors SET status = 'EXPIRED' WHERE status = 'PENDING' AND created_at < DATE_SUB(NOW(), INTERVAL 30 MINUTE)");
     } catch (Throwable) {}
 
     // Query pending requests and join with registered_vehicles to highlight VIP / staff / blacklisted

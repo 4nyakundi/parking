@@ -458,13 +458,13 @@ function switchTab(tabName) {
 function startPolling() {
     if (STATE.pollTimer) clearInterval(STATE.pollTimer);
     runPoll();
-    STATE.pollTimer = setInterval(runPoll, 1500);
+    STATE.pollTimer = setInterval(runPoll, 1000);
 
-    // Fast queue sync every 2.5s to ensure zero drift between Driver submissions and Guard Screen
+    // Ultra-responsive queue sync every 1.5s for instant camera intake and zero drift
     if (STATE.queueSyncTimer) clearInterval(STATE.queueSyncTimer);
     STATE.queueSyncTimer = setInterval(() => {
         loadPendingRequests();
-    }, 2500);
+    }, 1500);
 
     initFirestoreSync();
 }
@@ -580,9 +580,15 @@ function updateDeviceStatusDisplay(devices) {
     };
 
     updatePill('pnlPrinterStatus', devices.printer, 'Ready');
-    updatePill('pnlCam1Status', devices.entrance_cam, 'Online (192.168.0.3 Ch 1)');
-    updatePill('pnlCam2Status', devices.exit_cam, 'Online (192.168.0.3 Ch 2)');
+    updatePill('pnlCam1Status', devices.entrance_cam, 'Online (192.168.1.230)');
+    updatePill('pnlCam2Status', devices.exit_cam, 'Online (192.168.1.210)');
     updatePill('pnlAlprStatus', devices.alpr_worker, 'Active');
+
+    const camLbl = document.getElementById('camEntranceStatusLabel');
+    if (camLbl && devices.entrance_cam) {
+        const isOk = (devices.entrance_cam.status === 'OK' || devices.entrance_cam.status === 'WARNING');
+        camLbl.textContent = isOk ? 'Gate 1 (192.168.1.230): Online' : 'Gate 1 (192.168.1.230): Offline';
+    }
 }
 
 function updateOccupancyDisplay(stats) {
@@ -709,6 +715,17 @@ function handleServerEvent(event) {
         case 'request_rejected':
             removePendingCard(p.plate_number);
             logActivity(`Request declined: ${p.plate_number || ''}`, 'warn');
+            break;
+
+        case 'request_dismissed':
+            if (p.request_id) removePendingCardById(p.request_id);
+            else if (p.plate_number) removePendingCard(p.plate_number);
+            logActivity(`Record released: ${p.plate_number || ''}`, 'ok');
+            break;
+
+        case 'queue_cleared':
+            loadPendingRequests();
+            logActivity(`🧹 Queue released (${p.cleared_count || 0} stale records)`, 'ok');
             break;
     }
 }
@@ -947,13 +964,22 @@ function renderPendingRequestsDiff(items) {
             const newEl = createPendingItemElement(item, mode);
             if (index === 0) {
                 grid.prepend(newEl);
+                if (window.gsap) {
+                    gsap.fromTo(newEl,
+                        { opacity: 0, y: -25, scale: 0.97 },
+                        { opacity: 1, y: 0, scale: 1, duration: 0.4, ease: 'power2.out' }
+                    );
+                }
             } else if (lastDomElement && lastDomElement.nextSibling) {
                 grid.insertBefore(newEl, lastDomElement.nextSibling);
+                if (window.gsap) {
+                    gsap.from(newEl, { x: 30, opacity: 0, duration: 0.3, ease: 'power2.out' });
+                }
             } else {
                 grid.appendChild(newEl);
-            }
-            if (window.gsap) {
-                gsap.from(newEl, { x: 30, opacity: 0, duration: 0.3, ease: 'power2.out' });
+                if (window.gsap) {
+                    gsap.from(newEl, { x: 30, opacity: 0, duration: 0.3, ease: 'power2.out' });
+                }
             }
             existingCard = newEl;
         } else {
@@ -1167,6 +1193,8 @@ function prependPendingCard(item) {
 
     STATE.pendingRequestsMap = STATE.pendingRequestsMap || {};
     const reqId = String(item.id || item.request_id);
+    if (grid.querySelector(`[data-req-id="${reqId}"]`)) return;
+
     STATE.pendingRequestsMap[reqId] = item;
 
     const mode = STATE.queueViewMode || 'cards';
@@ -1177,8 +1205,13 @@ function prependPendingCard(item) {
     applyQueueFilters();
 
     if (window.gsap) {
-        gsap.from(card, { x: 50, opacity: 0, duration: 0.4, ease: "back.out(1.3)" });
+        gsap.fromTo(card,
+            { opacity: 0, y: -28, scale: 0.96 },
+            { opacity: 1, y: 0, scale: 1, duration: 0.45, ease: 'power2.out' }
+        );
     }
+    card.classList.add('just-arrived-pulse');
+    setTimeout(() => card.classList.remove('just-arrived-pulse'), 3000);
 }
 
 function updatePendingQueueBadge() {
@@ -1252,7 +1285,7 @@ function createPendingRowElement(item) {
             <button class="btn-cqr-admit ${isSelf ? 'approve' : ''}" onclick="event.stopPropagation(); openVehicleIntakeModal('${reqId}');" title="${isSelf ? 'Approve & Print Pass' : 'Enter Details & Admit'}">
                 ${isSelf ? 'Approve' : 'Admit'}
             </button>
-            <button class="btn-cqr-del" onclick="event.stopPropagation(); declineIntakeFromCard('${reqId}');" title="Decline entry">
+            <button class="btn-cqr-del" onclick="event.stopPropagation(); releasePendingRecord('${reqId}');" title="Release vehicle from queue">
                 ✕
             </button>
         </div>
@@ -1360,8 +1393,8 @@ function createPendingCardElement(item) {
         </div>
         <div class="cqc-actions">
             ${actionBtn}
-            <button class="btn-cqc-dismiss" onclick="event.stopPropagation(); declineIntakeFromCard('${reqId}');" title="Decline vehicle entry">
-                ✕
+            <button class="btn-cqc-dismiss" onclick="event.stopPropagation(); releasePendingRecord('${reqId}');" title="Release record from queue (Dismiss drive-by)">
+                ✕ Release
             </button>
         </div>
     `;
@@ -1372,6 +1405,114 @@ function createPendingCardElement(item) {
 function declineIntakeFromCard(reqId) {
     if (typeof openRejectDialog === 'function') {
         openRejectDialog(reqId);
+    }
+}
+
+/**
+ * 1-Tap Fast Record Release / Dismissal from Gate Intake Queue
+ */
+async function releasePendingRecord(reqId) {
+    if (!reqId) return;
+
+    // Smooth animated slide-out
+    const card = document.querySelector(`[data-req-id="${reqId}"]`);
+    if (card) {
+        if (window.gsap) {
+            gsap.to(card, {
+                x: 60,
+                opacity: 0,
+                height: 0,
+                marginBottom: 0,
+                paddingTop: 0,
+                paddingBottom: 0,
+                duration: 0.22,
+                ease: 'power2.in',
+                onComplete: () => {
+                    card.remove();
+                    updatePendingQueueBadge();
+                }
+            });
+        } else {
+            card.remove();
+            updatePendingQueueBadge();
+        }
+    }
+
+    if (STATE.pendingRequestsMap) {
+        delete STATE.pendingRequestsMap[reqId];
+    }
+    updatePendingQueueBadge();
+
+    try {
+        const res = await fetch('../api/requests/action.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'dismiss', request_id: reqId })
+        });
+        const json = await res.json();
+        if (json.ok) {
+            showToast('Vehicle released from intake queue.', 'info');
+        }
+    } catch (e) {
+        console.warn('Error dismissing record:', e);
+    }
+}
+
+function removePendingCardById(reqId) {
+    if (!reqId) return;
+    const card = document.querySelector(`[data-req-id="${reqId}"]`);
+    if (card) {
+        if (window.gsap) {
+            gsap.to(card, {
+                x: 50,
+                opacity: 0,
+                height: 0,
+                marginBottom: 0,
+                duration: 0.22,
+                ease: 'power2.in',
+                onComplete: () => {
+                    card.remove();
+                    updatePendingQueueBadge();
+                }
+            });
+        } else {
+            card.remove();
+            updatePendingQueueBadge();
+        }
+    }
+    if (STATE.pendingRequestsMap) {
+        delete STATE.pendingRequestsMap[reqId];
+    }
+}
+
+/**
+ * Rapidly Clear & Release Stale Queue Records (Older than 15 mins)
+ */
+async function releaseStaleQueue() {
+    const btn = document.getElementById('btnReleaseStaleQueue');
+    const btnText = document.getElementById('btnReleaseStaleText');
+    if (btn) btn.disabled = true;
+    if (btnText) btnText.textContent = 'Releasing...';
+
+    try {
+        const res = await fetch('../api/requests/action.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'clear_stale', minutes: 15 })
+        });
+        const json = await res.json();
+        if (json.ok) {
+            showToast(`🧹 Released ${json.cleared_count || 0} stale records.`, 'ok');
+            await loadPendingRequests();
+        } else {
+            showToast(json.error || 'Failed to release stale records.', 'error');
+        }
+    } catch (e) {
+        console.error('Error clearing stale:', e);
+        showToast('Network error while releasing stale queue.', 'error');
+    } finally {
+        if (btn) btn.disabled = false;
+        if (btnText) btnText.textContent = 'Release Stale';
     }
 }
 
