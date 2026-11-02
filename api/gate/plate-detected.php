@@ -13,6 +13,7 @@ require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../includes/plate_helper.php';
 require_once __DIR__ . '/../../includes/phone_helper.php';
 require_once __DIR__ . '/../../includes/events.php';
+require_once __DIR__ . '/../../includes/databank.php';
 
 $config = require __DIR__ . '/../../config/config.php';
 $expectedApiKey = $config['alpr']['api_key'] ?? '';
@@ -185,15 +186,18 @@ try {
                     'ticket_id'          => $activeInside['ticket_id'],
                 ]);
             } else {
-                // Check if vehicle is registered (VIP / Staff / Blacklisted)
-                $regStmt = $db->prepare('SELECT owner_name, phone, category, notes FROM registered_vehicles WHERE plate_number = :plate AND is_active = 1 LIMIT 1');
-                $regStmt->execute([':plate' => $cleanPlate]);
-                $regVehicle = $regStmt->fetch();
+                // Check Vehicle Data Bank for Frequent Client profile & registration
+                $bankProfile = DataBank::lookup($cleanPlate);
 
-                $driverName = !empty($regVehicle['owner_name']) ? $regVehicle['owner_name'] : 'Visitor';
-                $driverPhone = !empty($regVehicle['phone']) ? $regVehicle['phone'] : '';
-                $category = $regVehicle['category'] ?? 'regular';
-                $categoryNotes = $regVehicle['notes'] ?? '';
+                $driverName = (!empty($bankProfile['driver_name']) && $bankProfile['driver_name'] !== 'Visitor') 
+                    ? $bankProfile['driver_name'] 
+                    : 'Visitor';
+                $driverPhone = !empty($bankProfile['driver_phone']) ? $bankProfile['driver_phone'] : '';
+                $destination = !empty($bankProfile['default_destination']) ? $bankProfile['default_destination'] : 'G-01 Naivas Supermarket';
+                $isFrequent = !empty($bankProfile['is_frequent']);
+                $visitCount = (int)($bankProfile['visit_count'] ?? 0);
+                $category = $bankProfile['category'] ?? ($isFrequent ? 'frequent' : 'regular');
+                $categoryNotes = $bankProfile['notes'] ?? ($isFrequent ? "Frequent Client ({$visitCount} past visits)" : '');
 
                 $nowTime = date('Y-m-d H:i:s');
                 $nowDisplay = date('h:i A');
@@ -201,12 +205,13 @@ try {
                 // Insert into visitors table as PENDING so it appears on Guard Dashboard immediately
                 $insVis = $db->prepare('
                     INSERT INTO visitors (plate_number, driver_name, driver_phone, destination, source, status, alpr_verified, created_at)
-                    VALUES (:plate, :driver, :phone, "Mombasa Mall", "alpr_camera", "PENDING", 1, :created_at)
+                    VALUES (:plate, :driver, :phone, :dest, "alpr_camera", "PENDING", 1, :created_at)
                 ');
                 $insVis->execute([
                     ':plate'      => $cleanPlate,
                     ':driver'     => $driverName,
                     ':phone'      => $driverPhone,
+                    ':dest'       => $destination,
                     ':created_at' => $nowTime,
                 ]);
                 $matchedRequestId = (int)$db->lastInsertId();
@@ -219,7 +224,7 @@ try {
                     'formatted_plate'    => $displayPlate,
                     'driver_name'        => $driverName,
                     'driver_phone'       => PhoneHelper::formatDisplay($driverPhone),
-                    'destination'        => 'Mombasa Mall',
+                    'destination'        => $destination,
                     'source'             => 'alpr_camera',
                     'alpr_verified'      => true,
                     'snapshot_url'       => $relSnapshotPath,
@@ -231,6 +236,9 @@ try {
                     'category'           => $category,
                     'category_notes'     => $categoryNotes,
                     'vehicle_type'       => PlateHelper::detectType($cleanPlate),
+                    'is_frequent'        => $isFrequent,
+                    'visit_count'        => $visitCount,
+                    'skip_details'       => $isFrequent,
                 ]);
 
                 // Also fire camera banner

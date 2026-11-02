@@ -4138,3 +4138,42 @@ button:focus-visible {
 }
 
 
+
+/* ================================================================
+   FREQUENT CLIENT DATA BANK STYLING (>= 3 VISITS)
+   ================================================================ */
+.camera-queue-row.frequent-client {
+    border-left-color: #2563eb;
+    background: #f8fbff;
+}
+.cqr-tag.frequent {
+    background: #2563eb !important;
+    color: #ffffff !important;
+    font-weight: 800 !important;
+    letter-spacing: 0.03em;
+}
+.btn-cqr-admit.frequent {
+    background: #2563eb !important;
+    color: #ffffff !important;
+}
+.btn-cqr-admit.frequent:hover {
+    background: #1d4ed8 !important;
+}
+
+.camera-queue-card.frequent-client {
+    border-color: #3b82f6;
+    border-top: 3px solid #2563eb;
+    background: #ffffff;
+}
+.cqc-badge-tag.frequent-client {
+    background: #eff6ff !important;
+    color: #1d4ed8 !important;
+    border: 1px solid #bfdbfe;
+    font-weight: 800 !important;
+}
+.btn-cqc-primary.frequent {
+    background: #2563eb !important;
+}
+.btn-cqc-primary.frequent:hover {
+    background: #1d4ed8 !important;
+}

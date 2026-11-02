@@ -25,9 +25,9 @@ try {
     // 1. LIST VEHICLES
     if ($action === 'list') {
         $stmt = $db->query('
-            SELECT id, plate_number, owner_name, phone, vehicle_type, category, notes, is_active, created_at
+            SELECT id, plate_number, owner_name, phone, vehicle_type, category, notes, is_active, visit_count, is_frequent, default_destination, last_visit_at, created_at
             FROM registered_vehicles
-            ORDER BY category = "blacklisted" DESC, category = "vip" DESC, id DESC
+            ORDER BY is_frequent DESC, category = "blacklisted" DESC, category = "vip" DESC, id DESC
         ');
         $rows = $stmt->fetchAll();
 
@@ -44,6 +44,10 @@ try {
                 'category'        => $r['category'],
                 'notes'           => $r['notes'],
                 'is_active'       => (bool)$r['is_active'],
+                'visit_count'     => (int)($r['visit_count'] ?? 1),
+                'is_frequent'     => (bool)$r['is_frequent'],
+                'default_destination' => $r['default_destination'] ?? '',
+                'last_visit_at'   => $r['last_visit_at'],
                 'created_at'      => $r['created_at'],
             ];
         }

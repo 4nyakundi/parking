@@ -39,6 +39,9 @@ try {
             d.icon AS destination_icon,
             rv.category AS vehicle_category,
             rv.notes AS category_notes,
+            rv.visit_count,
+            rv.is_frequent,
+            rv.default_destination,
             (SELECT snapshot_path FROM alpr_detections WHERE plate_clean = v.plate_number AND camera = "entrance" ORDER BY id DESC LIMIT 1) AS snapshot_url
         FROM visitors v
         LEFT JOIN destinations d ON d.name = v.destination
@@ -78,6 +81,10 @@ try {
             'wait_text'          => $waitText,
             'category'           => $row['vehicle_category'] ?? 'regular',
             'category_notes'     => $row['category_notes'] ?? '',
+            'is_frequent'        => ((int)($row['visit_count'] ?? 0) >= 3 || (int)($row['is_frequent'] ?? 0) === 1),
+            'visit_count'        => (int)($row['visit_count'] ?? 0),
+            'skip_details'       => ((int)($row['visit_count'] ?? 0) >= 3 || (int)($row['is_frequent'] ?? 0) === 1),
+            'default_destination'=> $row['default_destination'] ?? '',
             'created_at'         => $row['created_at'],
             'entry_time'         => $row['created_at'],
             'entry_time_display' => $entryDisplay,

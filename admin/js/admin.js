@@ -434,12 +434,18 @@ async function loadVehicles() {
     tbody.innerHTML = '';
     json.data.forEach(v => {
         const tr = document.createElement('tr');
+        const isFreq = v.is_frequent || ((v.visit_count || 0) >= 3);
+        const categoryBadge = isFreq
+            ? `<span class="badge" style="background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; font-weight:800;">⚡ FREQUENT CLIENT</span>`
+            : `<span class="badge ${v.category}">${escapeHtml((v.category || 'REGULAR').toUpperCase())}</span>`;
+
         tr.innerHTML = `
             <td><span style="display:inline-block; font-family:monospace; font-size:12px; font-weight:800; background:#eef5fc; color:#0d2b4e; border:1px solid #b0cfec; border-radius:4px; padding:2px 8px; letter-spacing:0.04em;">${escapeHtml(v.formatted_plate || v.plate_number)}</span></td>
-            <td>${escapeHtml(v.owner_name || 'N/A')}</td>
+            <td><strong>${escapeHtml(v.owner_name || 'Visitor')}</strong></td>
             <td>${escapeHtml(v.phone || 'N/A')}</td>
-            <td><span class="badge ${v.category}">${escapeHtml((v.category || 'REGULAR').toUpperCase())}</span></td>
-            <td>${escapeHtml(v.notes || '')}</td>
+            <td>${categoryBadge}</td>
+            <td><strong style="color:${isFreq ? '#1d4ed8' : '#334155'}; font-size:13px;">${v.visit_count || 1}</strong> <span style="font-size:11px; color:#64748b;">visits</span></td>
+            <td><span style="font-size:12px; color:#0369a1; font-weight:600;">${escapeHtml(v.default_destination || 'None')}</span></td>
             <td>
                 <button type="button" class="btn-primary" style="padding:4px 10px; font-size:12px;" onclick="openVehicleModal(${JSON.stringify(v).replace(/"/g, '&quot;')})">Edit</button>
                 <button type="button" class="btn-primary ${v.is_active ? 'btn-danger' : 'btn-success'}" style="padding:4px 10px; font-size:12px; margin-left:4px;" onclick="toggleVehicleActive(${v.id})">

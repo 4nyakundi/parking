@@ -136,7 +136,7 @@ try {
 // 7. Registered Vehicles (VIP, Staff, Tenant, Blacklist)
 $registeredVehicles = [];
 try {
-    $regStmt = $pdo->query('SELECT * FROM registered_vehicles ORDER BY is_active DESC, category ASC, plate_number ASC LIMIT 100');
+    $regStmt = $pdo->query('SELECT * FROM registered_vehicles ORDER BY is_frequent DESC, visit_count DESC, is_active DESC, plate_number ASC LIMIT 100');
     $registeredVehicles = $regStmt->fetchAll();
 } catch (Throwable) {}
 
@@ -710,9 +710,15 @@ try {
                                     <td><strong><?= htmlspecialchars($rv['owner_name']) ?></strong></td>
                                     <td><?= htmlspecialchars($rv['phone']) ?></td>
                                     <td>
-                                        <span class="status-tag <?= strtolower($rv['category']) ?>">
-                                            <?= htmlspecialchars(strtoupper($rv['category'])) ?>
-                                        </span>
+                                        <?php if (!empty($rv['is_frequent']) || ($rv['visit_count'] ?? 0) >= 3): ?>
+                                            <span class="status-tag" style="background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; font-weight:800;">
+                                                ⚡ FREQUENT (<?= (int)($rv['visit_count'] ?? 3) ?> VISITS)
+                                            </span>
+                                        <?php else: ?>
+                                            <span class="status-tag <?= strtolower($rv['category']) ?>">
+                                                <?= htmlspecialchars(strtoupper($rv['category'])) ?>
+                                            </span>
+                                        <?php endif; ?>
                                     </td>
                                     <td><?= htmlspecialchars($rv['notes'] ?? 'None') ?></td>
                                     <td>

@@ -260,11 +260,14 @@ $user = require_role(['supervisor', 'admin'], false);
         </section>
 
         <!-- ============================================================== -->
-        <!-- 4. VEHICLES REGISTER -->
+        <!-- 4. VEHICLES REGISTER & FREQUENT DATA BANK -->
         <!-- ============================================================== -->
         <section id="sec-vehicles" class="section-content">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-                <p style="color:var(--text-sub);">Manage VIPs, Mall Staff, Tenants, and Blacklisted security vehicles.</p>
+                <div>
+                    <h3 style="margin:0 0 4px 0; font-size:16px; font-weight:800; color:#0f172a;">Vehicles Register &amp; Frequent Client Data Bank</h3>
+                    <p style="color:var(--text-sub); margin:0;">Clients visiting &ge; 3 times are auto-enrolled in the Data Bank so guards only prompt for location.</p>
+                </div>
                 <button class="btn-primary btn-success" onclick="openVehicleModal()">
                     <svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" fill="none" stroke-width="2" style="vertical-align:-2px; margin-right:4px;"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Register Vehicle
                 </button>
@@ -275,10 +278,11 @@ $user = require_role(['supervisor', 'admin'], false);
                     <thead>
                         <tr>
                             <th>Plate</th>
-                            <th>Owner / Tenant</th>
+                            <th>Driver / Owner</th>
                             <th>Phone</th>
-                            <th>Category</th>
-                            <th>Notes</th>
+                            <th>Category / Status</th>
+                            <th>Visits</th>
+                            <th>Default Store</th>
                             <th>Actions</th>
                         </tr>
                     </thead>

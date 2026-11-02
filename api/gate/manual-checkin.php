@@ -15,6 +15,7 @@ require_once __DIR__ . '/../../includes/plate_helper.php';
 require_once __DIR__ . '/../../includes/phone_helper.php';
 require_once __DIR__ . '/../../includes/printer_service.php';
 require_once __DIR__ . '/../../includes/whatsapp_service.php';
+require_once __DIR__ . '/../../includes/databank.php';
 
 $user = require_auth(true);
 
@@ -40,7 +41,22 @@ if (!PlateHelper::validate($cleanPlate)) {
 $displayPlate = PlateHelper::format($cleanPlate);
 
 $cleanPhone = !empty($rawPhone) ? PhoneHelper::normalize($rawPhone) : '';
-$driverName = !empty($rawName) ? mb_substr(strip_tags($rawName), 0, 100) : 'Visitor';
+$driverName = !empty($rawName) ? mb_substr(strip_tags($rawName), 0, 100) : '';
+
+if (empty($driverName) || empty($cleanPhone)) {
+    try {
+        $dbProfile = DataBank::lookup($cleanPlate);
+        if (!empty($dbProfile['driver_name']) && empty($driverName)) {
+            $driverName = $dbProfile['driver_name'];
+        }
+        if (!empty($dbProfile['driver_phone']) && empty($cleanPhone)) {
+            $cleanPhone = $dbProfile['driver_phone'];
+        }
+    } catch (Throwable $e) {}
+}
+if (empty($driverName)) {
+    $driverName = 'Visitor';
+}
 
 try {
     $db = get_db();
@@ -103,6 +119,11 @@ try {
     $sessionId = (int)$db->lastInsertId();
 
     $db->commit();
+
+    // Record visit in Data Bank (enables frequent client promotion after 3 visits)
+    try {
+        DataBank::recordVisit($cleanPlate, $driverName, $cleanPhone, $destination);
+    } catch (Throwable $e) {}
 
     // Print thermal ticket
     $now = time();

@@ -17,6 +17,7 @@ require_once __DIR__ . '/../../includes/phone_helper.php';
 require_once __DIR__ . '/../../includes/printer_service.php';
 require_once __DIR__ . '/../../includes/whatsapp_service.php';
 require_once __DIR__ . '/../../includes/cloud_sync_service.php';
+require_once __DIR__ . '/../../includes/databank.php';
 
 $user = require_auth(true);
 
@@ -168,6 +169,11 @@ try {
     }
 
     $db->commit();
+
+    // 4b. Record visit in Data Bank (enables frequent client promotion after 3 visits)
+    try {
+        DataBank::recordVisit($cleanPlate, $driverName, $driverPhone, $destination);
+    } catch (Throwable $e) {}
 
     // 5. Thermal Print execution (Non-blocking: session is already safely saved)
     $entryTime = $actualEntryTime;

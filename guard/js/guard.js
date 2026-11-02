@@ -1259,8 +1259,9 @@ function createPendingRowElement(item) {
     const row = document.createElement('div');
     const reqId = String(item.id || item.request_id);
     const isSelf = (item.source === 'self_signin' || item.source === 'cloud_mobile' || item.source === 'firebase_web');
+    const isFrequent = !!(item.is_frequent || (item.visit_count && Number(item.visit_count) >= 3));
 
-    row.className = `camera-queue-row ${isSelf ? 'self-checkin' : 'needs-data'}`;
+    row.className = `camera-queue-row ${isFrequent ? 'frequent-client' : (isSelf ? 'self-checkin' : 'needs-data')}`;
     row.id = `req-row-${reqId}`;
     row.setAttribute('data-plate', item.plate_number);
     row.setAttribute('data-req-id', reqId);
@@ -1269,14 +1270,19 @@ function createPendingRowElement(item) {
     row.onclick = () => openVehicleIntakeModal(reqId);
 
     const plateDisplay = escapeHtml(item.formatted_plate || item.plate_number);
-    const driverDisplay = escapeHtml(item.driver_name || (isSelf ? 'Visitor' : 'Awaiting Name'));
+    let tagHtml = `<span class="cqr-tag ${isSelf ? 'self' : 'intake'}">${isSelf ? 'Pre-Filled' : 'Needs Intake'}</span>`;
+    if (isFrequent) {
+        tagHtml = `<span class="cqr-tag frequent" style="background:#2563eb; color:#fff; font-weight:800;">Frequent #${item.visit_count || 3}</span>`;
+    }
+    const driverDisplay = escapeHtml(item.driver_name || (isSelf ? 'Visitor' : (isFrequent ? 'Frequent Client' : 'Awaiting Name')));
     const destDisplay = escapeHtml(item.destination || 'Mall Store');
     const waitDisplay = escapeHtml(item.wait_text || 'Just now');
+    const btnText = isFrequent ? 'Fast Admit' : (isSelf ? 'Approve' : 'Admit');
 
     row.innerHTML = `
         <div class="cqr-plate-col">
             <span class="cqr-plate">${plateDisplay}</span>
-            <span class="cqr-tag ${isSelf ? 'self' : 'intake'}">${isSelf ? 'Pre-Filled' : 'Needs Intake'}</span>
+            ${tagHtml}
         </div>
         <div class="cqr-info-col">
             <span class="cqr-driver">${driverDisplay}</span>
@@ -1284,8 +1290,8 @@ function createPendingRowElement(item) {
             <span class="cqr-time">• ${waitDisplay}</span>
         </div>
         <div class="cqr-action-col">
-            <button class="btn-cqr-admit ${isSelf ? 'approve' : ''}" onclick="event.stopPropagation(); openVehicleIntakeModal('${reqId}');" title="${isSelf ? 'Approve & Print Pass' : 'Enter Details & Admit'}">
-                ${isSelf ? 'Approve' : 'Admit'}
+            <button class="btn-cqr-admit ${isFrequent ? 'frequent' : (isSelf ? 'approve' : '')}" onclick="event.stopPropagation(); openVehicleIntakeModal('${reqId}');" title="${isFrequent ? 'Frequent Client (Store Only)' : (isSelf ? 'Approve & Print Pass' : 'Enter Details & Admit')}">
+                ${btnText}
             </button>
             <button class="btn-cqr-del" onclick="event.stopPropagation(); releasePendingRecord('${reqId}');" title="Release vehicle from queue">
                 ✕
@@ -1303,8 +1309,9 @@ function createPendingCardElement(item) {
     STATE.pendingRequestsMap[reqId] = item;
 
     const isSelfCheckin = (item.source === 'self_signin' || item.source === 'cloud_mobile' || item.source === 'firebase_web');
+    const isFrequent = !!(item.is_frequent || (item.visit_count && Number(item.visit_count) >= 3));
 
-    card.className = `camera-queue-card ${isSelfCheckin ? 'self-checkin' : 'needs-data'} ${item.category === 'blacklisted' ? 'blacklisted' : ''} ${item.category === 'vip' ? 'vip' : ''}`;
+    card.className = `camera-queue-card ${isFrequent ? 'frequent-client' : (isSelfCheckin ? 'self-checkin' : 'needs-data')} ${item.category === 'blacklisted' ? 'blacklisted' : ''} ${item.category === 'vip' ? 'vip' : ''}`;
     card.id = `req-card-${reqId}`;
     card.setAttribute('data-plate', item.plate_number);
     card.setAttribute('data-req-id', reqId);
@@ -1339,7 +1346,19 @@ function createPendingCardElement(item) {
 
     // Driver & Destination Info
     let driverInfoHtml = '';
-    if (isSelfCheckin || (item.driver_name && item.driver_name !== 'Visitor')) {
+    if (isFrequent) {
+        driverInfoHtml = `
+            <div class="cqc-driver-info" style="color:var(--blue-dark); font-weight:800;">
+                <span>👤</span>
+                <span>${escapeHtml(item.driver_name || 'Frequent Client')}</span>
+                ${item.driver_phone ? `<span style="font-size:11px;color:var(--text-muted);">(${escapeHtml(item.driver_phone)})</span>` : ''}
+            </div>
+            <div class="cqc-dest-info">
+                <span>📍</span>
+                <span>${escapeHtml(item.destination || 'Mall Store')} <span style="font-size:10px; color:#2563eb; font-weight:700;">(Tap to confirm)</span></span>
+            </div>
+        `;
+    } else if (isSelfCheckin || (item.driver_name && item.driver_name !== 'Visitor')) {
         driverInfoHtml = `
             <div class="cqc-driver-info">
                 <span>👤</span>
@@ -1364,18 +1383,30 @@ function createPendingCardElement(item) {
     }
 
     // Tag badge
-    const tagBadge = isSelfCheckin 
-        ? `<span class="cqc-badge-tag self-checkin">📱 Pre-Filled</span>`
-        : `<span class="cqc-badge-tag needs-data">⚠️ Needs Data</span>`;
+    let tagBadge = '';
+    if (isFrequent) {
+        tagBadge = `<span class="cqc-badge-tag frequent-client" style="background:#2563eb; color:#fff; font-weight:800;">⚡ FREQUENT (#${item.visit_count || 3})</span>`;
+    } else if (isSelfCheckin) {
+        tagBadge = `<span class="cqc-badge-tag self-checkin">📱 Pre-Filled</span>`;
+    } else {
+        tagBadge = `<span class="cqc-badge-tag needs-data">⚠️ Needs Data</span>`;
+    }
 
     // Action button
-    const actionBtn = isSelfCheckin
-        ? `<button class="btn-cqc-primary approve" onclick="event.stopPropagation(); openVehicleIntakeModal('${reqId}');">
-               ✓ Approve &amp; Print
-           </button>`
-        : `<button class="btn-cqc-primary" onclick="event.stopPropagation(); openVehicleIntakeModal('${reqId}');">
-               ✎ Enter Details &amp; Admit
-           </button>`;
+    let actionBtn = '';
+    if (isFrequent) {
+        actionBtn = `<button class="btn-cqc-primary frequent" style="background:#2563eb;" onclick="event.stopPropagation(); openVehicleIntakeModal('${reqId}');">
+            ⚡ Fast Admit (Store Only)
+        </button>`;
+    } else if (isSelfCheckin) {
+        actionBtn = `<button class="btn-cqc-primary approve" onclick="event.stopPropagation(); openVehicleIntakeModal('${reqId}');">
+            ✓ Approve &amp; Print
+        </button>`;
+    } else {
+        actionBtn = `<button class="btn-cqc-primary" onclick="event.stopPropagation(); openVehicleIntakeModal('${reqId}');">
+            ✎ Enter Details &amp; Admit
+        </button>`;
+    }
 
     card.innerHTML = `
         <div class="cqc-header" onclick="openVehicleIntakeModal('${reqId}')">
@@ -1541,6 +1572,7 @@ function openVehicleIntakeModal(requestId) {
 
     STATE.currentIntakeReqId = requestId;
     const isSelfCheckin = (item.source === 'self_signin' || item.source === 'cloud_mobile' || item.source === 'firebase_web');
+    const isFrequent = !!(item.is_frequent || (item.visit_count && Number(item.visit_count) >= 3));
 
     // Set plate
     const plateEl = document.getElementById('intakePlateDisplay');
@@ -1558,10 +1590,22 @@ function openVehicleIntakeModal(requestId) {
         }
     }
 
+    // Set Frequent Client Banner
+    const freqBanner = document.getElementById('intakeFrequentBanner');
+    const freqCount  = document.getElementById('intakeVisitCount');
+    const freqBadge  = document.getElementById('intakeFrequentBadge');
+    if (freqBanner) {
+        freqBanner.style.display = isFrequent ? 'flex' : 'none';
+        if (freqCount) freqCount.textContent = item.visit_count || 3;
+    }
+    if (freqBadge) {
+        freqBadge.style.display = isFrequent ? 'inline-flex' : 'none';
+    }
+
     // Set Self-Check-in Banner
     const selfBanner = document.getElementById('intakeSelfCheckinBanner');
     if (selfBanner) {
-        selfBanner.style.display = isSelfCheckin ? 'flex' : 'none';
+        selfBanner.style.display = (isSelfCheckin && !isFrequent) ? 'flex' : 'none';
     }
 
     // Set badges
@@ -1645,10 +1689,36 @@ function openVehicleIntakeModal(requestId) {
     const nameIn  = document.getElementById('intakeDriverName');
     const phoneIn = document.getElementById('intakeDriverPhone');
     if (nameIn) {
-        nameIn.value = (item.driver_name && item.driver_name !== 'Visitor') ? item.driver_name : 'Visitor';
+        nameIn.value = (item.driver_name && item.driver_name !== 'Visitor') ? item.driver_name : (isFrequent ? 'Frequent Client' : 'Visitor');
+        if (isFrequent) {
+            nameIn.readOnly = true;
+            nameIn.style.backgroundColor = '#f1f5f9';
+            nameIn.style.color = '#334155';
+            nameIn.style.cursor = 'not-allowed';
+            nameIn.title = 'Driver name verified in Data Bank';
+        } else {
+            nameIn.readOnly = false;
+            nameIn.style.backgroundColor = '';
+            nameIn.style.color = '';
+            nameIn.style.cursor = '';
+            nameIn.title = '';
+        }
     }
     if (phoneIn) {
         phoneIn.value = item.raw_phone || item.driver_phone || '';
+        if (isFrequent && phoneIn.value) {
+            phoneIn.readOnly = true;
+            phoneIn.style.backgroundColor = '#f1f5f9';
+            phoneIn.style.color = '#334155';
+            phoneIn.style.cursor = 'not-allowed';
+            phoneIn.title = 'Driver phone verified in Data Bank';
+        } else {
+            phoneIn.readOnly = false;
+            phoneIn.style.backgroundColor = '';
+            phoneIn.style.color = '';
+            phoneIn.style.cursor = '';
+            phoneIn.title = '';
+        }
     }
 
     // Destinations setup (Floor tabs & outlined shops)
@@ -1677,15 +1747,19 @@ function openVehicleIntakeModal(requestId) {
 
     switchIntakeFloor(STATE.intakeActiveFloor);
 
-    // Reset button state and customize text for self check-in
+    // Reset button state and customize text for frequent / self check-in
     const btnAccept = document.getElementById('btnIntakeAccept');
     if (btnAccept) {
         btnAccept.disabled = false;
     }
     if (btnText) {
-        btnText.textContent = isSelfCheckin
-            ? 'APPROVE & PRINT TICKET (PROCEED TO SHOPPING)'
-            : 'ACCEPT & PRINT TICKET';
+        if (isFrequent) {
+            btnText.textContent = `ADMIT FREQUENT CLIENT • VISIT #${item.visit_count || 3} (PRINT PASS)`;
+        } else if (isSelfCheckin) {
+            btnText.textContent = 'APPROVE & PRINT TICKET (PROCEED TO SHOPPING)';
+        } else {
+            btnText.textContent = 'ACCEPT & PRINT TICKET';
+        }
     }
 
     // Open Modal
@@ -1697,7 +1771,13 @@ function openVehicleIntakeModal(requestId) {
             gsap.fromTo('.intake-modal-box', { scale: 0.93, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.2, ease: 'power2.out' });
         }
         setTimeout(() => {
-            if (nameIn) {
+            if (isFrequent) {
+                // For frequent clients: do NOT ask for driver details! Focus directly on destination shop grid!
+                const selectedShop = document.querySelector('.intake-shop-btn.selected') || document.querySelector('.intake-shop-btn');
+                if (selectedShop) {
+                    selectedShop.focus();
+                }
+            } else if (nameIn) {
                 nameIn.focus();
                 nameIn.select();
             }
@@ -2959,11 +3039,72 @@ function initWizard() {
         });
     }
 
-    // Plate auto-uppercase
+    // Plate auto-uppercase and Live Data Bank Lookup
     const plateIn = document.getElementById('wizPlateInput');
+    const nameIn  = document.getElementById('wizNameInput');
+    const phoneIn = document.getElementById('wizPhoneInput');
+    const wizFreqBanner = document.getElementById('wizFrequentBanner');
+    const wizFreqCount  = document.getElementById('wizVisitCount');
+    let wizLookupTimer  = null;
+
     if (plateIn) {
+        const performWizardLookup = async () => {
+            const raw = (plateIn.value || '').trim();
+            if (raw.length < 5) {
+                if (wizFreqBanner) wizFreqBanner.style.display = 'none';
+                if (nameIn) { nameIn.readOnly = false; nameIn.style.backgroundColor = ''; nameIn.title = ''; }
+                if (phoneIn) { phoneIn.readOnly = false; phoneIn.style.backgroundColor = ''; phoneIn.title = ''; }
+                return;
+            }
+
+            try {
+                const res = await fetch('../api/gate/vehicle-lookup.php?plate=' + encodeURIComponent(raw));
+                const json = await res.json();
+                if (json.ok && json.data) {
+                    const d = json.data;
+                    if (d.is_frequent) {
+                        if (wizFreqBanner) {
+                            wizFreqBanner.style.display = 'flex';
+                            if (wizFreqCount) wizFreqCount.textContent = d.visit_count;
+                        }
+                        if (nameIn && d.driver_name) {
+                            nameIn.value = d.driver_name;
+                            nameIn.readOnly = true;
+                            nameIn.style.backgroundColor = '#f1f5f9';
+                            nameIn.title = 'Driver name verified in Data Bank';
+                        }
+                        if (phoneIn && d.driver_phone) {
+                            phoneIn.value = d.driver_phone;
+                            phoneIn.readOnly = true;
+                            phoneIn.style.backgroundColor = '#f1f5f9';
+                            phoneIn.title = 'Driver phone verified in Data Bank';
+                        }
+                        if (d.default_destination) {
+                            selectDestination(d.default_destination);
+                        }
+                        const destSearch = document.getElementById('wizDestSearch');
+                        if (destSearch) {
+                            setTimeout(() => destSearch.focus(), 120);
+                        }
+                    } else {
+                        if (wizFreqBanner) wizFreqBanner.style.display = 'none';
+                        if (nameIn && !nameIn.value && d.driver_name) nameIn.value = d.driver_name;
+                        if (phoneIn && !phoneIn.value && d.driver_phone) phoneIn.value = d.driver_phone;
+                        if (nameIn) { nameIn.readOnly = false; nameIn.style.backgroundColor = ''; nameIn.title = ''; }
+                        if (phoneIn) { phoneIn.readOnly = false; phoneIn.style.backgroundColor = ''; phoneIn.title = ''; }
+                    }
+                }
+            } catch (err) {}
+        };
+
         plateIn.addEventListener('input', () => {
             plateIn.value = plateIn.value.toUpperCase();
+            clearTimeout(wizLookupTimer);
+            wizLookupTimer = setTimeout(performWizardLookup, 350);
+        });
+
+        plateIn.addEventListener('blur', () => {
+            performWizardLookup();
         });
     }
 }

@@ -511,6 +511,18 @@
             </button>
         </div>
 
+        <div id="wizFrequentBanner" style="display:none; background:#eff6ff; border:1px solid #3b82f6; border-radius:6px; padding:10px 14px; margin-bottom:12px; align-items:center; gap:10px;">
+            <div style="flex:1;">
+                <div style="font-size:12px; font-weight:900; color:#1e40af; letter-spacing:0.04em; text-transform:uppercase;">
+                    FREQUENT CLIENT RECOGNIZED &bull; VISIT #<span id="wizVisitCount">3</span>
+                </div>
+                <div style="font-size:11px; color:#1e3a8a; margin-top:2px;">
+                    Driver details auto-filled from Data Bank. <strong>Do not ask driver for details</strong> &mdash; please select destination store below.
+                </div>
+            </div>
+            <span style="background:#2563eb; color:#fff; font-size:10px; font-weight:800; padding:3px 7px; border-radius:4px; text-transform:uppercase; letter-spacing:0.05em; flex-shrink:0;">Data Bank Auto-Fill</span>
+        </div>
+
         <div class="manual-form-grid">
 
             <div class="form-field field-full">
@@ -583,6 +595,7 @@
                     <div class="intake-meta-row">
                         <span id="intakeSourceBadge" class="cam-source-badge">📷 CAMERA</span>
                         <span id="intakeTypeBadge" class="cam-source-badge" style="display:none;">🚗 CAR</span>
+                        <span id="intakeFrequentBadge" class="cam-source-badge" style="display:none; background:#2563eb; color:#fff; font-weight:800;">⚡ FREQUENT CLIENT</span>
                         <span id="intakeVerifiedBadge" class="badge-verified">✓ VERIFIED</span>
                         <span id="intakeEntryTime" class="intake-time" style="background:#e0f2fe; color:#0369a1; font-weight:800; padding:2px 8px; border-radius:4px; display:none;">In: --</span>
                         <span id="intakeTimeAgo" class="intake-time">Just now</span>
@@ -593,6 +606,19 @@
         </div>
 
         <div id="intakeAlertBanner" style="display:none;" class="badge-alert"></div>
+
+        <!-- Frequent Client Recognition Banner -->
+        <div id="intakeFrequentBanner" style="display:none; background:#eff6ff; border:1px solid #3b82f6; border-radius:6px; padding:10px 14px; margin-bottom:12px; align-items:center; gap:10px;">
+            <div style="flex:1;">
+                <div style="font-size:12px; font-weight:900; color:#1e40af; letter-spacing:0.04em; text-transform:uppercase;">
+                    FREQUENT CLIENT RECOGNIZED &bull; VISIT #<span id="intakeVisitCount">3</span>
+                </div>
+                <div style="font-size:11px; color:#1e3a8a; margin-top:2px;">
+                    Driver details retrieved from Data Bank. <strong>Do not ask driver for details</strong> &mdash; simply confirm destination store below.
+                </div>
+            </div>
+            <span style="background:#2563eb; color:#fff; font-size:10px; font-weight:800; padding:3px 7px; border-radius:4px; text-transform:uppercase; letter-spacing:0.05em; flex-shrink:0;">Data Bank Auto-Fill</span>
+        </div>
 
         <!-- Driver Self-Check-in Notification Banner -->
         <div id="intakeSelfCheckinBanner" style="display:none; background:#ecfdf5; border:1px solid #10b981; border-radius:8px; padding:10px 14px; margin-bottom:12px; align-items:center; gap:10px;">
