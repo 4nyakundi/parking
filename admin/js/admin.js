@@ -698,7 +698,7 @@ async function loadReconcileList(threshold = 8) {
 
     if (!json.ok || !json.data || !Array.isArray(json.data) || json.data.length === 0) {
         const threshText = threshold > 0 ? `active longer than ${threshold} hours` : 'currently inside';
-        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:32px; color:#059669; font-weight:700;">✓ Zero discrepancies found. No vehicles ${threshText}.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:32px; color:#059669; font-weight:700;">Zero discrepancies found. No vehicles ${threshText}.</td></tr>`;
         return;
     }
 
@@ -742,13 +742,13 @@ function calculateDeckDelta() {
     badge.style.display = 'inline-flex';
     if (delta === 0) {
         badge.className = 'delta-badge balanced';
-        badge.innerHTML = `<span>✓ Zero Drift: Deck perfectly matched (${physical} cars)</span>`;
+        badge.innerHTML = `<span>ZERO DRIFT: Deck matched (${physical} cars)</span>`;
     } else if (delta > 0) {
         badge.className = 'delta-badge variance-pos';
-        badge.innerHTML = `<span>⚠️ Variance: +${delta} Ghost Sessions (Physical: ${physical} | System: ${system})</span>`;
+        badge.innerHTML = `<span>VARIANCE: +${delta} Ghost Sessions (Physical: ${physical} | System: ${system})</span>`;
     } else {
         badge.className = 'delta-badge variance-neg';
-        badge.innerHTML = `<span>⚡ Variance: ${delta} Unrecorded Vehicles (Physical: ${physical} | System: ${system})</span>`;
+        badge.innerHTML = `<span>VARIANCE: ${delta} Unrecorded Vehicles (Physical: ${physical} | System: ${system})</span>`;
     }
 }
 
@@ -870,9 +870,9 @@ async function triggerManualCloudSync() {
 
     if (consoleBox) {
         if (json.ok) {
-            consoleBox.textContent += (json.log || `[${new Date().toLocaleTimeString()}] Sync successful.\n`) + `\n[${new Date().toLocaleTimeString()}] 🟢 All records verified. Zero packet drops. Parity confirmed.`;
+            consoleBox.textContent += (json.log || `[${new Date().toLocaleTimeString()}] Sync successful.\n`) + `\n[${new Date().toLocaleTimeString()}] [SUCCESS] All records verified. Zero packet drops. Parity confirmed.`;
         } else {
-            consoleBox.textContent += `[${new Date().toLocaleTimeString()}] ❌ Sync failed: ${json.error || 'Connection error'}`;
+            consoleBox.textContent += `[${new Date().toLocaleTimeString()}] [ERROR] Sync failed: ${json.error || 'Connection error'}`;
         }
     }
 

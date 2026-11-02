@@ -1,6 +1,7 @@
 <?php
 /**
  * Mombasa Mall Basement Parking - Remote Cloud Management Login
+ * Industrial High-Security Gateway
  */
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
@@ -16,6 +17,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $password = (string)($_POST['password'] ?? '');
 
     $cfg = require __DIR__ . '/config.cloud.php';
+    if (file_exists(__DIR__ . '/config.cloud.local.php')) {
+        $localCfg = require __DIR__ . '/config.cloud.local.php';
+        if (is_array($localCfg)) {
+            $cfg = array_replace_recursive($cfg, $localCfg);
+        }
+    }
     $dbCfg = $cfg['db'];
 
     try {
@@ -36,10 +43,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             header('Location: index.php');
             exit;
         } else {
-            $error = 'Invalid management credentials.';
+            $error = 'Invalid credentials. Access denied.';
         }
     } catch (Throwable $e) {
-        $error = 'Database error: ' . $e->getMessage();
+        $error = 'Database connection error: ' . $e->getMessage();
     }
 }
 ?>
@@ -48,122 +55,184 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cloud Management Login - Mombasa Mall</title>
+    <title>Cloud Executive Access - Mombasa Mall</title>
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
+        :root {
+            --bg-base: #0b0f17;
+            --panel: #111827;
+            --panel-border: #1f293d;
+            --border-highlight: #38bdf8;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent: #0284c7;
+            --accent-hover: #0369a1;
+            --input-bg: #090e17;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
         body {
-            background: #090e17;
-            color: #f8fafc;
+            background: var(--bg-base);
+            color: var(--text-main);
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 20px;
+            padding: 24px;
         }
-        .box {
-            background: #0f172a;
-            border: 1px solid #1e293b;
-            border-top: 4px solid #38bdf8;
-            border-radius: 12px;
-            padding: 36px 30px;
+        .login-card {
+            background: var(--panel);
+            border: 1px solid var(--panel-border);
+            border-top: 3px solid var(--border-highlight);
+            border-radius: 4px;
+            padding: 38px 32px;
             width: 100%;
             max-width: 420px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+            box-shadow: 0 16px 36px rgba(0,0,0,0.45);
         }
-        .logo { font-size: 38px; text-align: center; margin-bottom: 12px; }
-        h1 { font-size: 20px; font-weight: 900; text-align: center; margin-bottom: 6px; }
-        p { font-size: 13px; color: #94a3b8; text-align: center; margin-bottom: 24px; }
-        .form-group { margin-bottom: 16px; }
-        label { display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #94a3b8; margin-bottom: 6px; }
-        input {
+        .header-meta {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 24px;
+            padding-bottom: 14px;
+            border-bottom: 1px solid #1e293b;
+        }
+        .system-code {
+            font-size: 10.5px;
+            font-weight: 800;
+            letter-spacing: 0.12em;
+            color: var(--border-highlight);
+            text-transform: uppercase;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        }
+        .tls-badge {
+            font-size: 10px;
+            font-weight: 700;
+            color: #10b981;
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            padding: 2px 7px;
+            border-radius: 2px;
+            letter-spacing: 0.05em;
+        }
+        .brand-block {
+            text-align: center;
+            margin-bottom: 28px;
+        }
+        .brand-title {
+            font-size: 18px;
+            font-weight: 800;
+            letter-spacing: 0.02em;
+            color: #ffffff;
+            margin-bottom: 4px;
+        }
+        .brand-subtitle {
+            font-size: 11px;
+            color: var(--text-muted);
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+        .form-group {
+            margin-bottom: 18px;
+        }
+        label {
+            display: block;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+        }
+        .input-control {
             width: 100%;
-            padding: 12px 14px;
-            background: #1e293b;
+            padding: 11px 14px;
+            background: var(--input-bg);
             border: 1px solid #334155;
-            border-radius: 6px;
-            color: #fff;
-            font-size: 14px;
+            border-radius: 3px;
+            color: #ffffff;
+            font-size: 13.5px;
             outline: none;
+            transition: border-color 0.15s, box-shadow 0.15s;
         }
-        input:focus { border-color: #38bdf8; box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2); }
-        button[type="submit"] {
+        .input-control:focus {
+            border-color: var(--border-highlight);
+            box-shadow: 0 0 0 1px var(--border-highlight);
+        }
+        .btn-submit {
             width: 100%;
             padding: 12px;
-            background: #0284c7;
-            color: #fff;
+            background: var(--accent);
+            color: #ffffff;
             border: none;
-            border-radius: 6px;
-            font-size: 13px;
+            border-radius: 3px;
+            font-size: 12px;
             font-weight: 800;
             text-transform: uppercase;
-            letter-spacing: 0.05em;
+            letter-spacing: 0.08em;
             cursor: pointer;
-            margin-top: 10px;
+            margin-top: 8px;
+            transition: background 0.15s, transform 0.1s;
         }
-        button[type="submit"]:hover { background: #0369a1; }
-        .err {
+        .btn-submit:hover {
+            background: var(--accent-hover);
+        }
+        .btn-submit:active {
+            transform: scale(0.99);
+        }
+        .err-banner {
             background: rgba(239, 68, 68, 0.1);
             border: 1px solid #ef4444;
             color: #fca5a5;
-            padding: 10px;
-            border-radius: 6px;
-            margin-bottom: 16px;
-            font-size: 14px;
+            padding: 10px 12px;
+            border-radius: 3px;
+            margin-bottom: 20px;
+            font-size: 12.5px;
+            font-weight: 600;
         }
-        .btn-quick {
-            width: 100%;
-            padding: 10px;
-            background: #1e293b;
-            color: #38bdf8;
-            border: 1px solid #334155;
-            border-radius: 6px;
-            font-size: 12px;
-            font-weight: 700;
-            cursor: pointer;
-            margin-bottom: 16px;
-            transition: all 0.15s ease;
-        }
-        .btn-quick:hover {
-            background: #334155;
-            border-color: #38bdf8;
+        .card-footer {
+            margin-top: 26px;
+            padding-top: 16px;
+            border-top: 1px solid #1e293b;
+            text-align: center;
+            font-size: 11px;
+            color: #64748b;
+            line-height: 1.5;
         }
     </style>
 </head>
 <body>
-    <div class="box">
-        <div class="logo">☁️</div>
-        <h1>Remote Cloud Portal</h1>
-        <p>Mombasa Mall Executive Management</p>
+    <div class="login-card">
+        <div class="header-meta">
+            <span class="system-code">MOMBASA-MALL // CLOUD-GW</span>
+            <span class="tls-badge">TLS ENCRYPTED</span>
+        </div>
+
+        <div class="brand-block">
+            <h1 class="brand-title">Remote Cloud Control</h1>
+            <p class="brand-subtitle">Executive Command &amp; Property Mirror</p>
+        </div>
 
         <?php if (!empty($error)): ?>
-            <div class="err"><?= htmlspecialchars($error) ?></div>
+            <div class="err-banner"><?= htmlspecialchars($error) ?></div>
         <?php endif; ?>
-
-        <button type="button" class="btn-quick" onclick="fillCloudDemo()">
-            ⚡ 1-Click Sign-In (management / mall2026)
-        </button>
 
         <form method="POST" id="cloudLoginForm">
             <div class="form-group">
-                <label>Username</label>
-                <input type="text" id="cloudUser" name="username" placeholder="management" required autofocus>
+                <label for="cloudUser">Management Operator</label>
+                <input type="text" id="cloudUser" name="username" class="input-control" placeholder="Enter username" required autofocus autocomplete="username">
             </div>
             <div class="form-group">
-                <label>Password</label>
-                <input type="password" id="cloudPass" name="password" placeholder="••••••••" required>
+                <label for="cloudPass">Security Passphrase</label>
+                <input type="password" id="cloudPass" name="password" class="input-control" placeholder="••••••••" required autocomplete="current-password">
             </div>
-            <button type="submit">Access Cloud Mirror →</button>
+            <button type="submit" class="btn-submit">Authenticate Cloud Access</button>
         </form>
-        <div style="text-align:center; margin-top:20px; font-size:12px; color:#64748b;">
-            Default credentials: <strong>management</strong> / <strong>mall2026</strong>
+
+        <div class="card-footer">
+            Restricted Property Management Access.<br>
+            All remote queries and synchronization actions are audited.
         </div>
     </div>
-    <script>
-        function fillCloudDemo() {
-            document.getElementById('cloudUser').value = 'management';
-            document.getElementById('cloudPass').value = 'mall2026';
-            document.getElementById('cloudLoginForm').submit();
-        }
-    </script>
 </body>
 </html>

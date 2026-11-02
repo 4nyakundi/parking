@@ -1,7 +1,7 @@
 <?php
 /**
  * Mombasa Mall Basement Parking - Admin & Supervisor Login
- * LIGHT THEME v4.0 | Palette: #116FC7 / #609FDA / #B0CFEC / #FFFFFF
+ * Industrial High-Security Gateway
  */
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
@@ -20,190 +20,118 @@ $notice = $_GET['notice'] ?? '';
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Management Portal Login — Mombasa Mall Parking</title>
+    <title>Facility Control Login — Mombasa Mall Parking</title>
     <style>
         :root {
-            --bg:        #eef5fc;
-            --card:      #ffffff;
-            --card-alt:  #f8fafc;
-            --border:    #b0cfec;
-            --border-l:  #d0e5f5;
-            --blue:      #116FC7;
-            --blue-mid:  #609FDA;
-            --blue-light:#B0CFEC;
-            --blue-dim:  rgba(17,111,199,0.08);
-            --blue-hover:#0d5ca8;
-            --text:      #0d2b4e;
-            --text-sub:  #2e5c8a;
-            --text-mut:  #64748b;
-            --red:       #dc2626;
-            --green:     #059669;
-            --font:      system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            --shadow:    0 12px 36px rgba(17,111,199,0.14), 0 0 0 1px var(--border);
+            --bg-base: #0b0f17;
+            --panel: #111827;
+            --panel-border: #1f293d;
+            --border-highlight: #0284c7;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent: #0284c7;
+            --accent-hover: #0369a1;
+            --input-bg: #090e17;
+            --red: #ef4444;
+            --green: #10b981;
         }
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: var(--font); }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
         body {
-            background-color: var(--bg);
-            color: var(--text);
+            background: var(--bg-base);
+            color: var(--text-main);
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
             padding: 24px;
         }
-        .login-box {
-            background: var(--card);
-            border: 1px solid var(--border);
-            border-top: 4px solid var(--blue);
-            border-radius: 14px;
-            padding: 36px 32px;
-            max-width: 440px;
+        .login-card {
+            background: var(--panel);
+            border: 1px solid var(--panel-border);
+            border-top: 3px solid var(--border-highlight);
+            border-radius: 4px;
+            padding: 38px 32px;
             width: 100%;
-            box-shadow: var(--shadow);
-            position: relative;
+            max-width: 420px;
+            box-shadow: 0 16px 36px rgba(0,0,0,0.45);
         }
-        .brand-header {
+        .header-meta {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 24px;
+            padding-bottom: 14px;
+            border-bottom: 1px solid #1e293b;
+        }
+        .system-code {
+            font-size: 10.5px;
+            font-weight: 800;
+            letter-spacing: 0.12em;
+            color: #38bdf8;
+            text-transform: uppercase;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        }
+        .sec-badge {
+            font-size: 10px;
+            font-weight: 700;
+            color: var(--green);
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            padding: 2px 7px;
+            border-radius: 2px;
+            letter-spacing: 0.05em;
+        }
+        .brand-block {
             text-align: center;
-            margin-bottom: 22px;
+            margin-bottom: 26px;
         }
-        .brand-header img.logo-icon {
-            height: 48px;
-            width: auto;
-            object-fit: contain;
-            margin-bottom: 10px;
+        .brand-title {
+            font-size: 18px;
+            font-weight: 800;
+            letter-spacing: 0.02em;
+            color: #ffffff;
+            margin-bottom: 4px;
         }
-        .brand-header img.logo-wm {
-            height: 22px;
-            width: auto;
-            object-fit: contain;
+        .brand-subtitle {
+            font-size: 11px;
+            color: var(--text-muted);
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+        .notice-banner {
+            background: rgba(2, 132, 199, 0.12);
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            color: #7dd3fc;
+            padding: 9px 12px;
+            border-radius: 3px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .notice-tag {
+            font-size: 9.5px;
+            font-weight: 800;
+            background: #0284c7;
+            color: #fff;
+            padding: 2px 5px;
+            border-radius: 2px;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+        }
+        .form-group {
+            margin-bottom: 18px;
+        }
+        label {
             display: block;
-            margin: 0 auto 8px auto;
-        }
-        .brand-header h1 {
-            font-size: 19px;
-            font-weight: 900;
-            color: var(--blue);
-            letter-spacing: -0.01em;
-        }
-        .brand-header p {
-            color: var(--text-sub);
             font-size: 11px;
             font-weight: 700;
             text-transform: uppercase;
-            letter-spacing: 0.08em;
-            margin-top: 4px;
-        }
-
-        /* Notice Banner */
-        .notice-banner {
-            background: #eff6ff;
-            border: 1px solid #bfdbfe;
-            color: #1d4ed8;
-            padding: 10px 14px;
-            border-radius: 8px;
-            font-size: 12px;
-            font-weight: 600;
-            margin-bottom: 18px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        /* Quick 1-Click Access Buttons */
-        .quick-access-box {
-            background: #f8fafc;
-            border: 1px solid var(--border-l);
-            border-radius: 10px;
-            padding: 14px;
-            margin-bottom: 20px;
-        }
-        .quick-access-label {
-            display: block;
-            font-size: 10px;
-            font-weight: 800;
-            text-transform: uppercase;
-            letter-spacing: 0.08em;
-            color: var(--text-mut);
-            margin-bottom: 10px;
-            text-align: center;
-        }
-        .quick-access-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-        }
-        .btn-quick-role {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 10px 12px;
-            background: #ffffff;
-            border: 1.5px solid var(--border);
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.15s ease;
-            text-align: left;
-        }
-        .btn-quick-role:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(17,111,199,0.12);
-        }
-        .btn-quick-role.admin:hover {
-            border-color: var(--blue);
-            background: #f0f7ff;
-        }
-        .btn-quick-role.super:hover {
-            border-color: #059669;
-            background: #f0fdf4;
-        }
-        .role-icon {
-            font-size: 20px;
-            line-height: 1;
-        }
-        .role-meta {
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-        }
-        .role-meta strong {
-            font-size: 12px;
-            font-weight: 800;
-            color: var(--text);
-            line-height: 1.2;
-        }
-        .role-meta small {
-            font-size: 10px;
-            color: var(--text-mut);
-            line-height: 1.2;
-        }
-
-        .or-divider {
-            display: flex;
-            align-items: center;
-            text-align: center;
-            color: var(--text-mut);
-            font-size: 10.5px;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.1em;
-            margin: 16px 0;
-        }
-        .or-divider::before, .or-divider::after {
-            content: '';
-            flex: 1;
-            border-bottom: 1px solid var(--border-l);
-        }
-        .or-divider:not(:empty)::before { margin-right: .8em; }
-        .or-divider:not(:empty)::after { margin-left: .8em; }
-
-        .form-group { margin-bottom: 16px; }
-        label {
-            display: block;
-            font-size: 10.5px;
-            font-weight: 800;
-            text-transform: uppercase;
-            letter-spacing: 0.08em;
-            color: var(--text-sub);
+            letter-spacing: 0.06em;
+            color: var(--text-muted);
             margin-bottom: 6px;
         }
         .input-wrap {
@@ -211,155 +139,144 @@ $notice = $_GET['notice'] ?? '';
             display: flex;
             align-items: center;
         }
-        input {
+        .input-control {
             width: 100%;
-            padding: 12px 14px;
-            background: #f8fafc;
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            color: var(--text);
-            font-size: 14px;
-            font-weight: 600;
+            padding: 11px 14px;
+            background: var(--input-bg);
+            border: 1px solid #334155;
+            border-radius: 3px;
+            color: #ffffff;
+            font-size: 13.5px;
             outline: none;
-            transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+            transition: border-color 0.15s, box-shadow 0.15s;
         }
-        input:focus {
-            background: #ffffff;
-            border-color: var(--blue);
-            box-shadow: 0 0 0 3px rgba(17,111,199,0.12);
+        .input-control:focus {
+            border-color: var(--border-highlight);
+            box-shadow: 0 0 0 1px var(--border-highlight);
         }
         .btn-toggle-pw {
             position: absolute;
-            right: 12px;
+            right: 10px;
             background: none;
             border: none;
-            color: var(--text-mut);
+            color: var(--text-muted);
+            font-size: 10px;
+            font-weight: 800;
             cursor: pointer;
-            font-size: 12px;
-            font-weight: 700;
-            padding: 4px;
+            padding: 4px 6px;
+            letter-spacing: 0.05em;
         }
-
+        .btn-toggle-pw:hover {
+            color: #ffffff;
+        }
         .btn-submit {
             width: 100%;
-            padding: 14px;
-            background: var(--blue);
-            color: #fff;
+            padding: 12px;
+            background: var(--accent);
+            color: #ffffff;
             border: none;
-            border-radius: 6px;
-            font-size: 13px;
+            border-radius: 3px;
+            font-size: 12px;
             font-weight: 800;
             text-transform: uppercase;
-            letter-spacing: 0.06em;
+            letter-spacing: 0.08em;
             cursor: pointer;
-            box-shadow: 0 4px 12px rgba(17,111,199,0.25);
+            margin-top: 8px;
             transition: background 0.15s, transform 0.1s;
         }
-        .btn-submit:hover { background: var(--blue-hover); transform: translateY(-1px); }
-        .btn-submit:active { transform: translateY(0); }
-        .btn-submit:disabled { opacity: 0.6; cursor: not-allowed; }
-
+        .btn-submit:hover {
+            background: var(--accent-hover);
+        }
+        .btn-submit:active {
+            transform: scale(0.99);
+        }
+        .btn-submit:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
         .error-msg {
-            background: #fef2f2;
-            border: 1px solid #fecaca;
-            color: var(--red);
-            padding: 10px 14px;
-            border-radius: 6px;
-            font-size: 12px;
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid var(--red);
+            color: #fca5a5;
+            padding: 10px 12px;
+            border-radius: 3px;
+            font-size: 12.5px;
             font-weight: 600;
-            margin-bottom: 16px;
+            margin-bottom: 20px;
             display: none;
             line-height: 1.4;
         }
-        .login-footer {
-            margin-top: 22px;
-            text-align: center;
-            font-size: 12px;
-            color: var(--text-mut);
-            line-height: 1.6;
+        .card-footer {
+            margin-top: 26px;
             padding-top: 16px;
-            border-top: 1px solid var(--border-l);
+            border-top: 1px solid #1e293b;
+            text-align: center;
+            font-size: 11px;
+            color: #64748b;
+            line-height: 1.5;
         }
-        .login-footer a {
-            color: var(--blue);
+        .card-footer a {
+            color: #38bdf8;
             text-decoration: none;
-            font-weight: 700;
+            font-weight: 600;
         }
-        .login-footer a:hover { text-decoration: underline; }
+        .card-footer a:hover {
+            text-decoration: underline;
+        }
     </style>
 </head>
 <body>
 
-    <div class="login-box">
-        <div class="brand-header">
-            <img src="../assets/img/logo-icon.png" alt="Mombasa Mall" class="logo-icon">
-            <img src="../assets/img/logo-wordmark.png" alt="Mombasa Mall" class="logo-wm">
-            <h1>Management Portal</h1>
-            <p>Supervisor &amp; Administrator Access</p>
+    <div class="login-card">
+        <div class="header-meta">
+            <span class="system-code">MOMBASA-MALL // OPERATIONAL-GATEWAY</span>
+            <span class="sec-badge">RESTRICTED ACCESS</span>
+        </div>
+
+        <div class="brand-block">
+            <h1 class="brand-title">Control Center Login</h1>
+            <p class="brand-subtitle">Supervisor &amp; Administrator Access</p>
         </div>
 
         <?php if ($notice === 'switch_role'): ?>
             <div class="notice-banner">
-                <span>🔄</span>
-                <span>Switched from Guard session. Please sign in as Supervisor or Admin.</span>
+                <span class="notice-tag">NOTICE</span>
+                <span>Switched from Guard session. Authenticate as Supervisor or Admin.</span>
             </div>
         <?php elseif ($notice === 'session_expired'): ?>
             <div class="notice-banner">
-                <span>⏱️</span>
-                <span>Your session has expired. Please sign in again.</span>
+                <span class="notice-tag">NOTICE</span>
+                <span>Session expired. Please re-authenticate to continue.</span>
             </div>
         <?php elseif ($notice === 'logged_out'): ?>
-            <div class="notice-banner" style="background:#f0fdf4; border-color:#bbf7d0; color:#15803d;">
-                <span>✓</span>
+            <div class="notice-banner" style="background:rgba(16,185,129,0.1); border-color:rgba(16,185,129,0.3); color:#86efac;">
+                <span class="notice-tag" style="background:#10b981;">SUCCESS</span>
                 <span>Logged out successfully.</span>
             </div>
         <?php endif; ?>
 
         <div id="errorBox" class="error-msg"></div>
 
-        <!-- 1-Click Quick Role Switchers -->
-        <div class="quick-access-box">
-            <span class="quick-access-label">Instant 1-Click Sign-In</span>
-            <div class="quick-access-grid">
-                <button type="button" class="btn-quick-role admin" onclick="quickLogin('admin', 'admin123')">
-                    <span class="role-icon">👑</span>
-                    <span class="role-meta">
-                        <strong>Administrator</strong>
-                        <small>Full System Access</small>
-                    </span>
-                </button>
-                <button type="button" class="btn-quick-role super" onclick="quickLogin('supervisor', 'super123')">
-                    <span class="role-icon">🛡️</span>
-                    <span class="role-meta">
-                        <strong>Supervisor</strong>
-                        <small>Shift &amp; Reconcile</small>
-                    </span>
-                </button>
-            </div>
-        </div>
-
-        <div class="or-divider">Or enter custom credentials</div>
-
         <form id="loginForm" onsubmit="return false;">
             <div class="form-group">
-                <label for="username">Username</label>
-                <input type="text" id="username" placeholder="e.g. admin or supervisor" required autofocus autocomplete="username">
+                <label for="username">Operator Identifier</label>
+                <input type="text" id="username" class="input-control" placeholder="Enter username" required autofocus autocomplete="username">
             </div>
 
             <div class="form-group">
-                <label for="password">Password</label>
+                <label for="password">Security Passphrase</label>
                 <div class="input-wrap">
-                    <input type="password" id="password" placeholder="••••••••" required autocomplete="current-password">
+                    <input type="password" id="password" class="input-control" placeholder="••••••••" required autocomplete="current-password">
                     <button type="button" class="btn-toggle-pw" onclick="togglePasswordVisibility()">SHOW</button>
                 </div>
             </div>
 
-            <button type="submit" class="btn-submit" id="btnLogin">Sign In</button>
+            <button type="submit" class="btn-submit" id="btnLogin">Authenticate Credentials</button>
         </form>
 
-        <div class="login-footer">
-            Admin: <strong>admin</strong> / <strong>admin123</strong> &bull; Supervisor: <strong>supervisor</strong> / <strong>super123</strong><br>
-            Security guards: Access via <a href="../guard/">Guard Tablet Station</a>
+        <div class="card-footer">
+            Security &amp; Facility Operations Personnel Only.<br>
+            Guard Tablet station available at <a href="../guard/">Guard Portal</a>.
         </div>
     </div>
 
@@ -374,12 +291,6 @@ $notice = $_GET['notice'] ?? '';
                 pw.type = 'password';
                 btn.textContent = 'SHOW';
             }
-        }
-
-        async function quickLogin(user, pass) {
-            document.getElementById('username').value = user;
-            document.getElementById('password').value = pass;
-            submitLogin(user, pass);
         }
 
         document.getElementById('loginForm').addEventListener('submit', (e) => {
@@ -401,7 +312,7 @@ $notice = $_GET['notice'] ?? '';
             }
 
             btn.disabled = true;
-            btn.textContent = 'Signing In...';
+            btn.textContent = 'Authenticating...';
 
             try {
                 const res = await fetch('../api/auth/login.php', {
@@ -412,7 +323,7 @@ $notice = $_GET['notice'] ?? '';
                 const json = await res.json();
 
                 btn.disabled = false;
-                btn.textContent = 'Sign In';
+                btn.textContent = 'Authenticate Credentials';
 
                 if (json.ok && json.data) {
                     if (json.data.role === 'guard') {
@@ -427,7 +338,7 @@ $notice = $_GET['notice'] ?? '';
                 }
             } catch (err) {
                 btn.disabled = false;
-                btn.textContent = 'Sign In';
+                btn.textContent = 'Authenticate Credentials';
                 errBox.textContent = 'Connection error. Ensure XAMPP Apache & MySQL are running.';
                 errBox.style.display = 'block';
             }

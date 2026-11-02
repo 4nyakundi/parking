@@ -89,22 +89,40 @@ body {
     box-shadow: 0 4px 12px rgba(17, 111, 199, 0.3);
 }
 
+.status-indicator {
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #64748b;
+    flex-shrink: 0;
+}
+.status-indicator.online {
+    background: #10b981;
+    box-shadow: 0 0 6px rgba(16, 185, 129, 0.6);
+}
+.status-indicator.offline {
+    background: #ef4444;
+    box-shadow: 0 0 6px rgba(239, 68, 68, 0.6);
+}
+
 .edge-status-pill {
     display: flex;
     align-items: center;
     gap: 8px;
-    background: rgba(16, 185, 129, 0.12);
-    border: 1.5px solid var(--green);
+    background: rgba(16, 185, 129, 0.08);
+    border: 1px solid var(--green);
     color: var(--green);
-    padding: 6px 14px;
-    border-radius: 20px;
-    font-size: 12px;
+    padding: 5px 10px;
+    border-radius: 3px;
+    font-size: 11px;
     font-weight: 800;
-    letter-spacing: 0.02em;
+    letter-spacing: 0.04em;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
 .edge-status-pill.offline {
-    background: rgba(239, 68, 68, 0.12);
+    background: rgba(239, 68, 68, 0.08);
     border-color: var(--red);
     color: var(--red);
 }
@@ -113,13 +131,14 @@ body {
     display: flex;
     align-items: center;
     gap: 6px;
-    background: rgba(59, 130, 246, 0.12);
-    border: 1px solid var(--blue);
-    color: var(--blue);
-    padding: 5px 12px;
-    border-radius: 18px;
-    font-size: 12px;
+    background: rgba(59, 130, 246, 0.08);
+    border: 1px solid var(--border);
+    color: var(--text-sub);
+    padding: 5px 10px;
+    border-radius: 3px;
+    font-size: 11px;
     font-weight: 700;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
 /* Cloud Executive Navigation Tabs Ribbon */

@@ -199,45 +199,48 @@ try {
          ================================================================ -->
     <header class="top-bar">
         <div class="brand-badge">
-            <div class="icon">☁️</div>
+            <div class="icon">
+                <svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg>
+            </div>
             <div>
-                <h1 style="font-size:20px; font-weight:900; letter-spacing:-0.02em;">Mombasa Mall Executive Cloud Center</h1>
-                <p style="font-size:12.5px; color:var(--text-sub); font-weight:600;">
-                    Remote Management &amp; Administrative Mirror &bull; Edge Gateway: <?= htmlspecialchars($edgeIp) ?>
+                <h1 style="font-size:18px; font-weight:800; letter-spacing:0.02em;">Mombasa Mall Executive Cloud Center</h1>
+                <p style="font-size:11.5px; color:var(--text-sub); font-weight:600; text-transform:uppercase; letter-spacing:0.05em;">
+                    Remote Facility Mirror &bull; Edge Gateway: <?= htmlspecialchars($edgeIp) ?>
                 </p>
             </div>
         </div>
 
-        <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+        <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
             <!-- Edge PC Status Pill -->
             <div class="edge-status-pill <?= $isOnline ? '' : 'offline' ?>" title="Edge PC Heartbeat: <?= htmlspecialchars($lastSyncText) ?>">
-                <span><?= $isOnline ? '🟢' : '🔴' ?></span>
-                <span>Edge PC <?= $isOnline ? 'ONLINE' : 'OFFLINE' ?> (<?= $isOnline ? 'Live Parity' : 'Waiting' ?>)</span>
+                <span class="status-indicator <?= $isOnline ? 'online' : 'offline' ?>"></span>
+                <span>EDGE GATEWAY: <?= $isOnline ? 'ONLINE (192.168.1.7)' : 'OFFLINE' ?></span>
             </div>
 
             <!-- Hardware NVR Pill -->
-            <div class="edge-hw-pill" title="Dahua IVSS7108/H AI NVR on subnet 192.168.0.0/24">
-                <span>📹</span>
-                <span>NVR: 192.168.0.3 (Ch 1 &amp; 2)</span>
+            <div class="edge-hw-pill" title="Dahua ITC ANPR Cameras & IVSS NVR on 192.168.1.0/24">
+                <span>CAMERAS: 192.168.1.230 / 210</span>
             </div>
 
             <!-- Instant Sync Button -->
             <button type="button" class="btn btn-sync" onclick="triggerRemoteEdgeSync()" title="Synchronize latest transactions with on-premise Edge PC">
-                <span id="syncBtnIcon">⚡</span>
+                <span id="syncBtnIcon">
+                    <svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" fill="none" stroke-width="2.5"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                </span>
                 <span id="syncBtnText">Sync Edge Now</span>
             </button>
 
             <!-- Quick Portal Jump Links -->
             <a href="../admin/" target="_blank" class="btn btn-toggle" title="Open Local Edge Admin Console" style="text-decoration:none;">
-                ⚙️ Edge Admin &#x2197;
+                Admin Console &#x2197;
             </a>
             <a href="../guard/" target="_blank" class="btn btn-toggle" title="Open Guard Station Terminal" style="text-decoration:none;">
-                🛡️ Guard Station &#x2197;
+                Guard Station &#x2197;
             </a>
 
             <!-- Theme Switcher -->
             <button type="button" class="btn btn-toggle" onclick="toggleTheme()" title="Switch Light/Dark Theme">
-                🌓 Theme
+                Theme
             </button>
 
             <!-- Logout -->
@@ -252,38 +255,38 @@ try {
          ================================================================ -->
     <nav class="cloud-nav-strip">
         <button type="button" class="cloud-nav-btn active" data-tab="overview" onclick="switchCloudSection('overview')">
-            <span>📊 Overview</span>
+            <span>Overview</span>
         </button>
         <button type="button" class="cloud-nav-btn" data-tab="sessions" onclick="switchCloudSection('sessions')">
-            <span>📋 All Sessions</span>
+            <span>All Sessions</span>
             <span class="cloud-nav-badge" id="navCountSessions"><?= count($recentSessions) ?></span>
         </button>
         <button type="button" class="cloud-nav-btn" data-tab="visitors" onclick="switchCloudSection('visitors')">
-            <span>🚗 Driver Requests</span>
+            <span>Driver Requests</span>
             <span class="cloud-nav-badge" id="navCountVisitors"><?= count($pendingVisitors) ?></span>
         </button>
         <button type="button" class="cloud-nav-btn" data-tab="vehicles" onclick="switchCloudSection('vehicles')">
-            <span>🛡️ Vehicles Register</span>
+            <span>Vehicle Registry</span>
             <span class="cloud-nav-badge"><?= count($registeredVehicles) ?></span>
         </button>
         <button type="button" class="cloud-nav-btn" data-tab="destinations" onclick="switchCloudSection('destinations')">
-            <span>🏬 Shop Directory</span>
+            <span>Shop Directory</span>
             <span class="cloud-nav-badge"><?= count($destinations) ?></span>
         </button>
         <button type="button" class="cloud-nav-btn" data-tab="staff" onclick="switchCloudSection('staff')">
-            <span>👥 Guards &amp; Staff</span>
+            <span>Security &amp; Staff</span>
             <span class="cloud-nav-badge"><?= count($staffUsers) ?></span>
         </button>
         <button type="button" class="cloud-nav-btn" data-tab="health" onclick="switchCloudSection('health')">
-            <span>📡 Hardware &amp; Health</span>
+            <span>Hardware &amp; Health</span>
             <span class="cloud-nav-badge" style="background:var(--green); color:#fff;"><?= count($deviceHealth) ?></span>
         </button>
         <button type="button" class="cloud-nav-btn" data-tab="reconcile" onclick="switchCloudSection('reconcile')">
-            <span>⚖️ Shift Reconcile</span>
+            <span>Shift Reconcile</span>
             <span class="cloud-nav-badge"><?= count($reconciliations) ?></span>
         </button>
         <button type="button" class="cloud-nav-btn" data-tab="settings" onclick="switchCloudSection('settings')">
-            <span>⚙️ Settings &amp; Sync</span>
+            <span>System Settings</span>
         </button>
     </nav>
 
@@ -295,32 +298,40 @@ try {
         <!-- Top Hardware & System Telemetry Status Cards -->
         <div class="hw-strip">
             <div class="hw-card">
-                <div class="hw-icon">🖥️</div>
+                <div class="hw-icon">
+                    <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" fill="none" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+                </div>
                 <div>
-                    <div class="hw-title">Edge PC Gateway</div>
+                    <div class="hw-title">Edge Gateway</div>
                     <div class="hw-val" style="color:<?= $isOnline ? 'var(--green)' : 'var(--red)' ?>;">
-                        <?= $isOnline ? 'Online (192.168.0.7)' : 'Offline / Standby' ?>
+                        <?= $isOnline ? 'Online (192.168.1.7)' : 'Offline / Standby' ?>
                     </div>
                 </div>
             </div>
             <div class="hw-card">
-                <div class="hw-icon">📹</div>
+                <div class="hw-icon">
+                    <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" fill="none" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                </div>
                 <div>
-                    <div class="hw-title">Dahua AI NVR</div>
+                    <div class="hw-title">Dahua ANPR Cameras</div>
                     <div class="hw-val" style="color:var(--green);">
-                        Online &bull; 192.168.0.3 (Ch 1 &amp; 2)
+                        Gate 1 (192.168.1.230) &bull; Gate 2 (192.168.1.210)
                     </div>
                 </div>
             </div>
             <div class="hw-card">
-                <div class="hw-icon">⚡</div>
+                <div class="hw-icon">
+                    <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" fill="none" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                </div>
                 <div>
-                    <div class="hw-title">ALPR OCR Engine</div>
-                    <div class="hw-val" style="color:var(--blue);">Active &bull; Sub-Second Push</div>
+                    <div class="hw-title">ALPR OCR Stream</div>
+                    <div class="hw-val" style="color:var(--blue);">Active &bull; Continuous Event Stream</div>
                 </div>
             </div>
             <div class="hw-card">
-                <div class="hw-icon">🗄️</div>
+                <div class="hw-icon">
+                    <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" fill="none" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+                </div>
                 <div>
                     <div class="hw-title">Cloud Synced Records</div>
                     <div class="hw-val" style="color:var(--purple);"><?= $totalSessions ?> Stored Sessions</div>
@@ -500,7 +511,7 @@ try {
                 </div>
                 <div style="display:flex; gap:10px; align-items:center;">
                     <a href="api/export_csv.php?status=all" class="btn btn-primary" title="Download Excel-compatible CSV">
-                        📥 Export Cloud CSV
+                        Export CSV Report
                     </a>
                 </div>
             </div>
@@ -523,7 +534,7 @@ try {
                 </div>
 
                 <div class="search-input-box">
-                    <span>🔍</span>
+                    <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" fill="none" stroke-width="2" style="color:var(--text-sub);"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                     <input type="text" id="sessionSearchInput" placeholder="Filter by plate, driver, or store..." oninput="searchCloudSessions(this.value)">
                 </div>
             </div>
@@ -641,7 +652,7 @@ try {
                                     <td><?= htmlspecialchars($v['destination']) ?></td>
                                     <td>
                                         <span style="font-size:11.5px; font-weight:700; color:<?= $v['source'] === 'self_signin' ? 'var(--green)' : 'var(--amber)' ?>;">
-                                            <?= $v['source'] === 'self_signin' ? '📱 Mobile Self' : '📹 Dahua Cam' ?>
+                                            <?= $v['source'] === 'self_signin' ? 'Mobile Check-in' : 'ANPR Camera' ?>
                                         </span>
                                     </td>
                                     <td><?= (int)$v['wait_minutes'] ?>m ago</td>
@@ -923,7 +934,7 @@ try {
                     <p style="font-size:13px; color:var(--text-sub);">Configuration mirroring the on-premise Edge PC</p>
                 </div>
                 <button type="button" class="btn btn-sync" onclick="triggerRemoteEdgeSync()">
-                    ⚡ Force Re-Sync Now
+                    Force Re-Sync Now
                 </button>
             </div>
 
@@ -941,15 +952,15 @@ try {
                 </div>
 
                 <div style="background:var(--card-hover); border:1px solid var(--border); border-radius:8px; padding:16px;">
-                    <div style="font-size:12px; font-weight:800; color:var(--text-sub); text-transform:uppercase;">Dahua NVR IP (LAN)</div>
-                    <div style="font-size:22px; font-weight:900; margin-top:4px; color:var(--blue);">192.168.0.3</div>
-                    <p style="font-size:12px; color:var(--text-sub); margin-top:4px;">Gate 1 (Ch 1) &bull; Gate 2 (Ch 2)</p>
+                    <div style="font-size:12px; font-weight:800; color:var(--text-sub); text-transform:uppercase;">Dahua ANPR Network</div>
+                    <div style="font-size:22px; font-weight:900; margin-top:4px; color:var(--blue);">192.168.1.0/24</div>
+                    <p style="font-size:12px; color:var(--text-sub); margin-top:4px;">Gate 1 (192.168.1.230) &bull; Gate 2 (192.168.1.210)</p>
                 </div>
 
                 <div style="background:var(--card-hover); border:1px solid var(--border); border-radius:8px; padding:16px;">
                     <div style="font-size:12px; font-weight:800; color:var(--text-sub); text-transform:uppercase;">Edge Host Address</div>
                     <div style="font-size:22px; font-weight:900; margin-top:4px;"><?= htmlspecialchars($edgeIp) ?></div>
-                    <p style="font-size:12px; color:var(--text-sub); margin-top:4px;">Subnet 192.168.0.0/24</p>
+                    <p style="font-size:12px; color:var(--text-sub); margin-top:4px;">Subnet 192.168.1.0/24</p>
                 </div>
             </div>
         </div>
@@ -1026,23 +1037,23 @@ try {
             const btnText = document.getElementById('syncBtnText');
             const btnIcon = document.getElementById('syncBtnIcon');
             if (btnText) btnText.textContent = 'Syncing...';
-            if (btnIcon) btnIcon.textContent = '⏳';
+            if (btnIcon) btnIcon.innerHTML = '<span class="status-indicator online"></span>';
 
-            showCloudToast('⚡ Triggering synchronization with on-premise Edge PC...');
+            showCloudToast('Initiating data synchronization with on-premise Edge PC...');
             try {
                 const res = await fetch('api/trigger_sync.php');
                 const json = await res.json();
                 if (json && json.ok) {
-                    showCloudToast(`✓ Synchronized! ${json.message || 'Records are in parity.'}`);
+                    showCloudToast(`Synchronization successful. ${json.message || 'Records are in parity.'}`);
                     setTimeout(() => location.reload(), 1200);
                 } else {
                     showCloudToast(json?.error || 'Sync request completed.', 'warn');
                 }
             } catch (e) {
-                showCloudToast('Sync error or network timeout. Check Edge PC.', 'error');
+                showCloudToast('Sync error or network timeout. Check Edge PC connection.', 'error');
             } finally {
                 if (btnText) btnText.textContent = 'Sync Edge Now';
-                if (btnIcon) btnIcon.textContent = '⚡';
+                if (btnIcon) btnIcon.innerHTML = '<svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" fill="none" stroke-width="2.5"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>';
             }
         }
 

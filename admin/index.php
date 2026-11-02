@@ -13,7 +13,7 @@ $user = require_role(['supervisor', 'admin'], false);
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Dashboard - Mombasa Mall Parking</title>
+    <title><?= $user['role'] === 'supervisor' ? 'Supervisor Dashboard' : 'Admin Dashboard' ?> - Mombasa Mall Parking</title>
     <link rel="stylesheet" href="css/admin.css">
 </head>
 <body data-user-role="<?= htmlspecialchars($user['role']) ?>">
@@ -24,7 +24,7 @@ $user = require_role(['supervisor', 'admin'], false);
             <img src="../assets/img/logo-icon.png" alt="Mombasa Mall" class="sidebar-logo-img">
             <div class="sidebar-title">
                 <h2>Mombasa Mall</h2>
-                <p>Basement Parking Admin</p>
+                <p>Basement Parking <?= ucfirst($user['role']) ?></p>
             </div>
         </div>
 
@@ -117,17 +117,17 @@ $user = require_role(['supervisor', 'admin'], false);
         <header class="top-nav">
             <div style="display:flex; align-items:center; gap:10px;">
                 <button type="button" id="btnSidebarToggle" class="sidebar-toggle-btn" onclick="toggleSidebarMobile()" aria-label="Toggle menu">&#9776;</button>
-                <h2 id="topNavTitle" style="font-size:18px; font-weight:800;">Management Control Center</h2>
+                <h2 id="topNavTitle" style="font-size:18px; font-weight:800;"><?= $user['role'] === 'supervisor' ? 'Supervisor Control Center' : 'Administrative Control Center' ?></h2>
             </div>
             <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
                 <button type="button" class="btn-primary" onclick="navigateTo('sessions')" style="background:#f0f6fc; color:#116FC7; border:1px solid #b0cfec; padding:7px 12px; font-size:12px; font-weight:700;">
-                    📋 All Records
+                    All Sessions
                 </button>
                 <button type="button" class="btn-primary" onclick="navigateTo('reconcile')" style="background:#fef3c7; color:#b45309; border:1px solid #fde68a; padding:7px 12px; font-size:12px; font-weight:700;">
-                    🛡️ Supervisor Shift
+                    Shift Reconcile
                 </button>
                 <a href="../cloud/" target="_blank" class="btn-primary" style="background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; text-decoration:none; padding:7px 12px; font-size:12px; font-weight:700;">
-                    ☁️ Cloud Portal &#x2197;
+                    Cloud Mirror &#x2197;
                 </a>
                 <a href="../guard/" target="_blank" class="btn-primary btn-success" style="text-decoration:none; padding:7px 12px; font-size:12px;">
                     <span class="btn-nav-full">Guard Station &#x2197;</span>
@@ -690,7 +690,7 @@ $user = require_role(['supervisor', 'admin'], false);
         <div class="admin-modal">
             <div class="modal-header">
                 <h3>Session Details</h3>
-                <button onclick="closeAdminModal('sessionDetailModal')" style="background:none; border:none; color:#cbd5e1; font-size:24px; cursor:pointer;">✕</button>
+                <button onclick="closeAdminModal('sessionDetailModal')" style="background:none; border:none; color:#cbd5e1; font-size:24px; cursor:pointer;">&times;</button>
             </div>
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px; font-size:14px;">
                 <div><span style="color:#94a3b8;">Ticket:</span> <strong id="detTicketId"></strong></div>
@@ -719,7 +719,7 @@ $user = require_role(['supervisor', 'admin'], false);
         <div class="admin-modal">
             <div class="modal-header">
                 <h3>Register Vehicle</h3>
-                <button onclick="closeAdminModal('vehicleModal')" style="background:none; border:none; color:#cbd5e1; font-size:24px; cursor:pointer;">✕</button>
+                <button onclick="closeAdminModal('vehicleModal')" style="background:none; border:none; color:#cbd5e1; font-size:24px; cursor:pointer;">&times;</button>
             </div>
             <input type="hidden" id="vehId" value="0">
             <div style="display:flex; flex-direction:column; gap:12px;">
@@ -757,7 +757,7 @@ $user = require_role(['supervisor', 'admin'], false);
         <div class="admin-modal">
             <div class="modal-header">
                 <h3>Security User Account</h3>
-                <button onclick="closeAdminModal('userModal')" style="background:none; border:none; color:#cbd5e1; font-size:24px; cursor:pointer;">✕</button>
+                <button onclick="closeAdminModal('userModal')" style="background:none; border:none; color:#cbd5e1; font-size:24px; cursor:pointer;">&times;</button>
             </div>
             <input type="hidden" id="userId" value="0">
             <div style="display:flex; flex-direction:column; gap:12px;">
@@ -784,7 +784,7 @@ $user = require_role(['supervisor', 'admin'], false);
         <div class="admin-modal" style="max-width:520px;">
             <div class="modal-header">
                 <h3 style="color:#d97706;">Reconcile &amp; Clear Session</h3>
-                <button onclick="closeAdminModal('reconcileJustificationModal')" style="background:none; border:none; color:#cbd5e1; font-size:24px; cursor:pointer;">✕</button>
+                <button onclick="closeAdminModal('reconcileJustificationModal')" style="background:none; border:none; color:#cbd5e1; font-size:24px; cursor:pointer;">&times;</button>
             </div>
             <p style="font-size:13px; color:var(--text-sub); line-height:1.5; margin-bottom:14px;">
                 Force closing session for vehicle <strong id="recPlateNumber" style="font-family:monospace; background:#eef5fc; padding:2px 6px; border-radius:4px; border:1px solid #b0cfec;">KDA 123A</strong> (Ticket: <span id="recTicketId" style="color:var(--blue); font-weight:700;">MM-001</span>). This clears the vehicle from active occupancy.
@@ -815,7 +815,7 @@ $user = require_role(['supervisor', 'admin'], false);
         <div class="admin-modal" style="max-width:480px;">
             <div class="modal-header">
                 <h3 style="color:#059669;">Complete Shift Sign-Off</h3>
-                <button onclick="closeAdminModal('shiftSignoffModal')" style="background:none; border:none; color:#cbd5e1; font-size:24px; cursor:pointer;">✕</button>
+                <button onclick="closeAdminModal('shiftSignoffModal')" style="background:none; border:none; color:#cbd5e1; font-size:24px; cursor:pointer;">&times;</button>
             </div>
             <p style="font-size:13px; color:var(--text-sub); line-height:1.5; margin-bottom:14px;">
                 Sign off on your shift deck count. This permanently locks the audit timestamp and hands over occupancy records to the incoming supervisor.
