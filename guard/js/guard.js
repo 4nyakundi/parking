@@ -817,48 +817,50 @@ function showExitWithoutDetailsBanner(p) {
 
     if (area) {
         area.innerHTML = `
-            <div class="uncollected-exit-card" style="border: 2px solid #f59e0b; background: #fffbeb; border-radius: 12px; padding: 18px 20px; margin-bottom: 20px; box-shadow: 0 10px 25px rgba(245,158,11,0.18);">
+            <div class="uncollected-exit-card" style="border: 1.5px solid #d97706; background: #fffbeb; border-radius: 8px; padding: 18px 20px; margin-bottom: 20px; box-shadow: 0 4px 14px rgba(217,119,6,0.12);">
                 <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
                     <div style="display:flex; align-items:center; gap:10px;">
-                        <span style="font-size:28px;">⚠️</span>
+                        <span style="display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; background:#fef3c7; border:1px solid #fcd34d; border-radius:50%; color:#b45309;">
+                            <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" fill="none" stroke-width="2.5"><polygon points="12 2 2 22 22 22"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                        </span>
                         <div>
-                            <div style="font-size:15px; font-weight:900; color:#b45309; text-transform:uppercase; letter-spacing:0.04em;">
-                                VEHICLE EXITED WITHOUT DETAILS
+                            <div style="font-size:14px; font-weight:800; color:#92400e; text-transform:uppercase; letter-spacing:0.04em;">
+                                Vehicle Exited Without Registration
                             </div>
-                            <div style="font-size:12px; color:#92400e; font-weight:600;">
-                                Gate cleared automatically • Driver info was not collected upon entry
+                            <div style="font-size:12px; color:#78350f; font-weight:600;">
+                                Gate cleared automatically &bull; Driver details were not registered upon entry
                             </div>
                         </div>
                     </div>
-                    <span style="background:#10b981; color:#fff; font-size:11px; font-weight:800; padding:4px 10px; border-radius:6px; letter-spacing:0.05em;">
-                        ✓ GATE CLEARED
+                    <span style="background:#059669; color:#fff; font-size:11px; font-weight:800; padding:4px 10px; border-radius:4px; letter-spacing:0.05em; text-transform:uppercase;">
+                        Gate Cleared
                     </span>
                 </div>
 
-                <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap:12px; background:#fff; padding:12px 14px; border-radius:8px; border:1px solid #fde68a;">
+                <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap:12px; background:#fff; padding:12px 14px; border-radius:6px; border:1px solid #fde68a;">
                     <div>
-                        <span class="info-label" style="font-size:11px; color:#64748b;">Vehicle Plate</span>
+                        <span class="info-label" style="font-size:10px; color:#64748b; font-weight:800; text-transform:uppercase;">Vehicle Plate</span>
                         <div style="font-size:20px; font-weight:900; color:#0f172a; font-family:monospace;">${plate}</div>
                     </div>
                     <div>
-                        <span class="info-label" style="font-size:11px; color:#64748b;">Entered At</span>
-                        <div style="font-size:14px; font-weight:800; color:#1e293b;">${inTime}</div>
+                        <span class="info-label" style="font-size:10px; color:#64748b; font-weight:800; text-transform:uppercase;">Entered At</span>
+                        <div style="font-size:13.5px; font-weight:800; color:#1e293b; font-family:monospace;">${inTime}</div>
                     </div>
                     <div>
-                        <span class="info-label" style="font-size:11px; color:#64748b;">Exited At</span>
-                        <div style="font-size:14px; font-weight:800; color:#1e293b;">${outTime}</div>
+                        <span class="info-label" style="font-size:10px; color:#64748b; font-weight:800; text-transform:uppercase;">Exited At</span>
+                        <div style="font-size:13.5px; font-weight:800; color:#1e293b; font-family:monospace;">${outTime}</div>
                     </div>
                     <div>
-                        <span class="info-label" style="font-size:11px; color:#64748b;">Total Duration</span>
-                        <div style="font-size:14px; font-weight:800; color:#d97706;">${durText}</div>
+                        <span class="info-label" style="font-size:10px; color:#64748b; font-weight:800; text-transform:uppercase;">Total Duration</span>
+                        <div style="font-size:14px; font-weight:800; color:#d97706; font-family:monospace;">${durText}</div>
                     </div>
                 </div>
 
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-top:12px; flex-wrap:wrap; gap:8px;">
                     <div style="font-size:11.5px; color:#78350f; font-weight:600;">
-                        ℹ️ Vehicle departure recorded in database. Driver details were not registered.
+                        Vehicle departure recorded in database. Driver details were not collected upon entry.
                     </div>
-                    <button class="btn-search-clear" onclick="document.getElementById('exitCandidateArea').innerHTML=''" style="background:#fef3c7; border:1px solid #fcd34d; color:#92400e; font-weight:800; padding:5px 12px; border-radius:6px; cursor:pointer;">
+                    <button class="btn-search-clear" onclick="document.getElementById('exitCandidateArea').innerHTML=''" style="background:#fef3c7; border:1px solid #fcd34d; color:#92400e; font-weight:800; padding:5px 12px; border-radius:4px; cursor:pointer;">
                         Dismiss Alert
                     </button>
                 </div>
@@ -2271,48 +2273,98 @@ async function confirmReject(reason) {
 // Leaving Tab (Clear Exit & Search)
 // --------------------------------------------------------------------
 function showExitCandidateCard(session) {
+    if (!session) return;
     STATE.activeExitSession = session;
     const area = document.getElementById('exitCandidateArea');
     if (!area) return;
 
+    // Clean up plate string (strip out [ KE | ... ] if already wrapped)
+    let rawPlate = session.formatted_plate || session.plate_number || 'UNKNOWN';
+    let cleanPlateStr = rawPlate.replace(/\[\s*KE\s*\|\s*/i, '').replace(/\s*\]/, '').trim();
+
+    const durationMins = Number(session.duration_minutes) || 0;
+    let dwellClass = 'chip-ok';
+    let dwellTag = 'Regular Stay';
+    if (durationMins > 480) {
+        dwellClass = 'chip-alert';
+        dwellTag = 'Overstay (>8h)';
+    } else if (durationMins > 120) {
+        dwellClass = 'chip-warning';
+        dwellTag = 'Extended (>2h)';
+    }
+
+    const driverName = session.driver_name || 'Visitor';
+    const driverPhone = session.driver_phone || '';
+    const destination = session.destination || 'Mall Store';
+    const entryTime = session.entry_time_display || session.entry_time || '--';
+    const ticketId = session.ticket_id || 'MM-EXIT';
+
+    const clearExitLabel = (typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'sw') 
+        ? `RUHUSU KUTOKA &bull; FUNGUA LANGO (${cleanPlateStr})` 
+        : `AUTHORIZE EXIT &bull; OPEN GATE BARRIER (${cleanPlateStr})`;
+
     area.innerHTML = `
         <div class="exit-card">
-            <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-                <div>
-                    <span style="font-size:14px; font-weight:800; color:#f97316;">${t('cam_sees_out')}</span>
-                    <div style="font-size:42px; font-weight:900; color:#fff; background:#000; padding:6px 20px; border-radius:8px; border:3px solid #f97316; display:inline-block; margin-top:6px;">
-                        ${session.formatted_plate}
+            <div class="exit-card-header">
+                <div class="exit-cam-badge">
+                    <span class="pulse-dot"></span>
+                    <span>GATE 2 EXIT CAMERA (192.168.1.210) &bull; ${t('cam_sees_out')}</span>
+                </div>
+                <button type="button" class="btn-exit-card-dismiss" onclick="document.getElementById('exitCandidateArea').innerHTML=''" title="Dismiss Alert" aria-label="Dismiss">&times;</button>
+            </div>
+
+            <div class="exit-card-banner">
+                <div class="exit-plate-wrapper">
+                    <span class="plate-flag-ke">KE</span>
+                    <span class="exit-plate-val">${escapeHtml(cleanPlateStr)}</span>
+                </div>
+                <div class="exit-ticket-wrapper">
+                    <span class="exit-ticket-lbl">TICKET ID</span>
+                    <span class="exit-ticket-num">${escapeHtml(ticketId)}</span>
+                </div>
+            </div>
+
+            <div class="exit-meta-grid">
+                <div class="exit-meta-item">
+                    <span class="exit-meta-lbl">${t('driver')}</span>
+                    <strong class="exit-meta-main">${escapeHtml(driverName)}</strong>
+                    <span class="exit-meta-sub">${driverPhone ? escapeHtml(driverPhone) : 'Direct Plate Entry'}</span>
+                </div>
+                <div class="exit-meta-item">
+                    <span class="exit-meta-lbl">${t('destination')}</span>
+                    <strong class="exit-meta-main dest-accent">${escapeHtml(destination)}</strong>
+                    <span class="exit-meta-sub">Validated Destination</span>
+                </div>
+                <div class="exit-meta-item">
+                    <span class="exit-meta-lbl">${t('parked_time')}</span>
+                    <div class="exit-dwell-chip ${dwellClass}">
+                        <span class="dwell-val">${durationMins} mins</span>
+                        <span class="dwell-tag">${dwellTag}</span>
                     </div>
                 </div>
-                <div style="text-align:right;">
-                    <span class="info-label">Ticket ID</span>
-                    <div style="font-size:20px; font-weight:800; color:#38bdf8;">${session.ticket_id}</div>
+                <div class="exit-meta-item">
+                    <span class="exit-meta-lbl">${t('entry_time') || 'Entry Time'}</span>
+                    <strong class="exit-meta-main mono-val">${escapeHtml(entryTime)}</strong>
+                    <span class="exit-meta-sub">Gate 1 Recorded Influx</span>
                 </div>
             </div>
 
-            <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:16px; background:#0f172a; padding:16px; border-radius:12px;">
-                <div>
-                    <span class="info-label">${t('driver')}</span>
-                    <div class="info-val">${session.driver_name}</div>
-                </div>
-                <div>
-                    <span class="info-label">${t('destination')}</span>
-                    <div class="info-val">${session.destination}</div>
-                </div>
-                <div>
-                    <span class="info-label">${t('parked_time')}</span>
-                    <div class="info-val" style="color:#fbbf24; font-size:22px;">${session.duration_minutes} mins</div>
-                </div>
-            </div>
-
-            <button class="btn-clear-exit-giant" onclick="executeClearExit(${session.session_id})">
-                🚪 ${t('btn_clear_exit')} (${session.formatted_plate})
+            <button type="button" class="btn-clear-exit-giant" onclick="executeClearExit(${session.session_id || session.id || 0}, '${escapeHtml(session.plate_number || cleanPlateStr)}')">
+                <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" fill="none" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/><polyline points="15 18 21 12 15 6"/></svg>
+                <span>${clearExitLabel}</span>
             </button>
         </div>
     `;
 
     // Automatically flip to Leaving tab if on another tab
     switchTab('leaving');
+
+    if (window.gsap) {
+        gsap.fromTo('.exit-card',
+            { opacity: 0, y: -12, scale: 0.98 },
+            { opacity: 1, y: 0, scale: 1, duration: 0.28, ease: 'power2.out' }
+        );
+    }
 }
 
 async function searchExitSessions(term) {
@@ -2345,30 +2397,30 @@ async function searchExitSessions(term) {
                 card.style.background = '#fffbeb';
                 card.innerHTML = `
                     <div class="card-header" style="display:flex; justify-content:space-between; align-items:center;">
-                        <div class="card-plate" style="color:#b45309;">${item.formatted_plate}</div>
-                        <span style="font-weight:800; color:#d97706;">🕒 In: ${item.entry_time_display || item.entry_time || item.dwell_string}</span>
+                        <div class="card-plate" style="color:#b45309;">${escapeHtml(item.formatted_plate || item.plate_number)}</div>
+                        <span style="font-weight:800; color:#d97706; font-family:monospace;">In: ${escapeHtml(item.entry_time_display || item.entry_time || item.dwell_string)}</span>
                     </div>
                     <div class="card-body" style="padding:10px 0;">
-                        <div style="color:#b45309; font-weight:800; font-size:12.5px;">⚠️ Details Not Collected</div>
-                        <div style="color:#78350f; font-size:11.5px; margin-top:2px;">Wait: ${item.dwell_string} • Entrance: ${item.source || 'Camera'}</div>
+                        <div style="color:#b45309; font-weight:800; font-size:12.5px;">Details Not Collected</div>
+                        <div style="color:#78350f; font-size:11.5px; margin-top:2px;">Wait: ${escapeHtml(item.dwell_string)} &bull; Entrance: ${escapeHtml(item.source || 'Camera')}</div>
                     </div>
-                    <button class="btn-card-accept" style="background:#f59e0b; color:#fff;" onclick="executeClearExit(0, '${item.plate_number}')">
-                        🚪 Allow Exit (Uncollected Details)
+                    <button class="btn-card-accept" style="background:#d97706; color:#fff;" onclick="executeClearExit(0, '${escapeHtml(item.plate_number)}')">
+                        Authorize Exit (Uncollected Details)
                     </button>
                 `;
             } else {
-                card.style.borderColor = '#f97316';
+                card.style.borderColor = '#b0cfec';
                 card.innerHTML = `
                     <div class="card-header">
-                        <div class="card-plate">${item.formatted_plate}</div>
-                        <span style="font-weight:800; color:#fbbf24;">Parked: ${item.dwell_string}</span>
+                        <div class="card-plate">${escapeHtml(item.formatted_plate || item.plate_number)}</div>
+                        <span style="font-weight:800; color:#0284c7; font-family:monospace;">Parked: ${escapeHtml(item.dwell_string)}</span>
                     </div>
                     <div class="card-body">
-                        <div><span class="info-label">${t('driver')}</span><span class="info-val">${item.driver_name}</span></div>
-                        <div><span class="info-label">${t('destination')}</span><span class="info-val">${item.destination}</span></div>
+                        <div><span class="info-label">${t('driver')}</span><span class="info-val">${escapeHtml(item.driver_name)}</span></div>
+                        <div><span class="info-label">${t('destination')}</span><span class="info-val" style="color:#0284c7;">${escapeHtml(item.destination)}</span></div>
                     </div>
-                    <button class="btn-card-accept" style="background:#f97316;" onclick="executeClearExit(${item.id})">
-                        🚪 ${t('btn_clear_exit')}
+                    <button class="btn-card-accept" style="background:#059669;" onclick="executeClearExit(${item.id})">
+                        ${t('btn_clear_exit')} &bull; Open Barrier
                     </button>
                 `;
             }

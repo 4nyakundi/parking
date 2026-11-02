@@ -49,9 +49,9 @@ const I18N = {
         no_pending: "No cars waiting right now. Ready for next vehicle.",
 
         // Leaving
-        cam_sees_out: "Exit Camera sees:",
+        cam_sees_out: "Exit Camera Live Detection",
         search_prompt: "Search plate number, phone, or ticket ID...",
-        btn_clear_exit: "CLEAR EXIT",
+        btn_clear_exit: "AUTHORIZE EXIT & OPEN BARRIER",
         parked_time: "Time Parked:",
         entry_time: "Entry Time:",
         destination: "Destination:",
@@ -137,9 +137,9 @@ const I18N = {
         no_pending: "Hakuna gari linalosubiri sasa. Lango liko wazi.",
 
         // Leaving
-        cam_sees_out: "Kamera ya kutoka inaona:",
+        cam_sees_out: "Kamera ya Kutoka Imegundua",
         search_prompt: "Tafuta nambari ya gari, simu, au tikiti...",
-        btn_clear_exit: "RUHUSU LITOKE",
+        btn_clear_exit: "RUHUSU KUTOKA & FUNGUA LANGO",
         parked_time: "Muda Uliokaa:",
         entry_time: "Muda wa Kuingia:",
         destination: "Duka / Eneo:",
