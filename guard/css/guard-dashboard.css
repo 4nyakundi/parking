@@ -1,0 +1,96 @@
+/* Readability refinements: retain the existing blue station layout and workflows. */
+:root { --guard-text: #173b60; --guard-muted: #486987; }
+body { color: var(--guard-text); }
+.dashboard-live-status {
+    display: flex; align-items: center; flex-wrap: wrap; gap: 10px 24px;
+    padding: 12px 24px; background: #fff; border-bottom: 1px solid #c6d9e9;
+    color: var(--guard-text); font-size: 13px;
+}
+.live-connection { display: flex; align-items: center; gap: 9px; }
+.live-connection strong { font-size: 14px; }
+#dashboardFreshness { color: var(--guard-muted); font-variant-numeric: tabular-nums; }
+.live-indicator { width: 9px; height: 9px; border-radius: 50%; background: #64748b; flex-shrink: 0; }
+[data-state="connected"] .live-indicator { background: #087b4d; }
+[data-state="reconnecting"] .live-indicator, [data-state="unavailable"] .live-indicator { background: #b45309; }
+.dashboard-live-status[data-state="unavailable"], .dashboard-live-status[data-state="reconnecting"] { background: #fffbeb; }
+.live-device-summary { display: flex; flex-wrap: wrap; gap: 8px 20px; }
+.live-device-summary > span { display: flex; gap: 7px; color: var(--guard-muted); }
+.live-device-summary b { color: var(--guard-text); font-weight: 650; }
+.live-retry { margin-left: auto; border: 1px solid #b0cce4; border-radius: 6px; background: #f4f8fc; color: #0b579d; padding: 8px 14px; min-height: 40px; cursor: pointer; font: inherit; font-weight: 650; }
+#dashboardResourceNotice { width: 100%; margin: 0; color: #92400e; }
+#dashboardResourceNotice:empty { display: none; }
+.occupancy-dashboard { gap: 14px; padding-top: 18px; padding-bottom: 18px; }
+.metric-card { border-radius: 10px; box-shadow: 0 2px 6px #16457208; }
+.metric-label { font-size: 12px; letter-spacing: .045em; }
+.metric-number { font-variant-numeric: tabular-nums; }
+.panel-section-title, .panel-stat-label { font-size: 11px; letter-spacing: .045em; }
+.panel-quick-btn { min-height: 44px; font-size: 13px; }
+.panel-device-grid { grid-template-columns: 1fr; gap: 7px; }
+.device-chip { padding: 8px; font-size: 12px; }
+.device-dot { background: #64748b; }
+.device-chip[data-status="online"] .device-dot { background: #087b4d; }
+.device-chip[data-status="stale"] .device-dot, .device-chip[data-status="check"] .device-dot { background: #b45309; }
+.device-chip[data-status="offline"] .device-dot, .device-chip[data-status="failed"] .device-dot { background: #b91c1c; }
+.device-val[data-status="unknown"], .device-val[data-status="stale"] { color: #92400e; }
+.device-val[data-status="failed"], .device-val[data-status="offline"] { color: #b91c1c; }
+.roster-table-wrapper { overflow: auto; scrollbar-gutter: stable; }
+.roster-cars-table { min-width: 930px; }
+.roster-cars-table thead th { position: sticky; top: 0; padding: 13px 12px; font-size: 11px; letter-spacing: .035em; }
+.roster-cars-table tbody td { padding: 14px 12px; vertical-align: middle; }
+.roster-driver-name { font-size: 14px; }
+.roster-driver-phone, .roster-time-in, .roster-time-expected { font-size: 12px; color: var(--guard-muted); }
+.roster-plate-badge { font-size: 17px; letter-spacing: .03em; }
+.roster-live-timer { font-size: 15px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.roster-actions-cell { gap: 8px; }
+.btn-roster-action { min-height: 40px; padding: 9px 12px; font-size: 12px; }
+.roster-pill, .q-filter-pill { min-height: 36px; font-size: 12px; }
+.camera-queue-card { border-radius: 9px; box-shadow: 0 2px 7px #1645720a; }
+.cqc-header, .cqc-body { padding: 13px; }
+.cqc-plate-badge { font-size: 21px; letter-spacing: .035em; }
+.cqc-time-ago, .cqc-dest-info, .cqc-badge-tag { font-size: 12px; }
+.cqc-driver-info { font-size: 14px; }
+.cqc-actions { gap: 8px; padding: 12px; }
+.btn-cqc-primary, .btn-cqc-dismiss { min-height: 44px; font-size: 12px; }
+.card-field-label, .form-field label, .intake-field label { font-size: 12px; letter-spacing: .025em; }
+.queue-empty-box, .guard-empty { padding: 36px 18px; text-align: center; color: var(--guard-muted); font-size: 14px; }
+.print-issues-panel { margin: 14px 24px 0; border: 1px solid #f1c779; border-left: 4px solid #b45309; background: #fffbeb; border-radius: 8px; padding: 14px 16px; }
+.print-issues-panel[hidden] { display: none; }
+.print-issues-heading { display: flex; flex-wrap: wrap; gap: 7px 18px; align-items: center; color: #78350f; font-size: 13px; }
+.print-issues-heading strong { font-size: 15px; }
+.print-issue-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 9px 0; border-top: 1px solid #f2dfb4; margin-top: 8px; font-size: 13px; }
+.print-issue-row button { padding: 9px 14px; min-height: 42px; border: 1px solid #b45309; color: #78350f; background: #fff; border-radius: 6px; font: inherit; font-weight: 700; cursor: pointer; }
+
+.guard-session-expired .guard-main-layout, .guard-session-expired .occupancy-dashboard, .guard-session-expired .print-issues-panel, .guard-session-expired .guard-pill { visibility: hidden; }
+.guard-edge-unavailable .btn-cqc-primary, .guard-edge-unavailable .btn-roster-action, .guard-edge-unavailable .btn-submit-checkin, .guard-edge-unavailable #btnIntakeAccept, .guard-edge-unavailable #btnConfirmClearExit, .guard-edge-unavailable #btnExecuteBatchApprove, .guard-edge-unavailable .print-issue-row button { opacity: .5; cursor: not-allowed; }
+button:focus-visible, input:focus-visible { outline: 3px solid #116fc7; outline-offset: 3px; }
+@media (max-width: 1200px) { .dashboard-live-status { gap: 10px 16px; } .live-device-summary { gap: 8px 14px; } }
+@media (max-width: 900px) { .dashboard-live-status { padding: 10px 14px; } .live-device-summary { flex-basis: 100%; order: 3; } .live-retry { margin-left: auto; } .print-issues-panel { margin: 10px 14px 0; } }
+@media (max-width: 640px) { .live-device-summary { display: grid; grid-template-columns: 1fr 1fr; font-size: 12px; } .live-connection { flex-wrap: wrap; gap: 6px; } .occupancy-dashboard { gap: 8px; } .print-issue-row { align-items: flex-start; } .print-issue-row span { overflow-wrap: anywhere; } .cqc-plate-badge { font-size: 22px; } }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
+@media print { .dashboard-live-status, .print-issues-panel { display: none !important; } }
+
+/* Size the workspace from the actual header/status height, including print notices. */
+body { height: auto; min-height: 100dvh; }
+.dashboard-live-status, .occupancy-dashboard, .mode-tabs-container { flex-shrink: 0; }
+.guard-main-layout { height: calc(100dvh - var(--guard-workspace-top, 240px)); flex: 1 0 320px; }
+.print-issues-panel { flex-shrink: 0; max-height: 190px; overflow-y: auto; }
+@media (max-width: 992px) { .right-queue-sidebar.mobile-open { inset: var(--guard-workspace-top, 240px) 0 0; } }
+
+/* Keep diagnostics in the existing sidebar; dedicate the main workspace to records. */
+.sidebar-live-status { display: flex; flex-direction: column; align-items: stretch; padding: 12px; gap: 7px; border: 1px solid var(--border); border-radius: 7px; font-size: 12px; }
+.sidebar-live-status .live-connection { flex-wrap: wrap; }
+.sidebar-live-status .live-retry { margin: 2px 0 0; width: 100%; font-size: 12px; }
+.sidebar-live-status #dashboardFreshness { font-size: 11px; }
+.left-panel .sidebar-print-issues { margin: 0; padding: 10px; max-height: 230px; flex-shrink: 0; }
+.sidebar-print-issues summary { cursor: pointer; font-size: 13px; font-weight: 700; color: #78350f; }
+.sidebar-print-issues p { font-size: 12px; margin: 8px 0; }
+.sidebar-print-issues .print-issue-row { flex-direction: column; align-items: stretch; gap: 7px; font-size: 12px; }
+.sidebar-print-issues .print-issue-row span { overflow-wrap: anywhere; }
+.roster-status-tabs { gap: 0; padding: 4px; border: 1px solid #c5d9e9; background: #edf4fa; border-radius: 8px; }
+.roster-status-tabs .roster-pill { border: 0; border-radius: 6px; padding: 10px 14px; background: transparent; font-size: 13px; color: #486987; min-height: 44px; }
+.roster-status-tabs .roster-pill.active { background: #fff; color: #116fc7; box-shadow: 0 1px 4px #16457220; }
+.roster-status-tabs .roster-pill.danger.active { color: #b91c1c; }
+.roster-status-tabs .roster-pill span { margin-left: 7px; padding: 2px 7px; border-radius: 12px; background: #e4eef8; font-variant-numeric: tabular-nums; }
+.roster-status-tabs .roster-pill.danger span { background: #fee2e2; color: #b91c1c; }
+#rosterFilterEmpty[hidden] { display: none; }
+@media (max-width: 640px) { .roster-status-tabs { width: 100%; } .roster-status-tabs .roster-pill { flex: 1; padding: 10px 8px; font-size: 12px; } }

@@ -9,15 +9,16 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Guard Station — Mombasa Mall Basement Parking</title>
     <link rel="stylesheet" href="css/guard.css">
+    <link rel="stylesheet" href="css/guard-dashboard.css?v=20261103b">
 </head>
 <body>
 
 <!-- Offline Banner -->
 <div id="offlineBanner" class="offline-banner">
-    NETWORK DISCONNECTED — OFFLINE SAFE MODE ACTIVE — DO NOT CLOSE THIS WINDOW
+    Local server unavailable — showing last known data. Reconnect to record arrivals and exits.
 </div>
 
 <!-- ================================================================
@@ -87,7 +88,6 @@
         </button>
     </div>
 </header>
-
 <!-- ================================================================
      OCCUPANCY DASHBOARD STRIP
      ================================================================ -->
@@ -145,7 +145,7 @@
         <!-- Station Brand Block -->
         <div class="panel-brand-header">
             <img src="../assets/img/logo-wordmark.png" alt="Mombasa Mall" class="panel-brand-logo">
-            <div class="panel-station-tag">Guard Station #1</div>
+            <div class="panel-station-tag">Guard Control Station</div>
         </div>
 
         <!-- Live Session Stats (2x2 Matrix) -->
@@ -198,6 +198,15 @@
             </div>
         </div>
 
+        <!-- Connection details stay in the side panel rather than above the roster. -->
+        <section id="dashboardLiveStatus" class="dashboard-live-status sidebar-live-status" data-state="connecting" aria-label="Dashboard connection">
+            <div class="live-connection"><span class="live-indicator"></span><strong id="edgeConnectionState">Connecting</strong></div>
+            <span id="dashboardFreshness">Waiting for first update</span>
+            <div class="sidebar-cloud-status">Cloud queue: <strong id="cloudQueueState">Connecting</strong></div>
+            <button type="button" class="live-retry" onclick="GuardLive.snapshot()">Refresh data</button>
+            <p id="dashboardResourceNotice" role="status"></p>
+        </section>
+
         <!-- Device Telemetry -->
         <div class="panel-section">
             <div class="panel-section-title">Device Telemetry</div>
@@ -224,6 +233,12 @@
                 </div>
             </div>
         </div>
+
+        <details id="printIssuesPanel" class="print-issues-panel sidebar-print-issues" hidden>
+            <summary>Print issues (<span id="printIssueCount">0</span>)</summary>
+            <p>Saved entries needing a ticket reprint.</p>
+            <div id="printIssuesList"></div>
+        </details>
 
         <!-- Terminal Activity Log -->
         <div class="panel-section panel-section-log">
@@ -256,7 +271,7 @@
                 </div>
                 <div>
                     <h2 class="roster-title" id="centerStageTitle">Basement Parking — Active Vehicles Inside</h2>
-                    <p class="roster-subtitle" id="centerStageSubtitle">Live real-time parking dwell &amp; overstay monitoring &bull; Free up to 2 Hours (120 Mins)</p>
+                    <p class="roster-subtitle" id="centerStageSubtitle">Newest arrivals first &bull; Longest parked last &bull; Free up to 2 hours</p>
                 </div>
             </div>
 
@@ -269,12 +284,10 @@
                     <button class="btn-clear-search" id="btnClearRosterSearch" onclick="clearRosterSearch()">&#x2715;</button>
                 </div>
 
-                <!-- Status Filter Pills -->
-                <div class="roster-filter-pills" id="rosterFilterPills">
-                    <button class="roster-pill active" data-filter="all">All Inside (<span id="countPillAll">0</span>)</button>
-                    <button class="roster-pill safe" data-filter="safe">Safe (<span id="countPillSafe">0</span>)</button>
-                    <button class="roster-pill warning" data-filter="warning">Approaching (<span id="countPillWarn">0</span>)</button>
-                    <button class="roster-pill danger" data-filter="critical">Overstay (&gt;2h) (<span id="countPillCrit">0</span>)</button>
+                <!-- Roster tabs keep all parked vehicles and overdue vehicles easy to find. -->
+                <div class="roster-filter-pills roster-status-tabs" id="rosterFilterPills" role="tablist" aria-label="Parked vehicle records">
+                    <button type="button" class="roster-pill active" id="tabActiveCars" role="tab" aria-selected="true" aria-controls="viewBasementRoster" data-filter="all">Active Cars <span id="countPillAll">0</span></button>
+                    <button type="button" class="roster-pill danger" id="tabOverstayedCars" role="tab" aria-selected="false" aria-controls="viewBasementRoster" tabindex="-1" data-filter="critical">Overstayed Cars <span id="countPillCrit">0</span></button>
                 </div>
 
                 <!-- View Switcher Tabs inside Center Area -->
@@ -295,7 +308,7 @@
         </div>
 
         <!-- VIEW A: BASEMENT ACTIVE VEHICLES ROSTER -->
-        <section id="viewBasementRoster" class="center-content-section active">
+        <section id="viewBasementRoster" class="center-content-section active" role="tabpanel" aria-labelledby="tabActiveCars">
             <div class="table-responsive roster-table-wrapper">
                 <table class="roster-cars-table">
                     <thead>
@@ -462,16 +475,18 @@
 <!-- ================================================================
      MODAL 1: GUARD PIN LOGIN
      ================================================================ -->
-<div id="pinLoginModal" class="modal-overlay">
+<div id="pinLoginModal" class="modal-overlay" role="dialog" aria-modal="true" aria-label="Guard sign in">
     <div class="modal-box" style="max-width:380px;">
         <div class="pin-modal-brand">
             <img src="../assets/img/logo-wordmark.png" alt="Mombasa Mall">
             <p>Basement Parking — Guard Login</p>
         </div>
         <p style="text-align:center; color:var(--text-muted); font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:0.08em;">
-            Enter Your 4-Digit Security PIN
+            <span id="pinSessionNotice">Enter your 4–6 digit PIN, then press Enter.</span>
         </p>
         <div class="pin-display">
+            <div class="pin-dot"></div>
+            <div class="pin-dot"></div>
             <div class="pin-dot"></div>
             <div class="pin-dot"></div>
             <div class="pin-dot"></div>
@@ -958,13 +973,13 @@
                     </div>
                 </div>
             </div>
-            <p class="exit-confirm-notice">This will record the departure time in the audit log, open the exit barrier, and release 1 parking bay back to total capacity.</p>
+            <p class="exit-confirm-notice">This will record the departure time in the audit log, and release 1 parking bay back to total capacity. Operate the physical barrier using the station procedure.</p>
         </div>
         <div class="modal-footer">
             <button type="button" class="btn-cancel-modal" onclick="closeExitConfirmModal()">Cancel / Keep Parked</button>
             <button type="button" id="btnConfirmClearExit" class="btn-confirm-exit" onclick="commitClearExit()">
                 <svg class="i-icon" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
-                <span id="exitBtnLabel">Clear Exit &amp; Lift Barrier</span>
+                <span id="exitBtnLabel">Record Exit</span>
             </button>
         </div>
     </div>
@@ -995,7 +1010,7 @@
 <!-- Toast Notification -->
 <div id="toastMsg" class="toast-msg">
     <svg class="i-icon" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
-    <span id="toastText">Action completed</span>
+    <span id="toastText" role="status" aria-live="polite">Action completed</span>
     <button id="btnToastReprint" class="btn-search-clear" style="display:none;">Reprint</button>
 </div>
 
@@ -1005,7 +1020,9 @@
 
 <!-- Application Scripts -->
 <script src="js/guard_i18n.js"></script>
-<script src="js/guard.js?v=20261031_1825"></script>
+<script src="js/guard-live-model.js?v=20261103b"></script>
+<script src="js/guard.js?v=20261103b"></script>
+<script src="js/guard-live.js?v=20261103b"></script>
 <script type="module" src="../assets/js/firebase-init.js"></script>
 
 <script>

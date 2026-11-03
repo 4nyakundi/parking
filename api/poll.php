@@ -12,10 +12,18 @@ header('Cache-Control: no-cache, no-store, must-revalidate');
 
 require_once __DIR__ . '/../config/database.php';
 
+if (isset($_GET['guard'])) {
+    require_once __DIR__ . '/../includes/auth.php';
+    require_auth(true);
+    session_write_close();
+}
+
 $sinceId = isset($_GET['since']) ? (int)$_GET['since'] : 0;
 
 try {
     $db = get_db();
+
+    $currentEventId = (int)$db->query('SELECT COALESCE(MAX(id), 0) FROM events')->fetchColumn();
 
     // 1. Fetch new events since the requested ID
     $evtStmt = $db->prepare('
@@ -89,12 +97,16 @@ try {
         $devices[$dr['device']] = [
             'status'  => $stat,
             'message' => $dr['message'],
+            'age_seconds' => (int)$dr['age_seconds'],
+            'last_checked_at' => date('Y-m-d H:i:s', time() - (int)$dr['age_seconds']),
         ];
     }
 
     echo json_encode([
         'ok'            => true,
         'last_event_id' => $maxId,
+        'server_timestamp' => time(),
+        'reset_required' => $sinceId > $currentEventId,
         'events'        => $events,
         'stats'         => [
             'capacity'          => $capacity,

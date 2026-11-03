@@ -97,7 +97,7 @@ function playAlertChime() {
 const STATE = {
     user: null,
     csrfToken: '',
-    currentTab: 'entering', // 'entering', 'leaving', 'inside'
+    currentTab: 'inside', // 'entering', 'leaving', 'inside'
     lastEventId: 0,
     pollTimer: null,
     clockTimer: null,
@@ -205,10 +205,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.querySelectorAll('.roster-pill').forEach(pill => {
         pill.addEventListener('click', () => {
-            document.querySelectorAll('.roster-pill').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.roster-pill').forEach(p => {
+                p.classList.remove('active');
+                p.setAttribute('aria-selected', 'false');
+                p.tabIndex = -1;
+            });
             pill.classList.add('active');
+            pill.setAttribute('aria-selected', 'true');
+            pill.tabIndex = 0;
+            document.getElementById('viewBasementRoster')?.setAttribute('aria-labelledby', pill.id);
+            switchMainTab('inside');
             applyRosterFilters(true);
         });
+    });
+
+    document.getElementById('rosterFilterPills')?.addEventListener('keydown', event => {
+        const tabs = [...document.querySelectorAll('#rosterFilterPills [role=tab]')];
+        const index = tabs.indexOf(document.activeElement);
+        if (index < 0 || !['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+        event.preventDefault();
+        const next = event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 : (index + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
+        tabs[next].focus(); tabs[next].click();
     });
 
     // 12. Right Sidebar Queue Search Listener & View Mode Init
@@ -255,8 +272,7 @@ async function checkAuthSession() {
             setAuthenticatedUser(data.user);
             STATE.csrfToken = data.csrf_token;
             startPolling();
-            loadPendingRequests();
-            loadActiveSessions();
+
         } else {
             showPinModal();
         }
@@ -293,10 +309,7 @@ function initPinKeypad() {
                 if (STATE.enteredPin.length < 6) {
                     STATE.enteredPin += val;
                     updatePinDots();
-                    if (STATE.enteredPin.length === 4) {
-                        // Auto-submit after 4 digits
-                        submitPinLogin();
-                    }
+
                 }
             }
         });
@@ -310,7 +323,7 @@ function initPinKeypad() {
                 if (STATE.enteredPin.length < 6) {
                     STATE.enteredPin += e.key;
                     updatePinDots();
-                    if (STATE.enteredPin.length === 4) submitPinLogin();
+
                 }
             } else if (e.key === 'Backspace') {
                 STATE.enteredPin = STATE.enteredPin.slice(0, -1);
@@ -334,7 +347,8 @@ function updatePinDots() {
 }
 
 async function submitPinLogin() {
-    if (STATE.enteredPin.length < 4) return;
+    if (STATE.enteredPin.length < 4 || STATE.loginBusy) return;
+    STATE.loginBusy = true;
 
     try {
         const res = await fetch('../api/auth/login.php', {
@@ -349,8 +363,7 @@ async function submitPinLogin() {
             hidePinModal();
             playDingSound();
             startPolling();
-            loadPendingRequests();
-            loadActiveSessions();
+
         } else {
             playAlertChime();
             showToast(json.error || 'Incorrect PIN. Try again.');
@@ -358,14 +371,15 @@ async function submitPinLogin() {
             updatePinDots();
         }
     } catch (e) {
-        showToast('Login connection failed. Check XAMPP server.');
-    }
+        showToast('Login connection failed. Check the local server.');
+    } finally { STATE.loginBusy = false; }
 }
 
 function setAuthenticatedUser(user) {
     STATE.user = user;
     const nameEl = document.getElementById('guardNameDisplay');
     if (nameEl) nameEl.textContent = user.full_name;
+    document.getElementById('guardRoleTag').textContent = user.role || 'Guard';
 }
 
 // --------------------------------------------------------------------
@@ -399,7 +413,7 @@ function switchCenterView(viewName) {
         btnRoster?.classList.add('active');
         btnExit?.classList.remove('active');
         if (titleEl) titleEl.textContent = 'Basement Parking — Active Vehicles Inside';
-        if (subTitleEl) subTitleEl.textContent = 'Live real-time parking dwell & overstay monitoring • Free up to 2 Hours (120 Mins)';
+        if (subTitleEl) subTitleEl.textContent = 'Newest arrivals first • Longest parked last • Free up to 2 hours';
         loadActiveSessions();
     }
 }
@@ -455,141 +469,30 @@ function switchTab(tabName) {
 // --------------------------------------------------------------------
 // Short Polling (Every 2 seconds) + Cloud Firestore Real-time Sync
 // --------------------------------------------------------------------
-function startPolling() {
-    if (STATE.pollTimer) clearInterval(STATE.pollTimer);
-    runPoll();
-    STATE.pollTimer = setInterval(runPoll, 1000);
-
-    // Ultra-responsive queue sync every 1.5s for instant camera intake and zero drift
-    if (STATE.queueSyncTimer) clearInterval(STATE.queueSyncTimer);
-    STATE.queueSyncTimer = setInterval(() => {
-        loadPendingRequests();
-    }, 1500);
-
-    initFirestoreSync();
-}
+function startPolling() { GuardLive.start(); }
 
 function initFirestoreSync() {
-    if (STATE.firestoreUnsubscribe) return;
+    if (!STATE.user || STATE.firestoreUnsubscribe) return;
     if (window.firebaseBridge && typeof window.firebaseBridge.listenPendingRequests === 'function') {
+        STATE.firestoreRetries = 0;
         STATE.firestoreUnsubscribe = window.firebaseBridge.listenPendingRequests((cloudRequests) => {
             if (Array.isArray(cloudRequests)) {
                 handleCloudRequests(cloudRequests);
             }
-        });
+        }, () => GuardLive.cloudFailed());
         console.log('[Guard] Real-time Cloud Firestore listener connected.');
     } else {
-        setTimeout(initFirestoreSync, 1200);
+        STATE.firestoreRetries = (STATE.firestoreRetries || 0) + 1;
+        if (STATE.firestoreRetries >= 3) GuardLive.cloudFailed();
+        else STATE.firestoreRetryTimer = setTimeout(initFirestoreSync, 1200);
     }
 }
 
-function handleCloudRequests(cloudRequests) {
-    if (!cloudRequests || cloudRequests.length === 0) return;
-    STATE.pendingRequestsMap = STATE.pendingRequestsMap || {};
+function handleCloudRequests(cloudRequests) { GuardLive.setCloud(cloudRequests); }
 
-    cloudRequests.forEach(cr => {
-        const key = `fb_${cr.firestore_id}`;
-        // Check if vehicle plate is already queued
-        let alreadyExists = false;
-        for (const id in STATE.pendingRequestsMap) {
-            const existing = STATE.pendingRequestsMap[id];
-            if (existing && existing.plate_number === cr.plate_number) {
-                alreadyExists = true;
-                if (!existing.firestore_id) existing.firestore_id = cr.firestore_id;
-                break;
-            }
-        }
+async function runPoll() { return GuardLive.refresh(); }
 
-        if (!alreadyExists) {
-            const item = {
-                id: key,
-                request_id: key,
-                firestore_id: cr.firestore_id,
-                plate_number: cr.plate_number,
-                formatted_plate: cr.formatted_plate || cr.plate_number,
-                driver_name: cr.driver_name || 'Visitor',
-                driver_phone: cr.driver_phone || '',
-                destination: cr.destination || 'Mombasa Mall',
-                source: 'cloud_mobile',
-                alpr_verified: false,
-                category: 'regular',
-                wait_text: 'Mobile Check-In'
-            };
-            STATE.pendingRequestsMap[key] = item;
-            prependPendingCard(item);
-            playDingSound();
-            logActivity(`☁️ Mobile Check-In: ${item.formatted_plate} (${item.destination})`, 'ok');
-        }
-    });
-}
-
-async function runPoll() {
-    try {
-        const res = await fetch(`../api/poll.php?since=${STATE.lastEventId}`);
-        const data = await res.json();
-
-        if (data.ok) {
-            document.getElementById('offlineBanner').classList.remove('active');
-            STATE.lastEventId = data.last_event_id;
-
-            // Update Occupancy Counters
-            if (data.stats) {
-                updateOccupancyDisplay(data.stats);
-
-                // Sync occupancy telemetry to Google Cloud Firestore
-                if (window.firebaseBridge && typeof window.firebaseBridge.updateOccupancyTelemetry === 'function') {
-                    window.firebaseBridge.updateOccupancyTelemetry(data.stats);
-                }
-            }
-
-            // Update Device Health Status (Cameras, Printer, ALPR Worker)
-            if (data.devices) {
-                updateDeviceStatusDisplay(data.devices);
-            }
-
-            // Process New Events
-            if (data.events && data.events.length > 0) {
-                data.events.forEach(evt => handleServerEvent(evt));
-            }
-        }
-    } catch (err) {
-        // Network drop: Show clear offline notice without crashing
-        document.getElementById('offlineBanner').classList.add('active');
-    }
-}
-
-function updateDeviceStatusDisplay(devices) {
-    if (!devices) return;
-    const updatePill = (id, info, defaultText = 'Online') => {
-        const el = document.getElementById(id);
-        if (!el) return;
-        const stat = (info && info.status) ? info.status : 'OK';
-        if (stat === 'OK') {
-            el.textContent = defaultText;
-            el.style.color = '#059669';
-            el.style.fontWeight = '700';
-        } else if (stat === 'WARNING') {
-            el.textContent = 'Active';
-            el.style.color = '#d97706';
-            el.style.fontWeight = '700';
-        } else {
-            el.textContent = 'Offline';
-            el.style.color = '#dc2626';
-            el.style.fontWeight = '700';
-        }
-    };
-
-    updatePill('pnlPrinterStatus', devices.printer, 'Ready');
-    updatePill('pnlCam1Status', devices.entrance_cam, 'Online (192.168.1.230)');
-    updatePill('pnlCam2Status', devices.exit_cam, 'Online (192.168.1.210)');
-    updatePill('pnlAlprStatus', devices.alpr_worker, 'Active');
-
-    const camLbl = document.getElementById('camEntranceStatusLabel');
-    if (camLbl && devices.entrance_cam) {
-        const isOk = (devices.entrance_cam.status === 'OK' || devices.entrance_cam.status === 'WARNING');
-        camLbl.textContent = isOk ? 'Gate 1 (192.168.1.230): Online' : 'Gate 1 (192.168.1.230): Offline';
-    }
-}
+function updateDeviceStatusDisplay(devices) { GuardLive.devices(devices); }
 
 function updateOccupancyDisplay(stats) {
     const totalEl   = document.getElementById('statTotal');
@@ -618,12 +521,6 @@ function updateOccupancyDisplay(stats) {
         }
     }
 
-    const countBadge = document.getElementById('pendingCountBadge');
-    if (countBadge) {
-        countBadge.textContent = stats.pending_count || 0;
-        countBadge.style.display = stats.pending_count > 0 ? 'inline-block' : 'none';
-    }
-
     // Left-panel live stats
     const set = (id, val, fallback) => {
         const el = document.getElementById(id);
@@ -633,7 +530,7 @@ function updateOccupancyDisplay(stats) {
     set('pnlTodayOut', stats.today_exits,      '--');
     set('pnlOverstay', stats.overstays,        '0');
     set('pnlAvgDwell', stats.avg_dwell_minutes ? stats.avg_dwell_minutes + ' min' : '--');
-    set('pnlPending',  stats.pending_count,    '0');
+
 }
 
 /** Append an entry to the left-panel activity log */
@@ -875,52 +772,7 @@ function showExitWithoutDetailsBanner(p) {
 // --------------------------------------------------------------------
 let activeQueueFilter = 'all';
 
-async function loadPendingRequests() {
-    try {
-        const res = await fetch('../api/requests/pending.php');
-        const json = await res.json();
-
-        const grid = document.getElementById('pendingCardsGrid');
-        if (!grid) return;
-
-        STATE.pendingRequestsMap = STATE.pendingRequestsMap || {};
-
-        const badge = document.getElementById('pendingCountBadge');
-        const pnlPending = document.getElementById('pnlPending');
-
-        if (!json.ok || !json.data || json.data.length === 0) {
-            STATE.latestPendingItems = [];
-            grid.innerHTML = `
-                <div class="queue-empty-box">
-                    <div class="queue-empty-radar">
-                        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 2a10 10 0 0 1 10 10"/></svg>
-                    </div>
-                    <div class="queue-empty-text">Camera Active &amp; Ready.<br>Cars arriving at Gate 1 will appear here.</div>
-                </div>`;
-            if (badge) {
-                badge.textContent = '0 Waiting';
-                badge.classList.remove('has-items');
-            }
-            if (pnlPending) pnlPending.textContent = '0';
-            updateQueueFilterCounts(0, 0, 0);
-            return;
-        }
-
-        STATE.latestPendingItems = json.data;
-        const count = json.data.length;
-        if (badge) {
-            badge.textContent = `${count} Waiting`;
-            badge.classList.add('has-items');
-        }
-        if (pnlPending) pnlPending.textContent = String(count);
-
-        // Smart DOM Reconciliation (Diffing) — Preserves Scroll Position & Eliminates Jumps
-        renderPendingRequestsDiff(json.data);
-
-    } catch (e) {
-        console.error('Error loading pending requests:', e);
-    }
-}
+async function loadPendingRequests() { return GuardLive.snapshot(); }
 
 function renderPendingRequestsDiff(items) {
     const grid = document.getElementById('pendingCardsGrid');
@@ -937,21 +789,7 @@ function renderPendingRequestsDiff(items) {
     const existingDomElements = grid.querySelectorAll('[data-req-id]');
     existingDomElements.forEach(domEl => {
         const domId = domEl.getAttribute('data-req-id');
-        if (!incomingIds.has(domId)) {
-            if (window.gsap) {
-                gsap.to(domEl, {
-                    x: 40,
-                    opacity: 0,
-                    height: 0,
-                    marginBottom: 0,
-                    duration: 0.22,
-                    ease: 'power2.in',
-                    onComplete: () => domEl.remove()
-                });
-            } else {
-                domEl.remove();
-            }
-        }
+        if (!incomingIds.has(domId)) domEl.remove();
     });
 
     // 2. Insert new items or update existing items
@@ -964,6 +802,7 @@ function renderPendingRequestsDiff(items) {
         if (!existingCard) {
             // New item! Create in chosen view mode (compact or card)
             const newEl = createPendingItemElement(item, mode);
+            newEl.dataset.signature = GuardLiveModel.cardSignature(item);
             if (index === 0) {
                 grid.prepend(newEl);
                 if (window.gsap) {
@@ -986,7 +825,7 @@ function renderPendingRequestsDiff(items) {
             existingCard = newEl;
         } else {
             // Update dynamic text (e.g. wait time ago) without re-rendering node
-            updateExistingPendingItem(existingCard, item, mode);
+            existingCard = updateExistingPendingItem(existingCard, item, mode);
         }
         lastDomElement = existingCard;
     });
@@ -996,13 +835,17 @@ function renderPendingRequestsDiff(items) {
 }
 
 function updateExistingPendingItem(el, item, mode) {
-    if (mode === 'compact') {
-        const timeEl = el.querySelector('.cqr-time');
-        if (timeEl && item.wait_text) timeEl.textContent = `• ${item.wait_text}`;
+    const signature = GuardLiveModel.cardSignature(item);
+    if (el.dataset.signature !== signature && !el.contains(document.activeElement)) {
+        const replacement = createPendingItemElement(item, mode);
+        replacement.dataset.signature = signature;
+        el.replaceWith(replacement);
+        return replacement;
     } else {
-        const timeEl = el.querySelector('.cqc-time-ago');
-        if (timeEl && item.wait_text) timeEl.textContent = item.wait_text;
+        const timeEl = el.querySelector(mode === 'compact' ? '.cqr-time' : '.cqc-time-ago');
+        if (timeEl) timeEl.textContent = item.wait_text || 'Just now';
     }
+    return el;
 }
 
 function setQueueViewMode(mode) {
@@ -1142,20 +985,34 @@ async function executeBatchApproveConfirmed() {
     closeBatchApproveModal();
 
     showToast(`⚡ Batch approving ${itemsToProcess.length} vehicles...`);
+    let approved = 0, failed = 0, printFailed = 0;
     for (const item of itemsToProcess) {
         try {
-            await fetch('../api/requests/action.php', {
+            const response = await fetch('../api/requests/action.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    request_id: item.id || item.request_id,
+                    request_id: /^\d+$/.test(String(item.id)) ? Number(item.id) : 0,
+                    plate_number: item.plate_number,
                     action: 'accept',
                     driver_name: item.driver_name || 'Visitor',
                     driver_phone: item.driver_phone || '',
                     destination: item.destination || 'Mombasa Mall',
                 })
             });
+            const result = await response.json();
+            if (result.ok) {
+                approved++;
+                if (result.data?.print_status !== 'printed') {
+                    printFailed++;
+                    GuardLive.printFailed(result.data?.session_id, result.data);
+                }
+                if (item.firestore_id && result.ok) {
+                    await GuardLive.admitCloud(item, result.data?.ticket_id);
+                }
+            } else { failed++; }
         } catch (e) {
+            failed++;
             console.warn('Batch approve error for:', item.plate_number, e);
         }
     }
@@ -1167,7 +1024,7 @@ async function executeBatchApproveConfirmed() {
     }
 
     playDingSound();
-    showToast(`✓ All ${itemsToProcess.length} pre-filled vehicles approved!`);
+    showToast(`${approved} approved · ${failed} failed · ${printFailed} print issues`);
     await loadPendingRequests();
     await loadActiveSessions();
 }
@@ -1445,50 +1302,27 @@ function declineIntakeFromCard(reqId) {
  * 1-Tap Fast Record Release / Dismissal from Gate Intake Queue
  */
 async function releasePendingRecord(reqId) {
-    if (!reqId) return;
-
-    // Smooth animated slide-out
-    const card = document.querySelector(`[data-req-id="${reqId}"]`);
-    if (card) {
-        if (window.gsap) {
-            gsap.to(card, {
-                x: 60,
-                opacity: 0,
-                height: 0,
-                marginBottom: 0,
-                paddingTop: 0,
-                paddingBottom: 0,
-                duration: 0.22,
-                ease: 'power2.in',
-                onComplete: () => {
-                    card.remove();
-                    updatePendingQueueBadge();
-                }
-            });
-        } else {
-            card.remove();
-            updatePendingQueueBadge();
-        }
-    }
-
-    if (STATE.pendingRequestsMap) {
-        delete STATE.pendingRequestsMap[reqId];
-    }
-    updatePendingQueueBadge();
-
+    const item = STATE.pendingRequestsMap?.[reqId];
+    if (!item) return;
     try {
-        const res = await fetch('../api/requests/action.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'dismiss', request_id: reqId })
-        });
-        const json = await res.json();
-        if (json.ok) {
-            showToast('Vehicle released from intake queue.', 'info');
+        if (/^fb_/.test(String(reqId))) {
+            const ids = item.firestore_ids || [item.firestore_id];
+            const results = await Promise.all(ids.map(id => window.firebaseBridge.rejectDriverRequest(id, 'Released by guard')));
+            if (results.some(result => !result?.ok)) throw new Error('Cloud queue update failed. Please retry.');
+        } else {
+            const res = await fetch('../api/requests/action.php', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'dismiss', request_id: reqId })
+            });
+            const result = await res.json();
+            if (!result.ok) throw new Error(result.error || 'Release failed. Record kept in queue.');
+            if (item.firestore_id) {
+                await Promise.all((item.firestore_ids || [item.firestore_id]).map(id => window.firebaseBridge.rejectDriverRequest(id, 'Released by guard')));
+            }
         }
-    } catch (e) {
-        console.warn('Error dismissing record:', e);
-    }
+        showToast('Vehicle released from intake queue.');
+        await loadPendingRequests();
+    } catch (error) { showToast(error.message || 'Release failed. Please retry.'); }
 }
 
 function removePendingCardById(reqId) {
@@ -1919,6 +1753,7 @@ async function submitIntakeFromModal() {
     const dest  = (destIn && destIn.value.trim()) ? destIn.value.trim() : (STATE.intakeSelectedDest || 'G-01 Naivas Supermarket');
 
     const btnAccept = document.getElementById('btnIntakeAccept');
+    if (btnAccept?.disabled) return;
     const btnText   = document.getElementById('btnIntakeAcceptText');
     if (btnAccept) btnAccept.disabled = true;
     if (btnText) btnText.textContent = 'Printing Ticket...';
@@ -1947,7 +1782,7 @@ async function submitIntakeFromModal() {
 
             // Notify Cloud Firestore if this was a remote cloud sign-in
             if (pendingItem && pendingItem.firestore_id && window.firebaseBridge && typeof window.firebaseBridge.admitDriverRequest === 'function') {
-                window.firebaseBridge.admitDriverRequest(pendingItem.firestore_id, json.data.ticket_id);
+                GuardLive.admitCloud(pendingItem, json.data.ticket_id);
             }
 
             closeVehicleIntakeModal();
@@ -2380,8 +2215,8 @@ function showExitCandidateCard(session) {
     const ticketId = session.ticket_id || 'MM-EXIT';
 
     const clearExitLabel = (typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'sw') 
-        ? `RUHUSU KUTOKA &bull; FUNGUA LANGO (${cleanPlateStr})` 
-        : `AUTHORIZE EXIT &bull; OPEN GATE BARRIER (${cleanPlateStr})`;
+        ? `REKODI GARI KUTOKA (${cleanPlateStr})`
+        : `RECORD VEHICLE EXIT (${cleanPlateStr})`;
 
     area.innerHTML = `
         <div class="exit-card">
@@ -2523,7 +2358,7 @@ function openExitConfirmModal(sessionId, plateNumber) {
     let session = null;
     if (STATE.activeSessionsList && Array.isArray(STATE.activeSessionsList)) {
         session = STATE.activeSessionsList.find(s => 
-            (sessionId && s.session_id == sessionId) || 
+            (sessionId && s.id == sessionId) ||
             (plateNumber && s.plate_number == plateNumber)
         );
     }
@@ -2534,7 +2369,7 @@ function openExitConfirmModal(sessionId, plateNumber) {
     
     let dwell = '--';
     if (session && session.entry_timestamp) {
-        const mins = Math.max(0, Math.floor((Date.now() - session.entry_timestamp) / 60000));
+        const mins = Math.max(0, Math.floor((GuardLive.now() - session.entry_timestamp * 1000) / 60000));
         dwell = mins < 60 ? `${mins}m` : `${Math.floor(mins / 60)}h ${mins % 60}m`;
     }
 
@@ -2556,7 +2391,7 @@ function openExitConfirmModal(sessionId, plateNumber) {
         btn.disabled = false;
         btn.classList.remove('btn-loading');
     }
-    if (lbl) lbl.textContent = 'Clear Exit & Lift Barrier';
+    if (lbl) lbl.textContent = 'Record Exit';
 
     modal.classList.add('open');
     if (window.gsap) {
@@ -2594,7 +2429,7 @@ async function commitClearExit() {
         btn.disabled = true;
         btn.classList.add('btn-loading');
     }
-    if (lbl) lbl.textContent = 'Lifting Barrier…';
+    if (lbl) lbl.textContent = 'Recording exit…';
 
     try {
         const payload = sessionId ? { session_id: sessionId } : { plate_number: plateNumber };
@@ -2613,10 +2448,10 @@ async function commitClearExit() {
             loadActiveSessions();
 
             if (json.data.details_uncollected) {
-                showToast(`⚠️ Vehicle ${confirmedPlate} cleared without details. Gate barrier opened.`);
+                showToast(`⚠️ Vehicle ${confirmedPlate} cleared without details. Departure recorded.`);
                 logActivity(`⚠️ Vehicle ${confirmedPlate} exited without details. Gate cleared.`, 'warn');
             } else {
-                showToast(`✓ Barrier Lifted: Vehicle ${confirmedPlate} cleared (Stay: ${json.data.duration_text || 'Completed'})`);
+                showToast(`✓ Exit recorded: Vehicle ${confirmedPlate} cleared (Stay: ${json.data.duration_text || 'Completed'})`);
             }
 
             const candidateArea = document.getElementById('exitCandidateArea');
@@ -2635,7 +2470,7 @@ async function commitClearExit() {
             btn.disabled = false;
             btn.classList.remove('btn-loading');
         }
-        if (lbl) lbl.textContent = 'Clear Exit & Lift Barrier';
+        if (lbl) lbl.textContent = 'Record Exit';
     }
 }
 
@@ -2706,49 +2541,14 @@ async function submitSupervisorOverride() {
 STATE.rosterTimerInterval = null;
 STATE.activeSessionsList = [];
 
-async function loadActiveSessions(manualTrigger = false) {
-    try {
-        const btnRefresh = document.getElementById('btnRefreshRoster');
-        if (manualTrigger && btnRefresh) {
-            btnRefresh.classList.add('spinning');
-            setTimeout(() => btnRefresh.classList.remove('spinning'), 600);
-        }
-
-        const res = await fetch('../api/gate/active-sessions.php');
-        const json = await res.json();
-        const tbody = document.getElementById('insideTableBody');
-        if (!tbody) return;
-
-        if (!json.ok || !json.data || !json.data.sessions || json.data.sessions.length === 0) {
-            tbody.innerHTML = `
-                <tr>
-                    <td colspan="8" style="text-align:center; padding:60px 20px; color:var(--text-muted);">
-                        <div style="font-size:32px; margin-bottom:10px;">🅿️</div>
-                        <div style="font-size:16px; font-weight:800; color:var(--text-primary);">No vehicles currently parked in the basement.</div>
-                        <div style="font-size:12px; margin-top:4px; color:var(--text-secondary);">When vehicles enter via Gate 1, they will be listed here with real-time stay duration.</div>
-                    </td>
-                </tr>`;
-            updateRosterFilterCounters(0, 0, 0, 0);
-            return;
-        }
-
-        STATE.activeSessionsList = json.data.sessions;
-        renderActiveSessionsTable(STATE.activeSessionsList);
-
-        // Start real-time ticking stay duration timers
-        startRosterLiveTimers();
-
-    } catch (e) {
-        console.error('Error loading active sessions:', e);
-    }
-}
+async function loadActiveSessions(manualTrigger = false) { return GuardLive.snapshot(); }
 
 function renderActiveSessionsTable(sessions) {
     const tbody = document.getElementById('insideTableBody');
     if (!tbody) return;
 
     let countSafe = 0, countWarn = 0, countCrit = 0;
-    const now = Date.now();
+    const now = GuardLive.now();
 
     tbody.innerHTML = '';
     sessions.forEach(sess => {
@@ -2884,9 +2684,10 @@ function startRosterLiveTimers() {
     STATE.rosterTimerInterval = setInterval(() => {
         const rows = document.querySelectorAll('.roster-car-row');
         if (rows.length === 0) return;
-        const now = Date.now();
+        const now = GuardLive.now();
         const pad = (n) => String(n).padStart(2, '0');
 
+        let safeCount = 0, warningCount = 0, criticalCount = 0;
         rows.forEach(row => {
             const entryTs = parseInt(row.getAttribute('data-entry-ts'), 10);
             if (!entryTs) return;
@@ -2902,6 +2703,7 @@ function startRosterLiveTimers() {
 
             const isCritical = elapsedSecs >= 7200; // 2 hours
             const isWarning = !isCritical && elapsedSecs >= 5400; // 1.5 hours
+            if (isCritical) criticalCount++; else if (isWarning) warningCount++; else safeCount++;
             const prevLevel = row.getAttribute('data-overstay-level');
             const newLevel = isCritical ? 'critical' : (isWarning ? 'warning' : 'safe');
 
@@ -2931,6 +2733,8 @@ function startRosterLiveTimers() {
                 if (badge) badge.innerHTML = `<span class="badge-dot red"></span> OVERSTAY (+${overdueMins}m)`;
             }
         });
+        updateRosterFilterCounters(rows.length, safeCount, warningCount, criticalCount);
+        applyRosterFilters();
     }, 1000);
 }
 
@@ -2979,6 +2783,16 @@ function applyRosterFilters(shouldAnimate = false) {
             row.style.display = 'none';
         }
     });
+
+    let empty = document.getElementById('rosterFilterEmpty');
+    if (!empty) {
+        empty = document.createElement('tr');
+        empty.id = 'rosterFilterEmpty';
+        const cell = document.createElement('td'); cell.colSpan = 8; cell.className = 'guard-empty';
+        empty.appendChild(cell); document.getElementById('insideTableBody')?.appendChild(empty);
+    }
+    empty.hidden = visibleRows.length > 0 || rows.length === 0;
+    empty.firstElementChild.textContent = query ? 'No vehicles match your search in this tab.' : 'No overstayed cars. All parked vehicles are within the time limit.';
 
     if (shouldAnimate && window.gsap && visibleRows.length > 0 && visibleRows.length <= 40) {
         gsap.fromTo(visibleRows, { opacity: 0.35, y: 3 }, { opacity: 1, y: 0, duration: 0.18, stagger: 0.02, ease: 'power1.out' });
@@ -3212,7 +3026,8 @@ async function submitManualWizard() {
         return;
     }
 
-    const btn = document.querySelector('.btn-submit-checkin');
+    const btn = document.querySelector('#manualWizardModal .btn-submit-checkin') || document.querySelector('.btn-submit-checkin');
+    if (btn?.disabled) return;
     if (btn) {
         btn.disabled = true;
         btn.classList.add('btn-loading');
@@ -3234,7 +3049,12 @@ async function submitManualWizard() {
 
         if (json.ok) {
             playSuccessChime();
-            showToast(`✓ Ticket #${json.data.ticket_id} Printed — ${json.data.formatted_plate}`);
+            if (json.data.print_status === 'printed') {
+                showToast(`Ticket #${json.data.ticket_id} sent to printer — ${json.data.formatted_plate}`);
+            } else {
+                GuardLive.printFailed(json.data.session_id, json.data);
+                showToast('Entry saved. Printing failed — use the print issues panel.', true, json.data.session_id);
+            }
             closeWizard();
             loadActiveSessions();
             showReceiptModal(json.data);
@@ -3295,6 +3115,9 @@ function showToast(msg, showReprint = false, failedSessionId = null) {
 
     if (!toast || !text) return;
 
+    clearTimeout(STATE.toastTimer);
+    if (window.gsap) gsap.killTweensOf(toast);
+    if (showReprint && failedSessionId) GuardLive.printFailed(failedSessionId);
     text.textContent = msg;
     lastFailedSessionId = failedSessionId;
 
@@ -3309,7 +3132,7 @@ function showToast(msg, showReprint = false, failedSessionId = null) {
     if (window.gsap) {
         gsap.fromTo(toast, { y: 25, opacity: 0 }, { y: 0, opacity: 1, duration: 0.3, ease: 'back.out(1.4)' });
     }
-    setTimeout(() => {
+    STATE.toastTimer = setTimeout(() => {
         if (window.gsap) {
             gsap.to(toast, {
                 y: 20,
@@ -3335,7 +3158,8 @@ async function reprintTicket(sessionId) {
 
         if (json.ok) {
             playDingSound();
-            showToast('✓ Ticket reprint sent to printer');
+            GuardLive.printResolved(sessionId);
+            showToast('Ticket reprint sent to printer');
             if (json.session) {
                 showReceiptModal(json.session);
             }

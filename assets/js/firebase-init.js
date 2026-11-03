@@ -103,7 +103,7 @@ export const firebaseBridge = {
   /**
    * Listen for incoming pending driver sign-in requests in real-time
    */
-  listenPendingRequests(callback) {
+  listenPendingRequests(callback, onError = () => {}) {
     try {
       const colRef = collection(db, "driver_requests");
       const q = query(
@@ -124,9 +124,11 @@ export const firebaseBridge = {
         callback(requests);
       }, (err) => {
         console.warn('[Firebase] listenPendingRequests listener error:', err);
+        onError(err);
       });
     } catch (e) {
       console.warn('[Firebase] listenPendingRequests setup error:', e);
+      onError(e);
       return () => {};
     }
   },
