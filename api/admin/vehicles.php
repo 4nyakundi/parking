@@ -12,6 +12,7 @@ require_once __DIR__ . '/../../includes/auth.php';
 require_once __DIR__ . '/../../includes/audit.php';
 require_once __DIR__ . '/../../includes/plate_helper.php';
 require_once __DIR__ . '/../../includes/phone_helper.php';
+require_once __DIR__ . '/../../includes/databank.php';
 
 $user = require_role(['supervisor', 'admin'], true);
 
@@ -24,11 +25,12 @@ try {
 
     // 1. LIST VEHICLES
     if ($action === 'list') {
-        $stmt = $db->query('
-            SELECT id, plate_number, owner_name, phone, vehicle_type, category, notes, is_active, visit_count, is_frequent, default_destination, last_visit_at, created_at
-            FROM registered_vehicles
-            ORDER BY is_frequent DESC, category = "blacklisted" DESC, category = "vip" DESC, id DESC
-        ');
+        $stmt = $db->query('SELECT r.*, COALESCE(s.visits,0) AS visit_count,
+            (COALESCE(s.visits,0) >= 3) AS is_frequent, s.last_seen AS last_visit_at
+            FROM registered_vehicles r LEFT JOIN
+            (SELECT plate_number, COUNT(*) AS visits, MAX(entry_time) AS last_seen FROM parking_sessions WHERE ' . DataBank::validVisitsSql() . ' GROUP BY plate_number) s
+            ON s.plate_number=r.plate_number
+            ORDER BY r.category="blacklisted" DESC, r.category="vip" DESC, is_frequent DESC, r.id DESC');
         $rows = $stmt->fetchAll();
 
         $vehicles = [];
@@ -48,6 +50,9 @@ try {
                 'is_frequent'     => (bool)$r['is_frequent'],
                 'default_destination' => $r['default_destination'] ?? '',
                 'last_visit_at'   => $r['last_visit_at'],
+                'driver_name' => $r['driver_name'],
+                'driver_phone' => $r['driver_phone'],
+                'profile_archived' => (bool)$r['profile_archived'],
                 'created_at'      => $r['created_at'],
             ];
         }

@@ -43,16 +43,8 @@ $displayPlate = PlateHelper::format($cleanPlate);
 $cleanPhone = !empty($rawPhone) ? PhoneHelper::normalize($rawPhone) : '';
 $driverName = !empty($rawName) ? mb_substr(strip_tags($rawName), 0, 100) : '';
 
-if (empty($driverName) || empty($cleanPhone)) {
-    try {
-        $dbProfile = DataBank::lookup($cleanPlate);
-        if (!empty($dbProfile['driver_name']) && empty($driverName)) {
-            $driverName = $dbProfile['driver_name'];
-        }
-        if (!empty($dbProfile['driver_phone']) && empty($cleanPhone)) {
-            $cleanPhone = $dbProfile['driver_phone'];
-        }
-    } catch (Throwable $e) {}
+if ($rawPhone !== '' && (!in_array(strlen(preg_replace('/\D/', '', $rawPhone)), [9,10,12], true) || !PhoneHelper::validate($cleanPhone))) {
+    http_response_code(422); echo json_encode(['ok'=>false,'error'=>'Please enter a valid Kenyan mobile number or leave it blank.']); exit;
 }
 if (empty($driverName)) {
     $driverName = 'Visitor';
@@ -120,10 +112,12 @@ try {
 
     $db->commit();
 
+    $profileSaved = false;
     // Record visit in Data Bank (enables frequent client promotion after 3 visits)
     try {
-        DataBank::recordVisit($cleanPlate, $driverName, $cleanPhone, $destination);
-    } catch (Throwable $e) {}
+        $bankResult = DataBank::recordVisit($cleanPlate, $driverName, $cleanPhone, $destination, $sessionId, !empty($input['remember_details']), $user['id']);
+        $profileSaved = !empty($bankResult['profile_saved']);
+    } catch (Throwable $e) { error_log('DATA BANK SAVE: ' . $e->getMessage()); }
 
     // Print thermal ticket
     $now = time();
@@ -183,6 +177,7 @@ try {
         'ok'   => true,
         'data' => [
             'session_id'         => $sessionId,
+            'profile_saved' => $profileSaved,
             'ticket_id'          => $ticketId,
             'plate_number'       => $cleanPlate,
             'formatted_plate'    => $displayPlate,

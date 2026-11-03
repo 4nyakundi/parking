@@ -94,3 +94,12 @@ body { height: auto; min-height: 100dvh; }
 .roster-status-tabs .roster-pill.danger span { background: #fee2e2; color: #b91c1c; }
 #rosterFilterEmpty[hidden] { display: none; }
 @media (max-width: 640px) { .roster-status-tabs { width: 100%; } .roster-status-tabs .roster-pill { flex: 1; padding: 10px 8px; font-size: 12px; } }
+
+.returning-profile { margin: 12px 0; padding: 14px; border: 1px solid #abcce6; border-left: 4px solid #116fc7; border-radius: 7px; background: #f1f7fd; color: #173b60; }
+.returning-profile[hidden] { display: none; }
+.returning-profile strong { font-size: 15px; }
+.returning-profile p { font-size: 13px; margin: 7px 0; overflow-wrap: anywhere; }
+.returning-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
+.returning-actions button { min-height: 42px; border: 1px solid #9fbfdc; border-radius: 6px; padding: 8px 12px; background: #fff; color: #0d579c; font: inherit; font-size: 13px; cursor: pointer; }
+.remember-profile { display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 8px 0; color: #315573; }
+.remember-profile input { width: 18px; height: 18px; }

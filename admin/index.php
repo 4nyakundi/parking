@@ -4,6 +4,7 @@
  */
 
 require_once __DIR__ . '/../includes/auth.php';
+require_once __DIR__ . '/../includes/csrf.php';
 
 // Requires supervisor or admin session
 $user = require_role(['supervisor', 'admin'], false);
@@ -12,6 +13,7 @@ $user = require_role(['supervisor', 'admin'], false);
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="csrf-token" content="<?= htmlspecialchars(csrf_token(), ENT_QUOTES) ?>">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= $user['role'] === 'supervisor' ? 'Supervisor Dashboard' : 'Admin Dashboard' ?> - Mombasa Mall Parking</title>
     <link rel="stylesheet" href="css/admin.css">
@@ -278,7 +280,7 @@ $user = require_role(['supervisor', 'admin'], false);
                     <thead>
                         <tr>
                             <th>Plate</th>
-                            <th>Driver / Owner</th>
+                            <th>Vehicle Owner / Saved Driver</th>
                             <th>Phone</th>
                             <th>Category / Status</th>
                             <th>Visits</th>
@@ -289,6 +291,12 @@ $user = require_role(['supervisor', 'admin'], false);
                     <tbody id="vehiclesTableBody"></tbody>
                 </table>
             </div>
+            <details style="margin-top:16px;">
+                <summary>Data Bank record review</summary>
+                <p>Inspect uncertain plates before linking profiles. No records are automatically merged.</p>
+                <button type="button" class="btn-primary" onclick="reviewBankRecords()">Check Records</button>
+                <div id="bankReviewResults" role="status"></div>
+            </details>
         </section>
 
         <!-- ============================================================== -->
@@ -756,6 +764,25 @@ $user = require_role(['supervisor', 'admin'], false);
         </div>
     </div>
 
+    <div id="dataBankModal" class="admin-modal-overlay">
+        <div class="admin-modal" style="max-width:780px; max-height:90vh; overflow:auto;">
+            <div class="modal-header"><h3 id="bankTitle">Returning Visitor Profile</h3><button type="button" onclick="closeAdminModal('dataBankModal')">Close</button></div>
+            <input type="hidden" id="bankId"><p id="bankSummary"></p>
+            <p>Saved driver details are separate from vehicle ownership and access category.</p>
+            <label>Saved driver name<input id="bankDriverName" class="filter-input" style="width:100%;"></label>
+            <label>Saved driver mobile<input id="bankDriverPhone" class="filter-input" style="width:100%;"></label>
+            <label>Suggested destination<input id="bankDestination" class="filter-input" style="width:100%;"></label>
+            <div style="display:flex; gap:8px; flex-wrap:wrap; margin:16px 0;">
+                <button type="button" class="btn-primary" onclick="saveBankProfile()">Save Driver Details</button>
+                <button type="button" class="btn-primary" id="bankArchiveButton" onclick="toggleBankArchive()">Archive Profile</button>
+                <button type="button" class="btn-primary btn-danger" onclick="resetBankIdentity()">New Owner / Clear Saved Driver</button>
+            </div>
+            <p id="bankNotice" role="status"></p>
+            <h4>Visit History</h4><div id="bankHistory"></div>
+            <div style="display:flex; gap:8px; margin-top:12px;"><button type="button" onclick="bankHistoryPage(-1)">Previous</button><button type="button" onclick="bankHistoryPage(1)">Next</button></div>
+        </div>
+    </div>
+
     <!-- Modal: Add / Edit User -->
     <div id="userModal" class="admin-modal-overlay">
         <div class="admin-modal">
@@ -845,7 +872,8 @@ $user = require_role(['supervisor', 'admin'], false);
     <script src="../assets/vendor/gsap/gsap.min.js"></script>
     
     <!-- Admin Controller -->
-    <script src="js/admin.js"></script>
+    <script src="js/admin.js?v=20261103"></script>
+    <script src="js/databank.js?v=20261103"></script>
     <script>
         function toggleSidebarMobile() {
             const sb = document.querySelector('.sidebar');

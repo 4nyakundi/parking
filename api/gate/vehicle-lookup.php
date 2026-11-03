@@ -26,7 +26,12 @@ if (!PlateHelper::validate($cleanPlate)) {
     exit;
 }
 
-$profile = DataBank::lookup($cleanPlate);
+try { $profile = DataBank::lookup($cleanPlate); } catch (Throwable $e) {
+    error_log('DATA BANK LOOKUP: ' . $e->getMessage());
+    http_response_code(500);
+    echo json_encode(['ok' => false, 'error' => 'Previous details are unavailable. Enter details for this visit.']);
+    exit;
+}
 
 if (!$profile) {
     echo json_encode([
@@ -39,13 +44,13 @@ if (!$profile) {
             'skip_details'    => false,
             'driver_name'     => '',
             'driver_phone'    => '',
-            'default_destination' => 'G-01 Naivas Supermarket',
+            'default_destination' => '',
         ]
     ]);
     exit;
 }
 
-$profile['skip_details'] = (bool)$profile['is_frequent'];
+$profile['skip_details'] = false;
 
 echo json_encode([
     'ok'   => true,

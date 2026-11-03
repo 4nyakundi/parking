@@ -57,9 +57,10 @@ try {
         $plateNumber = $req['plate_number'];
 
         // Guard may fill in or override name, phone, and destination
-        $driverName  = trim((string)($input['driver_name'] ?? '')) ?: ($req['driver_name'] ?: 'Visitor');
-        $driverPhone = !empty($input['driver_phone']) ? PhoneHelper::normalize((string)$input['driver_phone']) : ($req['driver_phone'] ?: '');
-        $destination = trim((string)($input['destination'] ?? '')) ?: ($req['destination'] ?: 'Mombasa Mall');
+        $driverName = array_key_exists('driver_name', $input) ? (trim((string)$input['driver_name']) ?: 'Visitor') : ($req['driver_name'] ?: 'Visitor');
+        $driverPhone = array_key_exists('driver_phone', $input) ? PhoneHelper::normalize((string)$input['driver_phone']) : ($req['driver_phone'] ?: '');
+        $destination = array_key_exists('destination', $input) ? trim((string)$input['destination']) : ($req['destination'] ?: '');
+        if ($destination === '') { http_response_code(422); echo json_encode(['ok' => false, 'error' => 'Please confirm the destination for this visit.']); exit; }
 
         $source = $req['source'] ?? 'self_signin';
         $entryMethod = in_array($source, ['alpr_camera', 'alpr_only', 'alpr'], true) ? 'alpr' : ($source === 'manual_guard' ? 'manual' : 'self_signin');
@@ -81,6 +82,10 @@ try {
         }
     }
 
+    $submittedPhone = (string)($input['driver_phone'] ?? $driverPhone);
+    if ($submittedPhone !== '' && (!in_array(strlen(preg_replace('/\D/', '', $submittedPhone)), [9,10,12], true) || !PhoneHelper::validate($driverPhone))) {
+        http_response_code(422); echo json_encode(['ok'=>false,'error'=>'Please enter a valid Kenyan mobile number or leave it blank.']); exit;
+    }
     $cleanPlate = PlateHelper::clean($plateNumber);
     $formattedPlate = PlateHelper::format($cleanPlate);
 
@@ -170,10 +175,12 @@ try {
 
     $db->commit();
 
+    $profileSaved = false;
     // 4b. Record visit in Data Bank (enables frequent client promotion after 3 visits)
     try {
-        DataBank::recordVisit($cleanPlate, $driverName, $driverPhone, $destination);
-    } catch (Throwable $e) {}
+        $bankResult = DataBank::recordVisit($cleanPlate, $driverName, $driverPhone, $destination, $sessionId, !empty($input['remember_details']), $user['id']);
+        $profileSaved = !empty($bankResult['profile_saved']);
+    } catch (Throwable $e) { error_log('DATA BANK SAVE: ' . $e->getMessage()); }
 
     // 5. Thermal Print execution (Non-blocking: session is already safely saved)
     $entryTime = $actualEntryTime;
@@ -238,6 +245,7 @@ try {
         'ok'   => true,
         'data' => [
             'session_id'         => $sessionId,
+            'profile_saved' => $profileSaved,
             'ticket_id'          => $ticketId,
             'plate_number'       => $cleanPlate,
             'formatted_plate'    => $formattedPlate,

@@ -12,7 +12,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Guard Station — Mombasa Mall Basement Parking</title>
     <link rel="stylesheet" href="css/guard.css">
-    <link rel="stylesheet" href="css/guard-dashboard.css?v=20261103b">
+    <link rel="stylesheet" href="css/guard-dashboard.css?v=20261103c">
 </head>
 <body>
 
@@ -532,12 +532,18 @@
                     FREQUENT CLIENT RECOGNIZED &bull; VISIT #<span id="wizVisitCount">3</span>
                 </div>
                 <div style="font-size:11px; color:#1e3a8a; margin-top:2px;">
-                    Driver details auto-filled from Data Bank. <strong>Do not ask driver for details</strong> &mdash; please select destination store below.
+                    Previous details are suggestions. <strong>Confirm today’s driver</strong> and destination before admission.
                 </div>
             </div>
-            <span style="background:#2563eb; color:#fff; font-size:10px; font-weight:800; padding:3px 7px; border-radius:4px; text-transform:uppercase; letter-spacing:0.05em; flex-shrink:0;">Data Bank Auto-Fill</span>
+            <span style="background:#2563eb; color:#fff; font-size:10px; font-weight:800; padding:3px 7px; border-radius:4px; text-transform:uppercase; letter-spacing:0.05em; flex-shrink:0;">Confirm Driver</span>
         </div>
 
+        <section id="wizReturningProfile" class="returning-profile" hidden aria-label="Returning visitor details">
+    <strong class="returning-summary"></strong><p class="returning-details"></p><p class="returning-destination"></p>
+    <div class="returning-actions"><button type="button" onclick="GuardProfiles.choose('wiz', 'use')">Use These Details</button><button type="button" onclick="GuardProfiles.choose('wiz', 'edit')">Edit Details</button><button type="button" onclick="GuardProfiles.choose('wiz', 'different')">Different Driver</button></div>
+    <p class="returning-choice" role="status">Confirm who is driving today. Previous details are suggestions.</p>
+</section>
+<label class="remember-profile"><input type="checkbox" id="wizRememberDetails" checked> Remember these confirmed details for next visit</label>
         <div class="manual-form-grid">
 
             <div class="form-field field-full">
@@ -629,10 +635,10 @@
                     FREQUENT CLIENT RECOGNIZED &bull; VISIT #<span id="intakeVisitCount">3</span>
                 </div>
                 <div style="font-size:11px; color:#1e3a8a; margin-top:2px;">
-                    Driver details retrieved from Data Bank. <strong>Do not ask driver for details</strong> &mdash; simply confirm destination store below.
+                    Previous details are suggestions. <strong>Confirm today’s driver</strong> and destination before admission.
                 </div>
             </div>
-            <span style="background:#2563eb; color:#fff; font-size:10px; font-weight:800; padding:3px 7px; border-radius:4px; text-transform:uppercase; letter-spacing:0.05em; flex-shrink:0;">Data Bank Auto-Fill</span>
+            <span style="background:#2563eb; color:#fff; font-size:10px; font-weight:800; padding:3px 7px; border-radius:4px; text-transform:uppercase; letter-spacing:0.05em; flex-shrink:0;">Confirm Driver</span>
         </div>
 
         <!-- Driver Self-Check-in Notification Banner -->
@@ -650,6 +656,12 @@
         </div>
 
         <!-- Form fields: Name, Phone, Destination -->
+        <section id="intakeReturningProfile" class="returning-profile" hidden aria-label="Returning visitor details">
+    <strong class="returning-summary"></strong><p class="returning-details"></p><p class="returning-destination"></p>
+    <div class="returning-actions"><button type="button" onclick="GuardProfiles.choose('intake', 'use')">Use These Details</button><button type="button" onclick="GuardProfiles.choose('intake', 'edit')">Edit Details</button><button type="button" onclick="GuardProfiles.choose('intake', 'different')">Different Driver</button></div>
+    <p class="returning-choice" role="status">Confirm who is driving today. Previous details are suggestions.</p>
+</section>
+<label class="remember-profile"><input type="checkbox" id="intakeRememberDetails" checked> Remember these confirmed details for next visit</label>
         <div class="intake-form-body">
             <div class="intake-grid-2">
                 <div class="form-field">
@@ -667,9 +679,9 @@
             <div class="form-field field-full">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
                     <label style="margin:0; font-size:11px; font-weight:800; color:var(--text-primary);">
-                        Destination Store (<span id="intakeSelectedDestLabel" style="color:var(--blue); font-weight:900;">G-01 Naivas Supermarket</span>)
+                        Destination Store (<span id="intakeSelectedDestLabel" style="color:var(--blue); font-weight:900;">Choose destination</span>)
                     </label>
-                    <input type="hidden" id="intakeDestinationValue" value="G-01 Naivas Supermarket">
+                    <input type="hidden" id="intakeDestinationValue" value="">
                     <span style="font-size:10px; color:var(--text-muted); font-weight:700;">Tap floor then shop:</span>
                 </div>
 
@@ -1020,9 +1032,10 @@
 
 <!-- Application Scripts -->
 <script src="js/guard_i18n.js"></script>
-<script src="js/guard-live-model.js?v=20261103b"></script>
-<script src="js/guard.js?v=20261103b"></script>
-<script src="js/guard-live.js?v=20261103b"></script>
+<script src="js/guard-live-model.js?v=20261103c"></script>
+<script src="js/guard.js?v=20261103c"></script>
+<script src="js/guard-profiles.js?v=20261103"></script>
+<script src="js/guard-live.js?v=20261103c"></script>
 <script type="module" src="../assets/js/firebase-init.js"></script>
 
 <script>

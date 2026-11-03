@@ -1,170 +1,78 @@
 <?php
-/**
- * Mombasa Mall Basement Parking - Frequent Client Data Bank Service
- * Automatically tracks vehicle visit counts across gate entries and matches
- * frequent clients (>= 3 visits) so guards never need to ask for details again,
- * allowing instant 1-tap destination selection and ticket issuance.
- */
-
+/** Returning vehicle profiles. Vehicle ownership and individual visits remain separate. */
 declare(strict_types=1);
-
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/plate_helper.php';
 require_once __DIR__ . '/phone_helper.php';
-
 class DataBank {
-
-    /**
-     * Look up a vehicle by plate number in the Data Bank.
-     * Computes live total visits across parking_sessions and registered_vehicles.
-     */
+    public static function validVisitsSql(): string {
+        return "status IN ('ACTIVE','COMPLETED') AND driver_name <> 'Uncollected Driver'";
+    }
+    public static function usefulName(string $name): string {
+        $name = trim($name);
+        return in_array(strtolower($name), ['', 'visitor', 'visitor driver', 'frequent client', 'uncollected driver', 'unknown'], true) ? '' : mb_substr($name, 0, 100);
+    }
     public static function lookup(string $plate): ?array {
-        $cleanPlate = PlateHelper::clean($plate);
-        if (empty($cleanPlate)) return null;
-
+        $plate = PlateHelper::clean($plate);
+        if (!PlateHelper::validate($plate)) return null;
         $db = get_db();
-
-        // 1. Check registered_vehicles record
-        $stmt = $db->prepare('
-            SELECT id, plate_number, owner_name, phone, vehicle_type, visit_count, is_frequent, default_destination, category, notes, is_active
-            FROM registered_vehicles
-            WHERE plate_number = :plate AND is_active = 1
-            LIMIT 1
-        ');
-        $stmt->execute([':plate' => $cleanPlate]);
-        $reg = $stmt->fetch(PDO::FETCH_ASSOC);
-
-        // 2. Count actual visits in parking_sessions
-        $sessStmt = $db->prepare('
-            SELECT COUNT(*) as session_count,
-                   MAX(driver_name) as latest_driver_name,
-                   MAX(driver_phone) as latest_driver_phone,
-                   MAX(destination) as latest_destination,
-                   MAX(entry_time) as last_seen
-            FROM parking_sessions
-            WHERE plate_number = :plate
-        ');
-        $sessStmt->execute([':plate' => $cleanPlate]);
-        $sess = $sessStmt->fetch(PDO::FETCH_ASSOC);
-
-        $sessionCount = (int)($sess['session_count'] ?? 0);
-        $regVisits = (int)($reg['visit_count'] ?? 0);
-        $totalVisits = max($sessionCount, $regVisits);
-
-        // Frequent threshold is 3 visits
-        $isFrequent = ($totalVisits >= 3) || (!empty($reg['is_frequent'])) || (isset($reg['category']) && in_array($reg['category'], ['frequent', 'vip', 'staff', 'tenant'], true));
-
-        // Resolve driver name
-        $driverName = '';
-        if (!empty($reg['owner_name']) && $reg['owner_name'] !== 'Visitor') {
-            $driverName = $reg['owner_name'];
-        } elseif (!empty($sess['latest_driver_name']) && $sess['latest_driver_name'] !== 'Visitor') {
-            $driverName = $sess['latest_driver_name'];
-        }
-
-        // Resolve phone
-        $driverPhone = !empty($reg['phone']) ? $reg['phone'] : (!empty($sess['latest_driver_phone']) ? $sess['latest_driver_phone'] : '');
-
-        // Resolve preferred destination
-        $destination = !empty($reg['default_destination']) ? $reg['default_destination'] : (!empty($sess['latest_destination']) ? $sess['latest_destination'] : 'G-01 Naivas Supermarket');
-
-        $category = $reg['category'] ?? ($isFrequent ? 'frequent' : 'regular');
-
+        $stmt = $db->prepare('SELECT * FROM registered_vehicles WHERE plate_number = ? LIMIT 1');
+        $stmt->execute([$plate]);
+        $reg = $stmt->fetch() ?: [];
+        $stats = $db->prepare('SELECT COUNT(*) AS visits, MAX(entry_time) AS last_seen FROM parking_sessions WHERE plate_number = ? AND ' . self::validVisitsSql());
+        $stats->execute([$plate]);
+        $counts = $stats->fetch();
+        $latest = $db->prepare('SELECT id, driver_name, driver_phone, destination, entry_time FROM parking_sessions WHERE plate_number = ? AND ' . self::validVisitsSql() . ' AND entry_time > COALESCE(?, "1000-01-01") ORDER BY entry_time DESC, id DESC LIMIT 1');
+        $latest->execute([$plate, $reg['profile_reset_at'] ?? null]);
+        $last = $latest->fetch() ?: [];
+        $archived = !empty($reg['profile_archived']) || (isset($reg['is_active']) && !(int)$reg['is_active']);
+        // A saved driver is explicit; owner_name/phone are never assumed to identify today's driver.
+        $name = self::usefulName((string)($reg['driver_name'] ?? $last['driver_name'] ?? ''));
+        $phone = PhoneHelper::normalize((string)($reg['driver_phone'] ?? $last['driver_phone'] ?? ''));
+        if (!PhoneHelper::validate($phone)) $phone = '';
+        $destination = trim((string)($reg['default_destination'] ?? $last['destination'] ?? ''));
+        $visits = (int)($counts['visits'] ?? 0);
         return [
-            'plate_number'        => $cleanPlate,
-            'formatted_plate'     => PlateHelper::format($cleanPlate),
-            'driver_name'         => $driverName,
-            'driver_phone'        => $driverPhone,
-            'driver_phone_display'=> PhoneHelper::formatDisplay($driverPhone),
-            'vehicle_type'        => $reg['vehicle_type'] ?? PlateHelper::detectType($cleanPlate),
-            'visit_count'         => $totalVisits,
-            'is_frequent'         => $isFrequent,
-            'default_destination' => $destination,
-            'category'            => $category,
-            'notes'               => $reg['notes'] ?? '',
-            'has_bank_profile'    => !empty($reg) || $totalVisits > 0,
+            'plate_number' => $plate, 'formatted_plate' => PlateHelper::format($plate),
+            'driver_name' => $archived ? '' : $name, 'driver_phone' => $archived ? '' : $phone,
+            'driver_phone_display' => $archived ? '' : PhoneHelper::formatDisplay($phone),
+            'masked_phone' => $archived || !$phone ? '' : '••••••' . substr($phone, -4),
+            'vehicle_type' => $reg['vehicle_type'] ?? PlateHelper::detectType($plate),
+            'visit_count' => $visits, 'is_frequent' => $visits >= 3,
+            'default_destination' => $archived ? '' : $destination,
+            'last_seen' => $counts['last_seen'] ?? null,
+            'category' => !empty($reg['is_active']) ? ($reg['category'] ?? 'regular') : 'regular',
+            'notes' => !empty($reg['is_active']) ? ($reg['notes'] ?? '') : '',
+            'has_bank_profile' => !$archived && ($name !== '' || $phone !== ''),
+            'profile_archived' => $archived, 'needs_confirmation' => true, 'skip_details' => false,
+            'profile_source' => isset($reg['driver_name']) ? 'confirmed_profile' : 'previous_visit',
         ];
     }
-
-    /**
-     * Record a completed or new entry into the Data Bank.
-     * Updates visit count and promotes to Frequent Client if visits >= 3.
-     */
-    public static function recordVisit(string $plate, string $driverName = '', string $driverPhone = '', string $destination = ''): array {
-        $cleanPlate = PlateHelper::clean($plate);
-        if (empty($cleanPlate)) return ['ok' => false];
-
+    /** Counts come from sessions, so retrying this method never adds an extra visit. */
+    public static function recordVisit(string $plate, string $driverName = '', string $driverPhone = '', string $destination = '', int $sessionId = 0, bool $confirmed = false, ?int $userId = null): array {
         $db = get_db();
-
-        // Count sessions
-        $cStmt = $db->prepare('SELECT COUNT(*) FROM parking_sessions WHERE plate_number = ?');
-        $cStmt->execute([$cleanPlate]);
-        $sessCount = (int)$cStmt->fetchColumn();
-
-        $name = trim($driverName);
-        if ($name === 'Visitor') $name = '';
-        $phone = PhoneHelper::normalize($driverPhone);
-        $dest = trim($destination);
-
-        // Check if exists in registered_vehicles
-        $chk = $db->prepare('SELECT id, owner_name, phone, visit_count, category, is_frequent FROM registered_vehicles WHERE plate_number = ?');
-        $chk->execute([$cleanPlate]);
-        $existing = $chk->fetch(PDO::FETCH_ASSOC);
-
-        $newVisits = $existing ? max((int)$existing['visit_count'] + 1, $sessCount) : max(1, $sessCount);
-        $isFrequent = ($newVisits >= 3) ? 1 : 0;
-
-        if ($existing) {
-            $cat = ($isFrequent && $existing['category'] === 'regular') ? 'frequent' : $existing['category'];
-            $upd = $db->prepare('
-                UPDATE registered_vehicles
-                SET visit_count = :visits,
-                    is_frequent = :is_frequent,
-                    owner_name = COALESCE(NULLIF(:name, ""), owner_name),
-                    phone = COALESCE(NULLIF(:phone, ""), phone),
-                    default_destination = COALESCE(NULLIF(:dest, ""), default_destination),
-                    last_visit_at = NOW(),
-                    category = :category
-                WHERE id = :id
-            ');
-            $upd->execute([
-                ':visits'      => $newVisits,
-                ':is_frequent' => $isFrequent,
-                ':name'        => $name,
-                ':phone'       => $phone,
-                ':dest'        => $dest,
-                ':category'    => $cat,
-                ':id'          => $existing['id'],
-            ]);
-        } else {
-            $cat = $isFrequent ? 'frequent' : 'regular';
-            $ins = $db->prepare('
-                INSERT INTO registered_vehicles (
-                    plate_number, owner_name, phone, vehicle_type, visit_count, is_frequent,
-                    default_destination, last_visit_at, category, notes, is_active, created_at
-                ) VALUES (
-                    :plate, :name, :phone, "car", :visits, :is_frequent,
-                    :dest, NOW(), :category, :notes, 1, NOW()
-                )
-            ');
-            $ins->execute([
-                ':plate'       => $cleanPlate,
-                ':name'        => $name,
-                ':phone'       => $phone,
-                ':visits'      => $newVisits,
-                ':is_frequent' => $isFrequent,
-                ':dest'        => $dest,
-                ':category'    => $cat,
-                ':notes'       => $isFrequent ? 'Frequent Client (Auto-enrolled)' : null,
-            ]);
+        $plate = PlateHelper::clean($plate);
+        $session = $db->prepare('SELECT * FROM parking_sessions WHERE id = ? AND plate_number = ? AND ' . self::validVisitsSql());
+        $session->execute([$sessionId, $plate]);
+        $visit = $session->fetch();
+        if (!$visit) return ['ok' => false, 'error' => 'A valid saved visit is required.'];
+        $stats = $db->prepare('SELECT COUNT(*) AS visits, MAX(entry_time) AS last_seen FROM parking_sessions WHERE plate_number = ? AND ' . self::validVisitsSql());
+        $stats->execute([$plate]); $counts = $stats->fetch();
+        $count = (int)$counts['visits'];
+        // Creating a reusable profile never changes an existing vehicle's ownership or access category.
+        $db->prepare('INSERT INTO registered_vehicles (plate_number, vehicle_type, category, is_active, driver_name, driver_phone, default_destination) VALUES (?, "car", "regular", 1, "", "", "") ON DUPLICATE KEY UPDATE plate_number = VALUES(plate_number)')->execute([$plate]);
+        $db->prepare('UPDATE registered_vehicles r LEFT JOIN (SELECT plate_number, COUNT(*) visits, MAX(entry_time) last_seen FROM parking_sessions WHERE ' . self::validVisitsSql() . ' GROUP BY plate_number) s ON s.plate_number=r.plate_number SET r.visit_count=COALESCE(s.visits,0), r.is_frequent=(COALESCE(s.visits,0)>=3), r.last_visit_at=s.last_seen WHERE r.plate_number=?')->execute([$plate]);
+        $saved = false;
+        if ($confirmed) {
+            $name = self::usefulName((string)$visit['driver_name']);
+            $phone = PhoneHelper::normalize((string)$visit['driver_phone']);
+            if ($phone !== '' && !PhoneHelper::validate($phone)) $phone = '';
+            if ($name === '' && $phone === '') return ['ok'=>true, 'visit_count'=>$count, 'is_frequent'=>$count >= 3, 'profile_saved'=>false];
+            // Ignore retries and out-of-order callbacks. Historical sessions are never edited here.
+            $save = $db->prepare('UPDATE registered_vehicles SET driver_name = ?, driver_phone = ?, default_destination = ?, last_confirmed_session_id = ?, profile_confirmed_by = ?, profile_confirmed_at = NOW() WHERE plate_number = ? AND profile_archived = 0 AND is_active = 1 AND (last_confirmed_session_id IS NULL OR last_confirmed_session_id < ?) AND (profile_reset_at IS NULL OR ? > profile_reset_at)');
+            $save->execute([$name, $phone, $visit['destination'], $sessionId, $userId, $plate, $sessionId, $visit['entry_time']]);
+            $saved = $save->rowCount() > 0;
         }
-
-        return [
-            'ok'          => true,
-            'plate'       => $cleanPlate,
-            'visit_count' => $newVisits,
-            'is_frequent' => ($isFrequent === 1),
-            'category'    => $cat,
-        ];
+        return ['ok' => true, 'visit_count' => $count, 'is_frequent' => $count >= 3, 'profile_saved' => $saved];
     }
 }

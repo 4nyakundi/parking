@@ -1253,7 +1253,7 @@ function createPendingCardElement(item) {
     let actionBtn = '';
     if (isFrequent) {
         actionBtn = `<button class="btn-cqc-primary frequent" style="background:#2563eb;" onclick="event.stopPropagation(); openVehicleIntakeModal('${reqId}');">
-            ⚡ Fast Admit (Store Only)
+            Review Returning Visitor
         </button>`;
     } else if (isSelfCheckin) {
         actionBtn = `<button class="btn-cqc-primary approve" onclick="event.stopPropagation(); openVehicleIntakeModal('${reqId}');">
@@ -1519,48 +1519,19 @@ function openVehicleIntakeModal(requestId) {
         }
     }
 
-    // Driver Name & Phone
-    const nameIn  = document.getElementById('intakeDriverName');
+    // Only today's self-submitted details may prefill; camera/profile suggestions need confirmation.
+    const nameIn = document.getElementById('intakeDriverName');
     const phoneIn = document.getElementById('intakeDriverPhone');
-    if (nameIn) {
-        nameIn.value = (item.driver_name && item.driver_name !== 'Visitor') ? item.driver_name : (isFrequent ? 'Frequent Client' : 'Visitor');
-        if (isFrequent) {
-            nameIn.readOnly = true;
-            nameIn.style.backgroundColor = '#f1f5f9';
-            nameIn.style.color = '#334155';
-            nameIn.style.cursor = 'not-allowed';
-            nameIn.title = 'Driver name verified in Data Bank';
-        } else {
-            nameIn.readOnly = false;
-            nameIn.style.backgroundColor = '';
-            nameIn.style.color = '';
-            nameIn.style.cursor = '';
-            nameIn.title = '';
-        }
-    }
-    if (phoneIn) {
-        phoneIn.value = item.raw_phone || item.driver_phone || '';
-        if (isFrequent && phoneIn.value) {
-            phoneIn.readOnly = true;
-            phoneIn.style.backgroundColor = '#f1f5f9';
-            phoneIn.style.color = '#334155';
-            phoneIn.style.cursor = 'not-allowed';
-            phoneIn.title = 'Driver phone verified in Data Bank';
-        } else {
-            phoneIn.readOnly = false;
-            phoneIn.style.backgroundColor = '';
-            phoneIn.style.color = '';
-            phoneIn.style.cursor = '';
-            phoneIn.title = '';
-        }
-    }
+    if (nameIn) { nameIn.value = isSelfCheckin ? (item.driver_name || '') : ''; nameIn.readOnly = false; }
+    if (phoneIn) { phoneIn.value = isSelfCheckin ? (item.raw_phone || item.driver_phone || '') : ''; phoneIn.readOnly = false; }
+    GuardProfiles.lookup('intake', item.plate_number || item.formatted_plate);
 
     // Destinations setup (Floor tabs & outlined shops)
-    let initialDest = item.destination || 'G-01 Naivas Supermarket';
+    let initialDest = isSelfCheckin ? (item.destination || '') : '';
     if (STATE.destinations && STATE.destinations.length > 0) {
         const found = STATE.destinations.find(d => 
-            d.name.toLowerCase() === initialDest.toLowerCase() ||
-            d.name.toLowerCase().includes(initialDest.toLowerCase())
+            initialDest && (d.name.toLowerCase() === initialDest.toLowerCase() ||
+            d.name.toLowerCase().includes(initialDest.toLowerCase()))
         );
         if (found) {
             initialDest = found.name;
@@ -1577,7 +1548,7 @@ function openVehicleIntakeModal(requestId) {
     if (destValIn) destValIn.value = initialDest;
 
     const destLabelEl = document.getElementById('intakeSelectedDestLabel');
-    if (destLabelEl) destLabelEl.textContent = initialDest;
+    if (destLabelEl) destLabelEl.textContent = initialDest || 'Choose destination';
 
     switchIntakeFloor(STATE.intakeActiveFloor);
 
@@ -1588,7 +1559,7 @@ function openVehicleIntakeModal(requestId) {
     }
     if (btnText) {
         if (isFrequent) {
-            btnText.textContent = `ADMIT FREQUENT CLIENT • VISIT #${item.visit_count || 3} (PRINT PASS)`;
+            btnText.textContent = `CONFIRM DETAILS • VISIT #${item.visit_count || 3} (PRINT PASS)`;
         } else if (isSelfCheckin) {
             btnText.textContent = 'APPROVE & PRINT TICKET (PROCEED TO SHOPPING)';
         } else {
@@ -1709,6 +1680,7 @@ function selectIntakeShop(storeName, btnEl) {
 }
 
 function closeVehicleIntakeModal() {
+    GuardProfiles.reset('intake');
     const modal = document.getElementById('vehicleIntakeModal');
     if (!modal) return;
     const box = modal.querySelector('.intake-modal-box');
@@ -1750,7 +1722,8 @@ async function submitIntakeFromModal() {
 
     const name  = nameIn ? nameIn.value.trim() : 'Visitor';
     const phone = phoneIn ? phoneIn.value.trim() : '';
-    const dest  = (destIn && destIn.value.trim()) ? destIn.value.trim() : (STATE.intakeSelectedDest || 'G-01 Naivas Supermarket');
+    const dest = (destIn?.value || STATE.intakeSelectedDest || '').trim();
+    if (!dest) { showToast('Choose the destination for this visit.'); return; }
 
     const btnAccept = document.getElementById('btnIntakeAccept');
     if (btnAccept?.disabled) return;
@@ -1758,6 +1731,7 @@ async function submitIntakeFromModal() {
     if (btnAccept) btnAccept.disabled = true;
     if (btnText) btnText.textContent = 'Printing Ticket...';
 
+    const rememberProfile = GuardProfiles.payload('intake').remember_details;
     const pendingItem = (STATE.pendingRequestsMap && STATE.pendingRequestsMap[requestId]) || null;
     const isNumericId = typeof requestId === 'number' || (/^\d+$/.test(String(requestId)));
     const plateEl = document.getElementById('intakePlateDisplay');
@@ -1768,6 +1742,7 @@ async function submitIntakeFromModal() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
+                ...GuardProfiles.payload('intake'),
                 request_id: isNumericId ? parseInt(requestId, 10) : 0,
                 plate_number: plateVal,
                 driver_name: name || 'Visitor',
@@ -1806,6 +1781,7 @@ async function submitIntakeFromModal() {
 
             // Display on-screen printable thermal receipt
             showReceiptModal(json.data);
+            if (rememberProfile && json.data.profile_saved === false) showToast('Entry saved. Reusable driver details were not updated; review the profile in administration.');
         } else {
             if (btnAccept) btnAccept.disabled = false;
             if (btnText) btnText.textContent = 'ACCEPT & PRINT TICKET';
@@ -2824,6 +2800,7 @@ function initWizard() {
             if (nameIn)  nameIn.value  = '';
             if (phoneIn) phoneIn.value = '';
             STATE.wizard.destination = '';
+            GuardProfiles.reset('wiz');
             document.querySelectorAll('.dest-tile').forEach(t => t.classList.remove('selected'));
 
             // Offer camera-detected plate if available
@@ -2862,57 +2839,11 @@ function initWizard() {
     let wizLookupTimer  = null;
 
     if (plateIn) {
-        const performWizardLookup = async () => {
-            const raw = (plateIn.value || '').trim();
-            if (raw.length < 5) {
-                if (wizFreqBanner) wizFreqBanner.style.display = 'none';
-                if (nameIn) { nameIn.readOnly = false; nameIn.style.backgroundColor = ''; nameIn.title = ''; }
-                if (phoneIn) { phoneIn.readOnly = false; phoneIn.style.backgroundColor = ''; phoneIn.title = ''; }
-                return;
-            }
-
-            try {
-                const res = await fetch('../api/gate/vehicle-lookup.php?plate=' + encodeURIComponent(raw));
-                const json = await res.json();
-                if (json.ok && json.data) {
-                    const d = json.data;
-                    if (d.is_frequent) {
-                        if (wizFreqBanner) {
-                            wizFreqBanner.style.display = 'flex';
-                            if (wizFreqCount) wizFreqCount.textContent = d.visit_count;
-                        }
-                        if (nameIn && d.driver_name) {
-                            nameIn.value = d.driver_name;
-                            nameIn.readOnly = true;
-                            nameIn.style.backgroundColor = '#f1f5f9';
-                            nameIn.title = 'Driver name verified in Data Bank';
-                        }
-                        if (phoneIn && d.driver_phone) {
-                            phoneIn.value = d.driver_phone;
-                            phoneIn.readOnly = true;
-                            phoneIn.style.backgroundColor = '#f1f5f9';
-                            phoneIn.title = 'Driver phone verified in Data Bank';
-                        }
-                        if (d.default_destination) {
-                            selectDestination(d.default_destination);
-                        }
-                        const destSearch = document.getElementById('wizDestSearch');
-                        if (destSearch) {
-                            setTimeout(() => destSearch.focus(), 120);
-                        }
-                    } else {
-                        if (wizFreqBanner) wizFreqBanner.style.display = 'none';
-                        if (nameIn && !nameIn.value && d.driver_name) nameIn.value = d.driver_name;
-                        if (phoneIn && !phoneIn.value && d.driver_phone) phoneIn.value = d.driver_phone;
-                        if (nameIn) { nameIn.readOnly = false; nameIn.style.backgroundColor = ''; nameIn.title = ''; }
-                        if (phoneIn) { phoneIn.readOnly = false; phoneIn.style.backgroundColor = ''; phoneIn.title = ''; }
-                    }
-                }
-            } catch (err) {}
-        };
+        const performWizardLookup = () => GuardProfiles.lookup('wiz', plateIn.value);
 
         plateIn.addEventListener('input', () => {
             plateIn.value = plateIn.value.toUpperCase();
+            GuardProfiles.plateChanged('wiz', plateIn.value);
             clearTimeout(wizLookupTimer);
             wizLookupTimer = setTimeout(performWizardLookup, 350);
         });
@@ -2924,6 +2855,7 @@ function initWizard() {
 }
 
 function closeWizard() {
+    GuardProfiles.reset('wiz');
     const modal = document.getElementById('manualWizardModal');
     if (!modal) return;
     const box = modal.querySelector('.modal-box');
@@ -3034,11 +2966,13 @@ async function submitManualWizard() {
         btn.textContent = 'Registering…';
     }
 
+    const rememberProfile = GuardProfiles.payload('wiz').remember_details;
     try {
         const res = await fetch('../api/gate/manual-checkin.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
+                ...GuardProfiles.payload('wiz'),
                 plate_number: plate,
                 driver_name:  name,
                 driver_phone: phone,
@@ -3058,6 +2992,7 @@ async function submitManualWizard() {
             closeWizard();
             loadActiveSessions();
             showReceiptModal(json.data);
+            if (rememberProfile && json.data.profile_saved === false) showToast('Entry saved. Reusable driver details were not updated; review the profile in administration.');
         } else {
             showToast('✕ ' + (json.error || 'Failed to register vehicle.'));
         }
