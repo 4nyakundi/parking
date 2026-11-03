@@ -16,6 +16,8 @@ Data Bank record review lists uncertain plate links. These are never automatical
 
 Run `php scripts/databank_migrate.php` for a summary preview. `--apply` first copies the vehicle registry to a dated backup table, then adds missing profile columns and a lookup index. Exact valid historical plates receive a regular profile if absent. Visit totals are rebuilt from ACTIVE/COMPLETED sessions, excluding uncollected departures. Driver identities are not bulk-copied into ownership fields. Uncertain plates are written to protected `storage/backups/databank_review_*.json` for review. The script is repeatable; it never removes history, changes access categories, or merges uncertain identities.
 
+For phpMyAdmin on an existing installation, select the parking database and import `database/upgrade_databank_20261103.sql`. It creates a dated registry backup, adds missing columns/index, and rebuilds visit summaries for existing profiles. It can be imported again without resetting saved identities. It does not bulk-create historical registry profiles or generate the CLI review report; the PHP migration above handles those optional steps. The import leaves session history and ownership/access fields unchanged.
+
 Fresh installs use database/schema.sql. Alternative legacy schema imports must run the additive migration afterwards. No runtime request or camera worker performs schema changes.
 
 ## Checks
