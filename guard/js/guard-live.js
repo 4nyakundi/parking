@@ -7,6 +7,7 @@ const GuardLive = (() => {
     let printIssues = new Map();
     const printAttempts = new Set();
     let mutationVersion = 0;
+    let overviewUpdatedAt = 0;
     const nativeFetch = window.fetch.bind(window);
     const getRequests = new Map();
 
@@ -54,6 +55,22 @@ const GuardLive = (() => {
     }
     function setText(id, text) { const el = document.getElementById(id); if (el) el.textContent = text; }
     function now() { return Date.now() + offset; }
+    function clearOverview() {
+        overviewUpdatedAt = 0;
+        ['statTodayArrivals', 'statTodayRegistered', 'statTodayUnregistered', 'statTodayExited'].forEach(id => setText(id, '--'));
+        setText('todayOverviewDate', '');
+        setText('todayUnregisteredBreakdown', 'Awaiting registration or left without details');
+    }
+    function renderOverview(data) {
+        if (!data) return;
+        setText('statTodayArrivals', String(data.total_arrivals));
+        setText('statTodayRegistered', String(data.registered));
+        setText('statTodayUnregistered', String(data.unregistered));
+        setText('statTodayExited', String(data.exited));
+        setText('todayOverviewDate', `· ${data.date} · Nairobi`);
+        setText('todayUnregisteredBreakdown', `${data.pending_registration} awaiting · ${data.exited_without_details} left without details`);
+        overviewUpdatedAt = Date.now();
+    }
     function setConnection(value) {
         connection = value;
         const strip = document.getElementById('dashboardLiveStatus');
@@ -72,6 +89,11 @@ const GuardLive = (() => {
     function freshness() {
         const seconds = lastSuccess ? Math.max(0, Math.floor((Date.now() - lastSuccess) / 1000)) : null;
         setText('dashboardFreshness', seconds === null ? 'Waiting for first update' : `Updated ${seconds}s ago`);
+        const overviewAge = overviewUpdatedAt ? Math.max(0, Math.floor((Date.now() - overviewUpdatedAt) / 1000)) : null;
+        setText('todayOverviewFreshness', connection === 'Session expired' ? 'Sign in to view totals'
+            : overviewAge === null ? 'Waiting for live totals'
+            : connection !== 'Connected' ? 'Last known totals · Reconnecting'
+            : `Updated ${overviewAge}s ago`);
         if (started && seconds !== null && seconds > 15 && connection === 'Connected') setConnection('Reconnecting');
     }
     function expire() {
@@ -80,6 +102,8 @@ const GuardLive = (() => {
         started = false;
         initialized = false;
         STATE.user = null;
+        clearOverview();
+        if (typeof GuardHistory !== 'undefined') GuardHistory.reset();
         clearTimeout(timer);
         clearTimeout(STATE.firestoreRetryTimer);
         if (STATE.firestoreUnsubscribe) STATE.firestoreUnsubscribe();
@@ -218,6 +242,7 @@ const GuardLive = (() => {
         if (version !== mutationVersion) { snapshotNeeded = true; return; }
         offset = data.server_timestamp * 1000 - Date.now();
         local = data.pending;
+        renderOverview(data.daily_overview);
         renderRoster(data.roster.sessions);
         renderQueue();
         printIssues = new Map(data.print_failures.map(item => [Number(item.id), item]));
@@ -263,6 +288,7 @@ const GuardLive = (() => {
             lastSuccess = Date.now();
             setConnection('Connected');
             if (snapshotNeeded) { snapshotNeeded = false; await takeSnapshot(epoch); }
+            if (epoch === generation && typeof GuardHistory !== 'undefined') await GuardHistory.refresh();
         } catch (error) {
             if (epoch === generation && started) {
                 failures++;
@@ -281,6 +307,7 @@ const GuardLive = (() => {
         started = true; initialized = false; snapshotNeeded = true; failures = 0;
         local = []; cloud = []; roster = []; STATE.rosterSignature = null;
         cloudState = 'Connecting'; STATE.firestoreRetries = 0; lastSuccess = 0;
+        clearOverview();
         setConnection('Connecting');
         hidePinModal();
         initFirestoreSync();
@@ -296,7 +323,7 @@ const GuardLive = (() => {
         };
         if (typeof ResizeObserver !== 'undefined') {
             const observer = new ResizeObserver(measure);
-            ['dashboardLiveStatus', 'printIssuesPanel'].forEach(id => { const el = document.getElementById(id); if (el) observer.observe(el); });
+            ['dashboardLiveStatus', 'printIssuesPanel', 'occupancyOverview'].forEach(id => { const el = document.getElementById(id); if (el) observer.observe(el); });
         }
         window.addEventListener('resize', measure);
         window.addEventListener('scroll', measure, { passive: true });

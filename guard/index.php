@@ -12,7 +12,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Guard Station — Mombasa Mall Basement Parking</title>
     <link rel="stylesheet" href="css/guard.css">
-    <link rel="stylesheet" href="css/guard-dashboard.css?v=20261103c">
+    <link rel="stylesheet" href="css/guard-dashboard.css?v=20261103d">
 </head>
 <body>
 
@@ -91,7 +91,7 @@
 <!-- ================================================================
      OCCUPANCY DASHBOARD STRIP
      ================================================================ -->
-<section class="occupancy-dashboard">
+<section class="occupancy-dashboard" id="occupancyOverview">
     <div class="metric-card total">
         <div class="metric-label">Total Capacity</div>
         <div class="metric-number" id="statTotal">60</div>
@@ -110,6 +110,34 @@
             <svg class="i-icon" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             Register Vehicle
         </button>
+    </div>
+    <div class="daily-overview" aria-label="Today's recorded vehicle movement">
+        <div class="daily-overview-heading">
+            <span>Today's Overview <span id="todayOverviewDate"></span></span>
+            <span id="todayOverviewFreshness">Waiting for live totals</span>
+        </div>
+        <div class="daily-overview-cards">
+            <div class="metric-card total">
+                <div class="metric-label">Recorded Arrivals Today</div>
+                <div class="metric-number" id="statTodayArrivals">--</div>
+                <div class="daily-metric-note">Registered + unregistered</div>
+            </div>
+            <div class="metric-card occupied">
+                <div class="metric-label">Registered Today</div>
+                <div class="metric-number" id="statTodayRegistered">--</div>
+                <div class="daily-metric-note">Visits with captured details</div>
+            </div>
+            <div class="metric-card unregistered">
+                <div class="metric-label">Unregistered Today</div>
+                <div class="metric-number" id="statTodayUnregistered">--</div>
+                <div class="daily-metric-note" id="todayUnregisteredBreakdown">Awaiting registration or left without details</div>
+            </div>
+            <div class="metric-card available">
+                <div class="metric-label">Exited Today</div>
+                <div class="metric-number" id="statTodayExited">--</div>
+                <div class="daily-metric-note">All recorded departures</div>
+            </div>
+        </div>
     </div>
 </section>
 
@@ -288,6 +316,8 @@
                 <div class="roster-filter-pills roster-status-tabs" id="rosterFilterPills" role="tablist" aria-label="Parked vehicle records">
                     <button type="button" class="roster-pill active" id="tabActiveCars" role="tab" aria-selected="true" aria-controls="viewBasementRoster" data-filter="all">Active Cars <span id="countPillAll">0</span></button>
                     <button type="button" class="roster-pill danger" id="tabOverstayedCars" role="tab" aria-selected="false" aria-controls="viewBasementRoster" tabindex="-1" data-filter="critical">Overstayed Cars <span id="countPillCrit">0</span></button>
+                    <button type="button" class="roster-pill" id="tabExitedCars" role="tab" aria-selected="false" aria-controls="viewTrafficHistory" tabindex="-1" data-filter="exited">Exited Cars</button>
+                    <button type="button" class="roster-pill" id="tabDailyTraffic" role="tab" aria-selected="false" aria-controls="viewTrafficHistory" tabindex="-1" data-filter="day">Daily Traffic</button>
                 </div>
 
                 <!-- View Switcher Tabs inside Center Area -->
@@ -300,7 +330,7 @@
                         <svg class="i-icon" viewBox="0 0 24 24"><polyline points="19 12 5 12"/><polyline points="12 19 5 12 12 5"/></svg>
                         Exit Clearance
                     </button>
-                    <button class="btn-roster-refresh" id="btnRefreshRoster" onclick="loadActiveSessions(true)" title="Refresh Basement Roster">
+                    <button class="btn-roster-refresh" id="btnRefreshRoster" onclick="GuardHistory.invalidate(); loadActiveSessions(true)" title="Refresh vehicle records">
                         <svg class="i-icon refresh-icon" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
                     </button>
                 </div>
@@ -327,6 +357,28 @@
                         <!-- Populated dynamically with live ticking duration timers by guard.js -->
                     </tbody>
                 </table>
+            </div>
+        </section>
+
+        <section id="viewTrafficHistory" class="center-content-section traffic-history" role="tabpanel" aria-labelledby="tabExitedCars" style="display:none;">
+            <div class="traffic-toolbar">
+                <label for="trafficDate">Date <input type="date" id="trafficDate"></label>
+                <button type="button" class="btn-roster-action" id="trafficToday">Today</button>
+                <button type="button" class="btn-roster-action" id="trafficAllDates">All dates</button>
+                <span id="trafficHistoryStatus" role="status" aria-live="polite">Choose a tab to load recorded visits.</span>
+            </div>
+            <div id="trafficSummary" class="traffic-summary" hidden></div>
+            <p class="traffic-note" id="trafficHistoryNote"></p>
+            <div class="table-responsive roster-table-wrapper">
+                <table class="roster-cars-table">
+                    <thead><tr><th>Vehicle / Ticket</th><th>Driver &amp; Info</th><th>Destination Store</th><th>Time Entered</th><th>Time Exited</th><th>Total Stay</th><th>Record Status</th><th>Cleared By</th></tr></thead>
+                    <tbody id="trafficHistoryBody"></tbody>
+                </table>
+            </div>
+            <div class="traffic-pagination">
+                <button type="button" class="btn-roster-action" id="trafficPrev" disabled>Previous</button>
+                <span id="trafficPageInfo"></span>
+                <button type="button" class="btn-roster-action" id="trafficNext" disabled>Next</button>
             </div>
         </section>
 
@@ -424,14 +476,9 @@
             </div>
         </div>
 
-        <!-- Queue High-Volume Toolbar: Search, Filters & View Toggle -->
+        <!-- Queue category filters and view toggle. -->
         <div class="queue-control-strip">
-            <div class="queue-search-row">
-                <div class="queue-search-box">
-                    <svg class="i-icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                    <input type="text" id="queueSearchInput" placeholder="Filter queue by plate or driver..." autocomplete="off">
-                    <button type="button" id="btnClearQueueSearch" onclick="clearQueueSearch()" style="display:none;" title="Clear search">✕</button>
-                </div>
+            <div class="queue-view-row">
                 <div class="queue-view-toggle">
                     <button type="button" class="btn-view-toggle" id="btnViewCompact" onclick="setQueueViewMode('compact')" title="Compact High-Density Rows (View 15+ cars at once)">
                         <svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" fill="none" stroke-width="2.5"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
@@ -1032,10 +1079,11 @@
 
 <!-- Application Scripts -->
 <script src="js/guard_i18n.js"></script>
-<script src="js/guard-live-model.js?v=20261103c"></script>
-<script src="js/guard.js?v=20261103c"></script>
+<script src="js/guard-live-model.js?v=20261103d"></script>
+<script src="js/guard.js?v=20261103d"></script>
 <script src="js/guard-profiles.js?v=20261103"></script>
-<script src="js/guard-live.js?v=20261103c"></script>
+<script src="js/guard-history.js?v=20261103a"></script>
+<script src="js/guard-live.js?v=20261103d"></script>
 <script type="module" src="../assets/js/firebase-init.js"></script>
 
 <script>

@@ -103,3 +103,43 @@ body { height: auto; min-height: 100dvh; }
 .returning-actions button { min-height: 42px; border: 1px solid #9fbfdc; border-radius: 6px; padding: 8px 12px; background: #fff; color: #0d579c; font: inherit; font-size: 13px; cursor: pointer; }
 .remember-profile { display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 8px 0; color: #315573; }
 .remember-profile input { width: 18px; height: 18px; }
+
+/* Today's movement overview sits directly below the existing capacity cards. */
+.daily-overview { grid-column: 1 / -1; min-width: 0; border-top: 1px solid var(--border); padding-top: 10px; }
+.queue-view-row { display: flex; justify-content: flex-end; }
+.daily-overview-heading { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 16px; margin-bottom: 8px; color: var(--text-secondary); font-size: 12px; }
+.daily-overview-heading > span:first-child { font-weight: 800; color: #315573; }
+#todayOverviewDate { margin-left: 6px; font-weight: 500; }
+.daily-overview-cards { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.daily-overview-cards .metric-card { padding: 10px 12px; height: 100%; }
+.daily-overview-cards .metric-label { font-size: 10px; letter-spacing: .06em; line-height: 1.4; }
+.daily-overview-cards .metric-number { font-size: 30px; }
+.daily-metric-note { margin-top: 6px; color: var(--text-secondary); font-size: 11px; line-height: 1.4; }
+.metric-card.unregistered::before { background: var(--amber); }
+.metric-card.unregistered .metric-number { color: #a35d08; }
+@media (max-width: 760px) { .daily-overview-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; } }
+
+/* Read-only vehicle history keeps the existing blue roster styling. */
+.roster-status-tabs { flex-wrap: wrap; }
+.traffic-toolbar, .traffic-pagination { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 10px 0; color: var(--text-secondary); font-size: 12px; }
+.traffic-toolbar label { display: flex; align-items: center; gap: 8px; font-weight: 700; color: var(--text-primary); }
+.traffic-toolbar input { min-height: 40px; padding: 7px 10px; border: 1px solid #abcce6; border-radius: 6px; color: #173b60; background: #fff; font: inherit; }
+.traffic-toolbar [hidden], .traffic-summary[hidden] { display: none; }
+.traffic-toolbar #trafficHistoryStatus { margin-left: auto; }
+.traffic-summary { display: grid; grid-template-columns: repeat(4, minmax(105px, 1fr)); gap: 8px; padding: 4px 0; }
+.traffic-stat { padding: 10px 12px; background: #f1f7fd; border: 1px solid #c5d9e9; border-radius: 7px; }
+.traffic-stat strong { display: block; font-size: 23px; color: #116fc7; font-variant-numeric: tabular-nums; }
+.traffic-stat span { display: block; margin-top: 3px; font-size: 12px; color: #486987; }
+.traffic-note { font-size: 12px; color: var(--text-secondary); line-height: 1.5; margin: 8px 0 12px; }
+.traffic-history .roster-table-wrapper { min-height: 150px; }
+.traffic-history .roster-cars-table { min-width: 950px; }
+.traffic-vehicle strong { color: #0d579c; white-space: nowrap; }
+.traffic-vehicle small, .traffic-driver small { display: block; margin-top: 5px; color: var(--text-secondary); }
+.traffic-datetime { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.traffic-pagination { justify-content: flex-end; flex-shrink: 0; }
+.traffic-pagination button:disabled { opacity: .45; cursor: default; }
+@media (max-width: 640px) {
+    .traffic-summary { grid-template-columns: repeat(2, minmax(100px, 1fr)); }
+    .traffic-toolbar #trafficHistoryStatus { width: 100%; margin-left: 0; }
+    .roster-status-tabs .roster-pill { flex: 1 1 45%; }
+}

@@ -22,3 +22,16 @@ In staging, check desktop/tablet sizes, local/cloud arrivals, slow responses, lo
 Camera ingestion, recognition, matching, workers, printer transport, gate mutations, and hardware control are unchanged. Physical barrier movement and paper delivery require hardware acknowledgement.
 
 The main roster shows newest arrivals first and longest parked last. Active Cars lists all currently parked vehicles; Overstayed Cars isolates those at or beyond two hours. Connection details and collapsible print issues are kept in the sidebar.
+
+
+## Exited cars and daily traffic
+
+The roster has four tabs: Active Cars, Overstayed Cars, Exited Cars, and Daily Traffic. Exited Cars shows completed visits with an exit timestamp and captured driver details, latest departure first. It opens on all dates, with optional departure-date filtering. Departures recorded as Uncollected Driver are excluded here and remain visible in Daily Traffic.
+
+Daily Traffic defaults to today in Africa/Nairobi. The calendar shows recorded visits present during the selected date, including overnight stays. Repeat visits are separate rows. Cards show distinct plates, visits present, carry-in, arrivals, exits, movements (arrivals plus exits), remaining at day close (inside now for today), and visits without driver details. Cancelled sessions are excluded. An exit at exactly midnight counts toward the new day's exits; carry-in is measured immediately before that day's movements, so carry-in plus arrivals minus exits balances closing occupancy. Such a midnight departure does not count as a visit present later in the day. Totals reflect recorded sessions, not uncaptured physical camera traffic.
+
+Search narrows the record list, while daily cards retain whole-day totals. Results are paged at 50 visits. History rows have no operational action buttons. All times shown are Nairobi time. The report uses existing fields and requires no additional database migration.
+
+`api/guard/history.php` requires authentication and uses a consistent read transaction. History refreshes run sequentially through GuardLive, with stale-response rejection, capped retry backoff, session-expiry clearing, and ten-second refreshes while visible. A history failure preserves existing results and labels them accordingly without changing camera or gate operations.
+
+Checks: `php scripts/test_guard_history.php` exercises temporary tables only, including overnight occupancy, midnight boundaries, repeat visits, cancellation exclusions, missing details, search and pagination. `node --test --test-isolation=none scripts/test_guard_history.cjs scripts/test_guard_dashboard.cjs scripts/test_guard_profiles.cjs` checks display safety, outdated responses, session expiry, retry behavior, and sequential coordination. Visual verification on the target browser/tablet remains outstanding.

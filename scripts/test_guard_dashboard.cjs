@@ -125,3 +125,20 @@ test('an old unauthorized response cannot expire a freshly signed-in session', a
     assert.equal(h.context.STATE.user.id, 2);
     assert.equal(h.loginShown, 1);
 });
+
+test('history refresh runs after polling and repeated refresh clicks cannot overlap it', async () => {
+    const calls = []; let release;
+    const h = harness(async url => {
+        calls.push(url.includes('snapshot') ? 'snapshot' : 'poll');
+        return response(url.includes('snapshot') ? snapshot() : { ok:true, last_event_id:100,
+            server_timestamp:Math.floor(Date.now()/1000), events:[], stats:{}, devices:{} });
+    });
+    h.context.GuardHistory = { reset() {}, refresh() {
+        calls.push('history'); return new Promise(resolve => { release = resolve; });
+    } };
+    h.context.live.start(); await settle();
+    assert.deepEqual(calls, ['snapshot','poll','history']);
+    h.context.live.snapshot(); h.context.live.snapshot(); await settle();
+    assert.deepEqual(calls, ['snapshot','poll','history']);
+    release(); await settle();
+});

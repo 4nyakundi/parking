@@ -213,7 +213,8 @@ document.addEventListener('DOMContentLoaded', () => {
             pill.classList.add('active');
             pill.setAttribute('aria-selected', 'true');
             pill.tabIndex = 0;
-            document.getElementById('viewBasementRoster')?.setAttribute('aria-labelledby', pill.id);
+            document.getElementById(pill.getAttribute('aria-controls'))?.setAttribute('aria-labelledby', pill.id);
+            GuardHistory.select(pill.dataset.filter);
             switchMainTab('inside');
             applyRosterFilters(true);
         });
@@ -228,13 +229,7 @@ document.addEventListener('DOMContentLoaded', () => {
         tabs[next].focus(); tabs[next].click();
     });
 
-    // 12. Right Sidebar Queue Search Listener & View Mode Init
-    const qSearch = document.getElementById('queueSearchInput');
-    if (qSearch) {
-        qSearch.addEventListener('input', () => {
-            applyQueueFilters();
-        });
-    }
+    // 12. Right Sidebar View Mode Init
     const savedQueueMode = localStorage.getItem('mm_queue_view_mode') || 'cards';
     setQueueViewMode(savedQueueMode);
 
@@ -388,6 +383,8 @@ function setAuthenticatedUser(user) {
 function switchCenterView(viewName) {
     const vRoster = document.getElementById('viewBasementRoster');
     const vExit = document.getElementById('viewExitClearance');
+    const vHistory = document.getElementById('viewTrafficHistory');
+    if (vHistory) vHistory.style.display = 'none';
     const btnRoster = document.getElementById('btnToggleRoster');
     const btnExit = document.getElementById('btnToggleExit');
     const titleEl = document.getElementById('centerStageTitle');
@@ -414,6 +411,7 @@ function switchCenterView(viewName) {
         btnExit?.classList.remove('active');
         if (titleEl) titleEl.textContent = 'Basement Parking — Active Vehicles Inside';
         if (subTitleEl) subTitleEl.textContent = 'Newest arrivals first • Longest parked last • Free up to 2 hours';
+        GuardHistory.show();
         loadActiveSessions();
     }
 }
@@ -882,10 +880,6 @@ function setQueueFilter(filterType) {
 }
 
 function applyQueueFilters() {
-    const query = (document.getElementById('queueSearchInput')?.value || '').trim().toLowerCase();
-    const btnClear = document.getElementById('btnClearQueueSearch');
-    if (btnClear) btnClear.style.display = query.length > 0 ? 'inline-block' : 'none';
-
     const grid = document.getElementById('pendingCardsGrid');
     if (!grid) return;
 
@@ -897,20 +891,16 @@ function applyQueueFilters() {
     elements.forEach(el => {
         const reqId = el.getAttribute('data-req-id');
         const data = STATE.pendingRequestsMap[reqId] || {};
-        const plate = (data.plate_number || data.formatted_plate || '').toLowerCase();
-        const driver = (data.driver_name || '').toLowerCase();
-        const dest = (data.destination || '').toLowerCase();
         const isSelf = (data.source === 'self_signin' || data.source === 'cloud_mobile' || data.source === 'firebase_web');
 
         if (isSelf) prefilledCount++;
         else needsCount++;
 
-        const matchesQuery = !query || plate.includes(query) || driver.includes(query) || dest.includes(query);
         let matchesFilter = true;
         if (activeQueueFilter === 'needs-data') matchesFilter = !isSelf;
         else if (activeQueueFilter === 'self-checkin') matchesFilter = isSelf;
 
-        el.style.display = (matchesQuery && matchesFilter) ? '' : 'none';
+        el.style.display = matchesFilter ? '' : 'none';
     });
 
     updateQueueFilterCounts(totalCount, needsCount, prefilledCount);
@@ -931,13 +921,6 @@ function updateQueueFilterCounts(total, needs, prefilled) {
         batchCount.textContent = String(prefilled);
         btnBatch.style.display = prefilled >= 2 ? 'inline-flex' : 'none';
     }
-}
-
-function clearQueueSearch() {
-    const input = document.getElementById('queueSearchInput');
-    if (input) input.value = '';
-    applyQueueFilters();
-    input?.focus();
 }
 
 let pendingBatchItems = [];
@@ -2734,6 +2717,7 @@ function updateRosterFilterCounters(total, safe, warn, crit) {
 }
 
 function applyRosterFilters(shouldAnimate = false) {
+    if (GuardHistory.isSelected()) { GuardHistory.search(); return; }
     const query = (document.getElementById('rosterSearchInput')?.value || '').trim().toLowerCase();
     const activePill = document.querySelector('.roster-pill.active');
     const filterType = activePill ? activePill.getAttribute('data-filter') : 'all';
