@@ -69,13 +69,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // GET Health Status
 $health = [
     'database'    => ['status' => 'ERROR', 'message' => 'Not connected'],
-    'printer'     => ['status' => 'OK', 'message' => 'Thermal receipt printer ready'],
-    'nvr'         => ['status' => 'OK', 'message' => 'Dahua NVR (192.168.0.3) ready'],
-    'entrance_cam'=> ['status' => 'OK', 'message' => 'Dahua NVR Channel 1 active'],
-    'exit_cam'    => ['status' => 'OK', 'message' => 'Dahua NVR Channel 2 active'],
-    'alpr_worker' => ['status' => 'OK', 'message' => 'Local ALPR OCR engine active'],
-    'internet'    => ['status' => 'OK', 'message' => 'Local Subnet 192.168.0.0/24 LAN active'],
-    'cloud_sync'  => ['status' => 'OK', 'message' => 'Mirror standby', 'unsynced_records' => 0],
+    'printer'     => ['status' => 'UNKNOWN', 'message' => 'No current report'],
+    'nvr'         => ['status' => 'UNKNOWN', 'message' => 'No current report'],
+    'entrance_cam'=> ['status' => 'UNKNOWN', 'message' => 'No current report'],
+    'exit_cam'    => ['status' => 'UNKNOWN', 'message' => 'No current report'],
+    'alpr_worker' => ['status' => 'UNKNOWN', 'message' => 'No current report'],
+    'internet'    => ['status' => 'UNKNOWN', 'message' => 'No current report'],
+    'cloud_sync'  => ['status' => 'UNKNOWN', 'message' => 'No current report', 'unsynced_records' => 0],
 ];
 
 // 1. Database Health
@@ -94,8 +94,8 @@ try {
         $stat = $r['status'];
         $msg = $r['message'];
 
-        // Worker or camera timeout check: if no heartbeat in 90 seconds, flag WARNING/OFFLINE
-        if (in_array($dev, ['alpr_worker', 'entrance_cam', 'exit_cam'], true) && $age > 90) {
+        // Worker or camera timeout check: if no heartbeat in 120 seconds, flag WARNING/OFFLINE
+        if (in_array($dev, ['alpr_worker', 'entrance_cam', 'exit_cam'], true) && $age > 120) {
             $stat = 'WARNING';
             $msg .= " (Heartbeat delayed: {$age}s ago)";
         }

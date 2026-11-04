@@ -17,6 +17,8 @@ $currUser = require_role(['supervisor', 'admin'], true);
 $raw = file_get_contents('php://input');
 $input = json_decode($raw, true) ?? $_POST;
 $action = $_GET['action'] ?? ($input['action'] ?? 'list');
+require_once __DIR__ . '/../../includes/admin_actions.php';
+admin_require_mutation($action, ['save', 'toggle_active']);
 
 try {
     $db = get_db();
@@ -56,6 +58,7 @@ try {
     // 2. CREATE / UPDATE USER (Admin only)
     if ($action === 'save') {
         if ($currUser['role'] !== 'admin') {
+            http_response_code(403);
             echo json_encode(['ok' => false, 'error' => 'Only administrators can create or edit system user accounts.']);
             exit;
         }
@@ -72,13 +75,17 @@ try {
             exit;
         }
 
+        if (!in_array($role,['guard','supervisor','admin'],true)) { http_response_code(400); echo json_encode(['ok'=>false,'error'=>'Invalid account role.']); exit; }
+        if ($userId===$currUser['id'] && $role!==$currUser['role']) { http_response_code(400); echo json_encode(['ok'=>false,'error'=>'Ask another administrator to change your role.']); exit; }
+        if ($pin!=='' && !preg_match('/^[0-9]{4,6}$/',$pin)) { http_response_code(400); echo json_encode(['ok'=>false,'error'=>'Use a PIN with 4 to 6 digits.']); exit; }
+        if ($password!=='' && strlen($password)<8) { http_response_code(400); echo json_encode(['ok'=>false,'error'=>'Use a password with at least 8 characters.']); exit; }
         $normPhone = !empty($phone) ? PhoneHelper::normalize($phone) : null;
 
         if ($userId > 0) {
             // Update Existing User
-            $updSql = 'UPDATE users SET full_name = :name, role = :role, phone = :phone WHERE id = :id';
+            $updSql = 'UPDATE users SET full_name = :name, username = :username, role = :role, phone = :phone WHERE id = :id';
             $db->prepare($updSql)->execute([
-                ':name'  => $fullName,
+                ':name' => $fullName, ':username'=>$username ?: null,
                 ':role'  => $role,
                 ':phone' => $normPhone,
                 ':id'    => $userId,
@@ -134,6 +141,10 @@ try {
 
     // 3. TOGGLE ACTIVE (Deactivate / Reactivate, never delete)
     if ($action === 'toggle_active') {
+        if ($currUser['role'] !== 'admin') {
+            http_response_code(403);
+            http_response_code(403); echo json_encode(['ok'=>false,'error'=>'Only administrators can activate or deactivate accounts.']); exit;
+        }
         $targetId = (int)($input['id'] ?? 0);
         if ($targetId === $currUser['id']) {
             echo json_encode(['ok' => false, 'error' => 'You cannot deactivate your own account.']);

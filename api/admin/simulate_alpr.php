@@ -12,6 +12,8 @@ require_once __DIR__ . '/../../includes/auth.php';
 
 $user = require_role(['supervisor', 'admin'], true);
 
+require_once __DIR__ . '/../../includes/admin_actions.php';
+admin_require_mutation('simulate', ['simulate']);
 $raw = file_get_contents('php://input');
 $input = json_decode($raw, true) ?? $_POST;
 

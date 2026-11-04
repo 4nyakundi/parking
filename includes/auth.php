@@ -33,6 +33,28 @@ function is_authenticated(): bool
 function require_auth(bool $apiMode = true): array
 {
     $user = current_user();
+    if ($user) {
+        // Account changes take effect on the next request, including existing sessions.
+        try {
+            $check = get_db()->prepare('SELECT id, username, full_name, role, phone, is_active FROM users WHERE id = ?');
+            $check->execute([$user['id']]);
+            $account = $check->fetch();
+            if (!$account || !$account['is_active']) {
+                $_SESSION = [];
+                $user = null;
+            } else {
+                foreach (['username','full_name','role','phone'] as $key) $_SESSION[$key] = $account[$key];
+                $user = current_user();
+            }
+        } catch (Throwable $e) {
+            http_response_code(503);
+            if ($apiMode) {
+                header('Content-Type: application/json; charset=utf-8');
+                echo json_encode(['ok'=>false,'error'=>'Account verification is temporarily unavailable. Please retry.']);
+            } else { echo 'Account verification is temporarily unavailable. Please reload.'; }
+            exit;
+        }
+    }
     if (!$user) {
         if ($apiMode) {
             http_response_code(401);
@@ -86,7 +108,7 @@ function require_role(string|array $roles, bool $apiMode = true): array
             echo json_encode([
                 'ok'         => false,
                 'error'      => 'Unauthorized: This action requires ' . implode(' or ', $allowed) . ' privileges.',
-                'need_login' => true,
+                'need_login' => false,
             ]);
             exit;
         }

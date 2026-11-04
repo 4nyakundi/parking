@@ -3,10 +3,11 @@ declare(strict_types=1);
 if (PHP_SAPI !== 'cli') exit;
 require_once __DIR__ . '/../config/database.php';
 $db=get_db();
-foreach(['registered_vehicles','parking_sessions','audit_log'] as $table) {
+foreach(['registered_vehicles','parking_sessions','audit_log','users'] as $table) {
     $db->exec("CREATE TEMPORARY TABLE test_template_{$table} LIKE {$table}");
     $db->exec("CREATE TEMPORARY TABLE {$table} LIKE test_template_{$table}");
 }
+$db->exec("INSERT INTO users (id,full_name,role,is_active) VALUES (1,'Test Admin','admin',1)");
 $db->exec('INSERT INTO registered_vehicles (id,plate_number,owner_name,phone,category,driver_name,driver_phone) VALUES (1,"KDA123A","Owner","254711111111","vip","Alice","254722222222")');
 session_save_path(sys_get_temp_dir()); session_id('databank-api-test-'.bin2hex(random_bytes(8))); session_start();
 $sessionFile=session_save_path().DIRECTORY_SEPARATOR.'sess_'.session_id();

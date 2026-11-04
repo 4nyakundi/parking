@@ -9,6 +9,9 @@ declare(strict_types=1);
 header('Content-Type: application/json; charset=utf-8');
 
 require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../includes/auth.php';
+require_auth(true); session_write_close();
+header('Cache-Control: no-store');
 
 try {
     $db = get_db();
@@ -17,7 +20,7 @@ try {
     $entryStmt = $db->query('
         SELECT HOUR(entry_time) AS hr, COUNT(*) AS count
         FROM parking_sessions
-        WHERE DATE(entry_time) = CURDATE()
+        WHERE status IN ("ACTIVE","COMPLETED") AND entry_time >= CURDATE() AND entry_time < DATE_ADD(CURDATE(),INTERVAL 1 DAY)
         GROUP BY HOUR(entry_time)
     ');
     $entriesMap = $entryStmt->fetchAll(PDO::FETCH_KEY_PAIR);
@@ -36,7 +39,7 @@ try {
     $exits = [];
 
     // Mall operating hours 06:00 to 23:00
-    for ($h = 6; $h <= 23; $h++) {
+    for ($h = 0; $h <= 23; $h++) {
         $label = sprintf('%02d:00', $h);
         $hours[] = $label;
         $entries[] = (int)($entriesMap[$h] ?? 0);
@@ -46,7 +49,7 @@ try {
     echo json_encode([
         'ok'   => true,
         'data' => [
-            'labels'  => $hours,
+            'labels'  => $hours, 'hours' => $hours,
             'entries' => $entries,
             'exits'   => $exits,
         ],

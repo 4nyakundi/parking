@@ -17,6 +17,7 @@ $user = require_role(['supervisor', 'admin'], false);
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= $user['role'] === 'supervisor' ? 'Supervisor Dashboard' : 'Admin Dashboard' ?> - Mombasa Mall Parking</title>
     <link rel="stylesheet" href="css/admin.css">
+    <link rel="stylesheet" href="css/admin-operations.css?v=<?= filemtime(__DIR__ . '/css/admin-operations.css') ?>">
 </head>
 <body data-user-role="<?= htmlspecialchars($user['role']) ?>">
 
@@ -138,6 +139,8 @@ $user = require_role(['supervisor', 'admin'], false);
             </div>
         </header>
 
+        <div id="adminConnectionNotice" class="admin-connection-notice" role="status" aria-live="polite">Connecting to the local server…</div>
+
         <!-- ============================================================== -->
         <!-- 1. OVERVIEW SECTION -->
         <!-- ============================================================== -->
@@ -161,7 +164,7 @@ $user = require_role(['supervisor', 'admin'], false);
                 <div class="kpi-card">
                     <div class="kpi-title">Today's Entries</div>
                     <div class="kpi-val" id="ovEntries">--</div>
-                    <div class="kpi-sub">Cars entered since midnight</div>
+                    <div class="kpi-sub">Recorded arrivals, including unresolved registrations</div>
                 </div>
                 <div class="kpi-card">
                     <div class="kpi-title">Today's Exits</div>
@@ -171,13 +174,29 @@ $user = require_role(['supervisor', 'admin'], false);
                 <div class="kpi-card">
                     <div class="kpi-title">Active Overstays</div>
                     <div class="kpi-val" id="ovOverstay" style="color:#ef4444;">--</div>
-                    <div class="kpi-sub">Parked > 8 hours</div>
+                    <div class="kpi-sub" id="ovOverstayRule">Parked at least 2 hours</div>
                 </div>
                 <div class="kpi-card">
                     <div class="kpi-title">Average Dwell Time</div>
                     <div class="kpi-val" id="ovAvgStay" style="color:#38bdf8;">--</div>
                     <div class="kpi-sub">Average stay duration today</div>
                 </div>
+            </div>
+
+            <div class="kpi-grid">
+                <div class="kpi-card"><div class="kpi-title">Registered Today</div><div class="kpi-val" id="ovRegistered">--</div><div class="kpi-sub">Arrivals with captured details</div></div>
+                <div class="kpi-card"><div class="kpi-title">Unregistered Today</div><div class="kpi-val" id="ovUnregistered">--</div><div class="kpi-sub">Awaiting registration or departed without details</div></div>
+            </div>
+            <div class="table-card admin-operations-card">
+                <h3>Needs Attention</h3><div id="adminAttention" class="admin-attention-list"></div>
+                <p id="adminDeviceSummary">Waiting for device reports.</p>
+                <p id="adminBackupSummary">Waiting for backup history.</p>
+                <p id="adminShiftSummary">Waiting for shift sign-off history.</p>
+            </div>
+            <div class="table-card admin-operations-card">
+                <div class="admin-day-controls"><h3>Traffic by Date</h3><label>Date <input type="date" id="adminTrafficDate" class="filter-input" onchange="AdminTools.loadDay()"></label></div>
+                <p id="adminTrafficSummary">Includes overnight stays. Recorded visits, not individual camera frames.</p>
+                <div class="admin-table-scroll"><table class="data-table"><thead><tr><th>Plate</th><th>Driver</th><th>Destination</th><th>Entered</th><th>Exited</th></tr></thead><tbody id="adminTrafficBody"></tbody></table></div>
             </div>
 
             <div class="table-card" style="padding:24px;">
@@ -206,6 +225,7 @@ $user = require_role(['supervisor', 'admin'], false);
                     <option value="ACTIVE">ACTIVE (Inside)</option>
                     <option value="COMPLETED">COMPLETED (Exited)</option>
                 </select>
+                <select id="filterIssue" class="filter-input" aria-label="Session issue"><option value="">All issues</option><option value="overstay">Overstayed</option><option value="print_failed">Print failed</option><option value="message_failed">Message failed</option><option value="missing_details">Missing details</option><option value="unsynced">Pending cloud sync</option></select>
                 <input type="date" id="filterDateFrom" class="filter-input">
                 <input type="date" id="filterDateTo" class="filter-input">
                 <button class="btn-primary" onclick="loadSessions(1)">
@@ -239,7 +259,7 @@ $user = require_role(['supervisor', 'admin'], false);
         <!-- ============================================================== -->
         <!-- 3. VISITORS HISTORY -->
         <!-- ============================================================== -->
-        <section id="sec-visitors" class="section-content">
+        <section id="sec-visitors" class="section-content"><div class="filter-bar"><select id="visitorStatusFilter" class="filter-input" aria-label="Request status" onchange="loadVisitors(1)"><option value="">All requests</option><option value="PENDING">Pending</option><option value="APPROVED">Approved</option><option value="REJECTED">Rejected</option><option value="EXPIRED">Expired</option></select></div>
             <div class="table-card">
                 <div class="table-header-bar">
                     <h3>Driver Self Sign-In Requests</h3>
@@ -338,7 +358,7 @@ $user = require_role(['supervisor', 'admin'], false);
         <section id="sec-destinations" class="section-content">
             <div class="table-card">
                 <div class="table-header-bar">
-                    <h3>Mall Destination Store Buttons</h3>
+                    <h3>Mall Destination Store Buttons</h3><button class="btn-primary" onclick="openDestinationModal()">Add Destination</button>
                 </div>
                 <table class="data-table">
                     <thead>
@@ -371,12 +391,12 @@ $user = require_role(['supervisor', 'admin'], false);
                 <div class="kpi-card"><div class="kpi-title">Total Entries</div><div class="kpi-val" id="repTotalIn">--</div></div>
                 <div class="kpi-card"><div class="kpi-title">Total Exits</div><div class="kpi-val" id="repTotalOut">--</div></div>
                 <div class="kpi-card"><div class="kpi-title">Avg Dwell Time</div><div class="kpi-val" id="repAvgStay" style="color:#38bdf8;">--</div></div>
-                <div class="kpi-card"><div class="kpi-title">Peak Dwell Hour</div><div class="kpi-val" id="repPeak" style="font-size:22px; color:#f59e0b;">--</div></div>
+                <div class="kpi-card"><div class="kpi-title">Peak Arrival Hour</div><div class="kpi-val" id="repPeak" style="font-size:22px; color:#f59e0b;">--</div></div>
             </div>
 
             <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px; margin-bottom:24px;">
                 <div class="table-card" style="padding:20px;">
-                    <h3 style="margin-bottom:16px;">Destination Dwell Breakdown</h3>
+                    <h3 style="margin-bottom:16px;">Destination Visit Breakdown</h3>
                     <div style="max-height:260px;">
                         <canvas id="chartDestinations"></canvas>
                     </div>
@@ -396,9 +416,10 @@ $user = require_role(['supervisor', 'admin'], false);
         <!-- 8. AUDIT LOG -->
         <!-- ============================================================== -->
         <section id="sec-audit" class="section-content">
+            <div class="filter-bar"><input id="auditActionFilter" class="filter-input" placeholder="Action contains…" aria-label="Audit action"><input id="auditEntityFilter" class="filter-input" placeholder="Entity, e.g. parking_sessions" aria-label="Audit entity"><button class="btn-primary" onclick="loadAuditLogs(1)">Filter Audit</button></div>
             <div class="table-card">
                 <div class="table-header-bar">
-                    <h3>Permanent Immutable Audit Trail</h3>
+                    <h3>Audit Trail</h3>
                 </div>
                 <table class="data-table">
                     <thead>
@@ -436,14 +457,14 @@ $user = require_role(['supervisor', 'admin'], false);
                     <div class="kpi-sub">Longer than mall average stay</div>
                 </div>
                 <div class="kpi-card accent-red">
-                    <div class="kpi-title">Overstay Alert (&gt;8h)</div>
+                    <div class="kpi-title">Long Stay Review (≥8h)</div>
                     <div class="kpi-val" id="recOverstay8h" style="color:#dc2626;">--</div>
-                    <div class="kpi-sub">Prime suspects for missed exit scan</div>
+                    <div class="kpi-sub">Check against the physical vehicle count</div>
                 </div>
                 <div class="kpi-card accent-green">
                     <div class="kpi-title">Supervisor Overrides Today</div>
                     <div class="kpi-val" id="recOverridesToday" style="color:#059669;">--</div>
-                    <div class="kpi-sub">Exit gate barrier manual clearances</div>
+                    <div class="kpi-sub">Recorded supervisor exit clearances</div>
                 </div>
             </div>
 
@@ -484,7 +505,7 @@ $user = require_role(['supervisor', 'admin'], false);
 
                 <!-- Threshold Filter Pills -->
                 <div class="filter-pills-row" style="margin-bottom:14px;">
-                    <button type="button" class="filter-pill-btn active" data-rthresh="8" onclick="setReconcileThreshold(8, this)">Overstay &gt; 8h</button>
+                    <button type="button" class="filter-pill-btn active" data-rthresh="8" onclick="setReconcileThreshold(8, this)">Review ≥8h</button>
                     <button type="button" class="filter-pill-btn" data-rthresh="4" onclick="setReconcileThreshold(4, this)">Extended &gt; 4h</button>
                     <button type="button" class="filter-pill-btn" data-rthresh="12" onclick="setReconcileThreshold(12, this)">Overnight &gt; 12h</button>
                     <button type="button" class="filter-pill-btn" data-rthresh="0" onclick="setReconcileThreshold(0, this)">All Active Inside (Deck Sweep)</button>
@@ -530,8 +551,8 @@ $user = require_role(['supervisor', 'admin'], false);
             <div class="kpi-grid">
                 <div class="kpi-card accent-green">
                     <div class="kpi-title">Cloud Mirror Status</div>
-                    <div class="kpi-val" id="cloudConnStatus" style="color:#059669;">ONLINE</div>
-                    <div class="kpi-sub" id="cloudConnSub">HMAC-SHA256 Encrypted</div>
+                    <div class="kpi-val" id="cloudConnStatus" style="color:#059669;">UNKNOWN</div>
+                    <div class="kpi-sub" id="cloudConnSub">Waiting for a synchronization report</div>
                 </div>
                 <div class="kpi-card accent-amber">
                     <div class="kpi-title">Pending Sync Queue</div>
@@ -540,7 +561,7 @@ $user = require_role(['supervisor', 'admin'], false);
                 </div>
                 <div class="kpi-card accent-blue">
                     <div class="kpi-title">Last Cloud Sync</div>
-                    <div class="kpi-val" id="cloudLastSync" style="font-size:18px;">Just now</div>
+                    <div class="kpi-val" id="cloudLastSync" style="font-size:18px;">No confirmed sync</div>
                     <div class="kpi-sub">Background cycle runs every 60s</div>
                 </div>
                 <div class="kpi-card">
@@ -577,14 +598,14 @@ $user = require_role(['supervisor', 'admin'], false);
         <!-- ============================================================== -->
         <section id="sec-settings" class="section-content">
             <div class="table-card" style="padding:24px; max-width:800px;">
-                <h3 style="margin-bottom:20px;">System & Hardware Settings</h3>
+                <h3 style="margin-bottom:20px;">System &amp; Hardware Settings</h3><p class="admin-help">The live overstay limit is 2 hours. Long-stay review is a separate supervisor check. Service connection values are saved for reference; they do not reconfigure running camera, printer or sync services.</p>
                 <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
                     <div>
                         <label style="display:block; margin-bottom:6px; font-weight:700;">Basement Slot Capacity</label>
                         <input type="number" id="setCapacity" class="filter-input" style="width:100%;">
                     </div>
                     <div>
-                        <label style="display:block; margin-bottom:6px; font-weight:700;">Overstay Warning Threshold (Hours)</label>
+                        <label style="display:block; margin-bottom:6px; font-weight:700;">Long-Stay Review Threshold (Hours)</label>
                         <input type="number" id="setOverstay" class="filter-input" style="width:100%;">
                     </div>
                     <div>
@@ -630,7 +651,7 @@ $user = require_role(['supervisor', 'admin'], false);
         <!-- ============================================================== -->
         <section id="sec-backups" class="section-content">
             <div style="display:flex; justify-content:space-between; margin-bottom:20px;">
-                <p style="color:var(--text-sub);">Permanent automated backups. Every backup is preserved permanently with zero auto-deletion.</p>
+                <p style="color:var(--text-sub);">Recorded backup files. Confirm scheduling and recovery tests separately; a listed file alone does not prove recovery readiness.</p>
                 <button id="btnBackupNow" class="btn-primary btn-success" onclick="triggerBackupNow()">
                     <svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" fill="none" stroke-width="2" style="vertical-align:-2px; margin-right:4px;"><polyline points="8 17 12 21 16 17"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.88 18.09A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.29"/></svg>Backup Database Now
                 </button>
@@ -653,7 +674,7 @@ $user = require_role(['supervisor', 'admin'], false);
         </section>
 
         <!-- ============================================================== -->
-        <!-- 12. HARDWARE HEALTH & ALPR SIMULATION -->
+        <!-- 12. HARDWARE HEALTH -->
         <!-- ============================================================== -->
         <section id="sec-health" class="section-content">
             <div class="kpi-grid">
@@ -666,18 +687,6 @@ $user = require_role(['supervisor', 'admin'], false);
                 <div class="kpi-card"><div class="kpi-title">Cloud Sync</div><div class="kpi-sub" id="healthCloud">--</div></div>
             </div>
 
-            <div class="table-card" style="padding:24px; max-width:650px;">
-                <h3 style="margin-bottom:12px;">Simulate ALPR Camera Detection (Testing Mode)</h3>
-                <p style="color:#94a3b8; font-size:14px; margin-bottom:16px;">Test the full pipeline without physical CCTV streams.</p>
-                <div style="display:flex; gap:12px;">
-                    <select id="simCam" class="filter-input">
-                        <option value="entrance">Entrance Camera</option>
-                        <option value="exit">Exit Camera</option>
-                    </select>
-                    <input type="text" id="simPlate" class="filter-input" placeholder="e.g. KDA 456C" value="KDA 456C">
-                    <button class="btn-primary" onclick="simulateAlprDetection()">Trigger Event</button>
-                </div>
-            </div>
         </section>
 
         <!-- ============================================================== -->
@@ -867,12 +876,28 @@ $user = require_role(['supervisor', 'admin'], false);
             </div>
         </div>
     </div>
+    <div id="destinationModal" class="admin-modal-overlay"><div class="admin-modal">
+        <div class="modal-header"><h3>Shop Destination</h3><button type="button" onclick="closeAdminModal('destinationModal')" aria-label="Close">×</button></div>
+        <input type="hidden" id="destinationId">
+        <div class="admin-form-grid">
+            <label>Store Name<input class="filter-input" type="text" id="destinationName"></label>
+            <label>Unit<input class="filter-input" type="text" id="destinationUnit"></label>
+            <label>Floor<input class="filter-input" type="text" id="destinationFloor"></label>
+            <label>Category<input class="filter-input" type="text" id="destinationCategory"></label>
+            <label>Sort Order<input class="filter-input" type="number" id="destinationOrder"></label>
+            <label>Icon<input class="filter-input" type="text" id="destinationIcon"></label>
+            <label>Description<input class="filter-input" type="text" id="destinationDescription"></label>
+        </div><label><input type="checkbox" id="destinationActive"> Active destination</label>
+        <div class="admin-modal-actions"><button class="btn-primary" onclick="saveDestination()">Save Destination</button></div>
+    </div></div>
     <!-- Bundled Libraries (No CDN!) -->
     <script src="../assets/vendor/chartjs/chart.umd.min.js"></script>
     <script src="../assets/vendor/gsap/gsap.min.js"></script>
     
     <!-- Admin Controller -->
-    <script src="js/admin.js?v=20261103"></script>
+    <script src="js/admin-core.js?v=<?= filemtime(__DIR__ . '/js/admin-core.js') ?>"></script>
+    <script src="js/admin.js?v=<?= filemtime(__DIR__ . '/js/admin.js') ?>"></script>
+    <script src="js/admin-tools.js?v=<?= filemtime(__DIR__ . '/js/admin-tools.js') ?>"></script>
     <script src="js/databank.js?v=20261103"></script>
     <script>
         function toggleSidebarMobile() {

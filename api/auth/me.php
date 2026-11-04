@@ -11,6 +11,7 @@ require_once __DIR__ . '/../../includes/auth.php';
 require_once __DIR__ . '/../../includes/csrf.php';
 
 $user = current_user();
+if ($user) $user = require_auth(true);
 
 if (!$user) {
     echo json_encode([

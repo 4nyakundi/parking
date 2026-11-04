@@ -22,8 +22,13 @@ if (empty($query)) {
     exit;
 }
 
-$cleanPlate = PlateHelper::clean($query);
-$normPhone  = PhoneHelper::normalize($query);
+$digits=preg_replace('/[^0-9]/','',$query);
+$isPhone=(bool)preg_match('/^[+()0-9\s-]+$/',$query) && in_array(strlen($digits),[9,10,12],true) && PhoneHelper::validate($query);
+$plate=PlateHelper::clean($query);
+$isPlate=!$isPhone && (bool)preg_match('/[A-Z]/',$plate) && PlateHelper::validate($plate);
+if (!$isPhone && !$isPlate) { http_response_code(400); echo json_encode(['ok'=>false,'error'=>'Enter a valid plate or Kenyan mobile number.']); exit; }
+$cleanPlate=$isPlate ? $plate : null;
+$normPhone=$isPhone ? PhoneHelper::normalize($query) : null;
 
 try {
     $db = get_db();
@@ -51,9 +56,9 @@ try {
     // 3. Registered vehicle records
     $regStmt = $db->prepare('
         SELECT * FROM registered_vehicles 
-        WHERE plate_number = :plate OR phone = :phone
+        WHERE plate_number = :plate OR phone = :phone OR driver_phone = :driver_phone
     ');
-    $regStmt->execute([':plate' => $cleanPlate, ':phone' => $normPhone]);
+    $regStmt->execute([':plate' => $cleanPlate, ':phone' => $normPhone, ':driver_phone'=>$normPhone]);
     $regVehicles = $regStmt->fetchAll();
 
     audit_log($user['id'], 'DPA_DATA_SUBJECT_LOOKUP', 'dpa', $query, null, [

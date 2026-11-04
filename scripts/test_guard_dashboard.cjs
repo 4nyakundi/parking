@@ -142,3 +142,27 @@ test('history refresh runs after polling and repeated refresh clicks cannot over
     assert.deepEqual(calls, ['snapshot','poll','history']);
     release(); await settle();
 });
+
+test('daily overview comes from the snapshot, preserves totals offline, and clears on expiry', async () => {
+    let offline = false;
+    const h = harness(async url => {
+        if (offline) throw Error('Offline');
+        return response(url.includes('snapshot') ? { ...snapshot(), daily_overview: {
+            date:'2026-11-03', total_arrivals:8, registered:5, unregistered:3,
+            pending_registration:2, exited_without_details:1, exited:4 } }
+            : { ok:true, last_event_id:100, server_timestamp:Math.floor(Date.now()/1000), events:[], stats:{}, devices:{} });
+    });
+    h.context.live.start(); await settle();
+    assert.equal(h.elements.get('statTodayArrivals').textContent, '8');
+    assert.equal(h.elements.get('statTodayRegistered').textContent, '5');
+    assert.equal(h.elements.get('statTodayUnregistered').textContent, '3');
+    assert.equal(h.elements.get('statTodayExited').textContent, '4');
+    assert.match(h.elements.get('todayUnregisteredBreakdown').textContent, /2 awaiting/);
+    offline = true; h.context.live.snapshot(); await settle();
+    assert.equal(h.elements.get('statTodayArrivals').textContent, '8');
+    assert.match(h.elements.get('todayOverviewFreshness').textContent, /Last known totals/);
+    h.context.live.expire();
+    assert.equal(h.elements.get('statTodayArrivals').textContent, '--');
+    assert.equal(h.elements.get('statTodayRegistered').textContent, '--');
+    assert.match(h.elements.get('todayOverviewFreshness').textContent, /Sign in/);
+});

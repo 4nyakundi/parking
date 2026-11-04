@@ -9,31 +9,14 @@ let destChart = null;
 
 const STATE_ADMIN = {
     sessionQuickFilter: 'all',
-    reconcileThreshold: 8,
+    reconcileThreshold: null,
     reconcileMetrics: {},
     searchDebounceTimer: null,
     currentSessionPage: 1
 };
 
 // Global safe API client with session guard
-async function apiFetch(url, options = {}) {
-    try {
-        const res = await fetch(url, options);
-        if (res.status === 401) {
-            window.location.href = 'login.php?notice=session_expired';
-            return { ok: false, error: 'Session expired' };
-        }
-        const json = await res.json();
-        if (json && json.need_login) {
-            window.location.href = 'login.php?notice=session_expired';
-            return { ok: false, error: 'Session expired' };
-        }
-        return json;
-    } catch (err) {
-        console.error('API Fetch Error:', err);
-        return { ok: false, error: 'Network communication failure. Please verify connection.' };
-    }
-}
+function apiFetch(url, options = {}) { return AdminTransport.request(url, options); }
 
 document.addEventListener('DOMContentLoaded', () => {
     // 1. Navigation routing
@@ -54,14 +37,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // 3. Periodic refresh for live stats
-    setInterval(() => {
-        const activeSec = document.querySelector('.section-content.active');
-        if (activeSec && activeSec.id === 'sec-overview') {
-            loadOverviewStats();
-        } else if (activeSec && activeSec.id === 'sec-cloud') {
-            loadCloudSyncStatus();
-        }
-    }, 5000);
+    AdminTransport.schedule(async () => {
+        const active = document.querySelector('.section-content.active')?.id;
+        if (active === 'sec-overview') { const ok = await loadOverviewStats(); await loadHourlyChart(); return ok; }
+        if (active === 'sec-cloud') return loadCloudSyncStatus();
+        if (active === 'sec-health') return loadHealthStatus();
+        return true;
+    });
 
     // 4. Bind instant debounced search on Sessions inputs
     const pInput = document.getElementById('filterPlate');
@@ -136,7 +118,7 @@ function navigateTo(sectionId) {
             loadAuditLogs(1);
             break;
         case 'reconcile':
-            loadReconcileList(STATE_ADMIN.reconcileThreshold || 8);
+            loadReconcileList(STATE_ADMIN.reconcileThreshold ?? null);
             break;
         case 'cloud':
             loadCloudSyncStatus();
@@ -157,28 +139,21 @@ function navigateTo(sectionId) {
 // 1. OVERVIEW SECTION
 // --------------------------------------------------------------------
 async function loadOverviewStats() {
-    const json = await apiFetch('../api/stats/live.php');
-    if (json.ok && json.data) {
-        const d = json.data;
-        const setTxt = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
-        setTxt('ovTotal', d.capacity);
-        setTxt('ovOccupied', d.occupied);
-        setTxt('ovAvailable', d.available);
-        setTxt('ovEntries', d.today_entries);
-        setTxt('ovExits', d.today_exits);
-        setTxt('ovOverstay', d.overstay_count);
-        setTxt('ovAvgStay', `${d.avg_stay_mins}m`);
-    }
+    const json = await apiFetch('../api/admin/overview.php');
+    if (json.stale) return;
+    if (json.ok) AdminTools.renderOverview(json.data);
+    return json.ok;
 }
 
 async function loadHourlyChart() {
     const json = await apiFetch('../api/stats/hourly.php');
+    if (json.stale) return;
     if (json.ok && json.data && window.Chart) {
         const ctx = document.getElementById('chartHourlyTraffic');
         if (!ctx) return;
 
         if (hourlyChart) {
-            hourlyChart.data.labels = json.data.hours;
+            hourlyChart.data.labels = json.data.labels;
             hourlyChart.data.datasets[0].data = json.data.entries;
             hourlyChart.data.datasets[1].data = json.data.exits;
             hourlyChart.update();
@@ -186,7 +161,7 @@ async function loadHourlyChart() {
             hourlyChart = new Chart(ctx, {
                 type: 'bar',
                 data: {
-                    labels: json.data.hours,
+                    labels: json.data.labels,
                     datasets: [
                         {
                             label: 'Vehicles Entered',
@@ -227,12 +202,14 @@ async function loadHourlyChart() {
             });
         }
     }
+    return json.ok;
 }
 
 // --------------------------------------------------------------------
 // 2. ALL SESSIONS SECTION
 // --------------------------------------------------------------------
 function setSessionQuickFilter(type) {
+    if (document.getElementById('filterIssue')) document.getElementById('filterIssue').value='';
     STATE_ADMIN.sessionQuickFilter = type;
     document.querySelectorAll('#sessionsFilterPills .filter-pill-btn').forEach(b => {
         b.classList.toggle('active', b.getAttribute('data-sfilter') === type);
@@ -278,12 +255,14 @@ async function loadSessions(page = 1) {
         tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:24px; color:#64748b;"><span class="table-spinner"></span> Loading session records...</td></tr>`;
     }
 
-    const url = `../api/admin/sessions.php?page=${page}&limit=15&plate=${encodeURIComponent(plate)}&ticket=${encodeURIComponent(ticket)}&status=${encodeURIComponent(status)}&date_from=${dateFrom}&date_to=${dateTo}`;
+    const url = `../api/admin/sessions.php?page=${page}&limit=15&plate=${encodeURIComponent(plate)}&ticket=${encodeURIComponent(ticket)}&status=${encodeURIComponent(status)}&date_from=${dateFrom}&date_to=${dateTo}&issue=${encodeURIComponent(document.getElementById('filterIssue')?.value || '')}`;
     const json = await apiFetch(url);
+    if (json.stale) return;
 
     if (!tbody) return;
 
-    if (!json.ok || !json.data || !Array.isArray(json.data.sessions) || json.data.sessions.length === 0) {
+    if (!json.ok) { AdminTools.listError(tbody, json.error); return; }
+    if (!json.data || !Array.isArray(json.data.sessions) || json.data.sessions.length === 0) {
         tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:32px; color:#64748b; font-weight:600;">No matching parking records found for current filters.</td></tr>`;
         const pag = document.getElementById('sessionsPagination');
         if (pag) pag.innerHTML = '';
@@ -325,6 +304,7 @@ async function loadSessions(page = 1) {
 
 async function viewSessionDetail(sessionId) {
     const json = await apiFetch(`../api/admin/sessions.php?action=detail&id=${sessionId}`);
+    if (json.stale) return;
     if (json.ok && json.data && json.data.session) {
         const s = json.data.session;
         document.getElementById('detTicketId').textContent = s.ticket_id;
@@ -367,6 +347,7 @@ async function saveSessionNotes() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ session_id: id, notes: notes })
     });
+    if (json.stale) return;
     if (json.ok) {
         closeAdminModal('sessionDetailModal');
         loadSessions(STATE_ADMIN.currentSessionPage);
@@ -378,7 +359,8 @@ async function saveSessionNotes() {
 function exportSessionsCsv() {
     const from = document.getElementById('filterDateFrom')?.value || '';
     const to = document.getElementById('filterDateTo')?.value || '';
-    window.location.href = `../api/admin/reports.php?type=export_csv&date_from=${from}&date_to=${to}`;
+    const params = new URLSearchParams({type:'export_csv',date_from:from,date_to:to,plate:document.getElementById('filterPlate').value,ticket:document.getElementById('filterTicket').value,status:document.getElementById('filterStatus').value,issue:document.getElementById('filterIssue')?.value || ''});
+    window.location.href = `../api/admin/reports.php?${params}`;
 }
 
 // --------------------------------------------------------------------
@@ -390,10 +372,13 @@ async function loadVisitors(page = 1) {
         tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:24px; color:#64748b;">Loading visitor requests...</td></tr>`;
     }
 
-    const json = await apiFetch(`../api/admin/visitors.php?page=${page}`);
+    const json = await apiFetch(`../api/admin/visitors.php?page=${page}&status=${encodeURIComponent(document.getElementById('visitorStatusFilter')?.value || '')}`);
+    if (json.stale) return;
+    if (json.ok) AdminTools.pagination(tbody,json.data,loadVisitors);
     if (!tbody) return;
 
-    if (!json.ok || !json.data || !Array.isArray(json.data.visitors) || json.data.visitors.length === 0) {
+    if (!json.ok) { AdminTools.listError(tbody, json.error); return; }
+    if (!json.data || !Array.isArray(json.data.visitors) || json.data.visitors.length === 0) {
         tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:30px; color:#64748b;">No driver self-signin requests recorded yet.</td></tr>`;
         return;
     }
@@ -417,16 +402,19 @@ async function loadVisitors(page = 1) {
 // --------------------------------------------------------------------
 // 4. REGISTERED VEHICLES
 // --------------------------------------------------------------------
-async function loadVehicles() {
+async function loadVehicles(page = 1) {
     const tbody = document.getElementById('vehiclesTableBody');
     if (tbody) {
         tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:24px; color:#64748b;">Loading vehicle registry...</td></tr>`;
     }
 
-    const json = await apiFetch('../api/admin/vehicles.php?action=list');
+    const json = await apiFetch(`../api/admin/vehicles.php?action=list&page=${page}`);
+    if (json.stale) return;
+    if (json.ok && json.pagination) AdminTools.pagination(tbody,json.pagination,loadVehicles);
     if (!tbody) return;
 
-    if (!json.ok || !json.data || !Array.isArray(json.data) || json.data.length === 0) {
+    if (!json.ok) { AdminTools.listError(tbody, json.error); return; }
+    if (!json.data || !Array.isArray(json.data) || json.data.length === 0) {
         tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:30px; color:#64748b;">No registered vehicles in database.</td></tr>`;
         return;
     }
@@ -447,13 +435,14 @@ async function loadVehicles() {
             <td><strong style="color:${isFreq ? '#1d4ed8' : '#334155'}; font-size:13px;">${v.visit_count || 0}</strong> <span style="font-size:11px; color:#64748b;">visits</span></td>
             <td><span style="font-size:12px; color:#0369a1; font-weight:600;">${escapeHtml(v.default_destination || 'None')}</span></td>
             <td>
-                <button type="button" class="btn-primary" style="padding:4px 10px; font-size:12px;" onclick="openVehicleModal(${JSON.stringify(v).replace(/"/g, '&quot;')})">Edit</button>
+                <button type="button" class="btn-primary" style="padding:4px 10px; font-size:12px;" data-edit-vehicle="${Number(v.id)}">Edit</button>
                 <button type="button" class="btn-primary" onclick="openBankProfile(${v.id})">Profile / History</button>
                 <button type="button" class="btn-primary ${v.is_active ? 'btn-danger' : 'btn-success'}" style="padding:4px 10px; font-size:12px; margin-left:4px;" onclick="toggleVehicleActive(${v.id})">
                     ${v.is_active ? 'Deactivate' : 'Activate'}
                 </button>
             </td>
         `;
+        tr.querySelector('[data-edit-vehicle]')?.addEventListener('click', () => openVehicleModal(v));
         tbody.appendChild(tr);
     });
 }
@@ -486,6 +475,7 @@ async function saveVehicle() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
     });
+    if (json.stale) return;
     if (json.ok) {
         closeAdminModal('vehicleModal');
         loadVehicles();
@@ -496,12 +486,12 @@ async function saveVehicle() {
 
 async function toggleVehicleActive(id) {
     if (!confirm('Change active status of this vehicle?')) return;
-    await apiFetch('../api/admin/vehicles.php?action=toggle_active', {
+    const json = await apiFetch('../api/admin/vehicles.php?action=toggle_active', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: id })
     });
-    loadVehicles();
+    if (json.ok) loadVehicles(); else alert(json.error || 'Vehicle status was not changed.');
 }
 
 // --------------------------------------------------------------------
@@ -514,9 +504,11 @@ async function loadUsers() {
     }
 
     const json = await apiFetch('../api/admin/users.php?action=list');
+    if (json.stale) return;
     if (!tbody) return;
 
-    if (!json.ok || !json.data || !Array.isArray(json.data) || json.data.length === 0) {
+    if (!json.ok) { AdminTools.listError(tbody, json.error); return; }
+    if (!json.data || !Array.isArray(json.data) || json.data.length === 0) {
         tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:30px; color:#64748b;">No users registered.</td></tr>`;
         return;
     }
@@ -526,7 +518,7 @@ async function loadUsers() {
     json.data.forEach(u => {
         const tr = document.createElement('tr');
         const actionsHtml = isAdmin ? `
-            <button class="btn-primary" style="padding:4px 10px; font-size:12px;" onclick="openUserModal(${JSON.stringify(u).replace(/"/g, '&quot;')})">Edit / PIN</button>
+            <button class="btn-primary" style="padding:4px 10px; font-size:12px;" data-edit-user="${Number(u.id)}">Edit / PIN</button>
             <button class="btn-primary ${u.is_active ? 'btn-danger' : 'btn-success'}" style="padding:4px 10px; font-size:12px; margin-left:4px;" onclick="toggleUserActive(${u.id})">
                 ${u.is_active ? 'Deactivate' : 'Activate'}
             </button>
@@ -541,6 +533,7 @@ async function loadUsers() {
             <td>${escapeHtml(u.last_login_at || 'Never')}</td>
             <td>${actionsHtml}</td>
         `;
+        tr.querySelector('[data-edit-user]')?.addEventListener('click', () => openUserModal(u));
         tbody.appendChild(tr);
     });
 }
@@ -573,6 +566,7 @@ async function saveUser() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
     });
+    if (json.stale) return;
     if (json.ok) {
         closeAdminModal('userModal');
         loadUsers();
@@ -587,6 +581,7 @@ async function toggleUserActive(id) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: id })
     });
+    if (json.stale) return;
     if (json.ok) loadUsers();
     else alert(json.error || 'Failed to toggle status');
 }
@@ -601,9 +596,11 @@ async function loadDestinations() {
     }
 
     const json = await apiFetch('../api/admin/destinations.php?action=list');
+    if (json.stale) return;
     if (!tbody) return;
 
-    if (!json.ok || !json.data || !Array.isArray(json.data) || json.data.length === 0) {
+    if (!json.ok) { AdminTools.listError(tbody, json.error); return; }
+    if (!json.data || !Array.isArray(json.data) || json.data.length === 0) {
         tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:30px; color:#64748b;">No store destinations found.</td></tr>`;
         return;
     }
@@ -612,12 +609,14 @@ async function loadDestinations() {
     json.data.forEach(d => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
-            <td><strong>${escapeHtml(d.unit_code)}</strong></td>
-            <td>${escapeHtml(d.name)}</td>
+            <td><strong>${escapeHtml(d.unit_code)}</strong> ${escapeHtml(d.name)}</td>
             <td><span class="badge staff">${escapeHtml(d.floor_level)}</span></td>
             <td>${escapeHtml(d.category || 'Retail')}</td>
+            <td>${Number(d.sort_order)}</td>
             <td><span class="badge ${d.is_active ? 'active' : 'danger'}">${d.is_active ? 'Active' : 'Inactive'}</span></td>
+            <td><button class="btn-primary" data-edit-destination="${Number(d.id)}">Edit</button></td>
         `;
+        tr.querySelector('[data-edit-destination]')?.addEventListener('click', () => openDestinationModal(d));
         tbody.appendChild(tr);
     });
 }
@@ -626,18 +625,11 @@ async function loadDestinations() {
 // 7. REPORTS
 // --------------------------------------------------------------------
 async function loadReports() {
-    const from = document.getElementById('repFrom')?.value || '';
-    const to = document.getElementById('repTo')?.value || '';
-
-    const json = await apiFetch(`../api/admin/reports.php?date_from=${from}&date_to=${to}`);
-    if (json.ok && json.data) {
-        const d = json.data;
-        const setTxt = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
-        setTxt('repTotalEntries', d.total_entries);
-        setTxt('repAvgDwell', `${d.avg_dwell_mins}m`);
-        setTxt('repPeakHour', d.peak_hour);
-        setTxt('repTotalOverstays', d.total_overstays);
-    }
+    const params = new URLSearchParams({ date_from:document.getElementById('repDateFrom').value, date_to:document.getElementById('repDateTo').value });
+    const json = await apiFetch(`../api/admin/reports.php?${params}`);
+    if (json.stale) return;
+    if (!json.ok) return;
+    AdminTools.renderReport(json.data);
 }
 
 // --------------------------------------------------------------------
@@ -649,10 +641,13 @@ async function loadAuditLogs(page = 1) {
         tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:24px; color:#64748b;">Loading audit entries...</td></tr>`;
     }
 
-    const json = await apiFetch(`../api/admin/audit.php?page=${page}`);
+    const json = await apiFetch(`../api/admin/audit.php?page=${page}&action_filter=${encodeURIComponent(document.getElementById('auditActionFilter')?.value || '')}&entity_filter=${encodeURIComponent(document.getElementById('auditEntityFilter')?.value || '')}`);
+    if (json.stale) return;
+    if (json.ok) AdminTools.pagination(tbody,json.data,loadAuditLogs);
     if (!tbody) return;
 
-    if (!json.ok || !json.data || !Array.isArray(json.data.logs) || json.data.logs.length === 0) {
+    if (!json.ok) { AdminTools.listError(tbody, json.error); return; }
+    if (!json.data || !Array.isArray(json.data.logs) || json.data.logs.length === 0) {
         tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:30px; color:#64748b;">No audit logs recorded yet.</td></tr>`;
         return;
     }
@@ -682,18 +677,20 @@ function setReconcileThreshold(hours, btnEl) {
     loadReconcileList(hours);
 }
 
-async function loadReconcileList(threshold = 8) {
+async function loadReconcileList(threshold = null) {
     const tbody = document.getElementById('reconcileTableBody');
     if (tbody) {
         tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:24px; color:#64748b;">Scanning active deck sessions...</td></tr>`;
     }
 
-    const json = await apiFetch(`../api/admin/reconcile.php?action=list&hours=${threshold}`);
+    const json = await apiFetch(`../api/admin/reconcile.php?action=list&hours=${threshold ?? ''}`);
+    if (json.stale) return;
     if (!tbody) return;
 
     // Update Supervisor Telemetry Strip
     if (json.ok && json.metrics) {
         STATE_ADMIN.reconcileMetrics = json.metrics;
+        threshold = Number(json.metrics.threshold_applied); STATE_ADMIN.reconcileThreshold = threshold;
         const setVal = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = String(v); };
         setVal('recSystemActive', json.metrics.total_active);
         setVal('recExtended4h', json.metrics.extended_4h);
@@ -703,17 +700,19 @@ async function loadReconcileList(threshold = 8) {
         calculateDeckDelta(); // Recalculate with current physical count
     }
 
-    if (!json.ok || !json.data || !Array.isArray(json.data) || json.data.length === 0) {
+    if (!json.ok) { AdminTools.listError(tbody, json.error); return; }
+    if (!json.data || !Array.isArray(json.data) || json.data.length === 0) {
         const threshText = threshold > 0 ? `active longer than ${threshold} hours` : 'currently inside';
-        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:32px; color:#059669; font-weight:700;">Zero discrepancies found. No vehicles ${threshText}.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:32px; color:#059669; font-weight:700;">No sessions match this review filter (${threshText}). Compare the physical count separately.</td></tr>`;
         return;
     }
 
     tbody.innerHTML = '';
     json.data.forEach(s => {
         const tr = document.createElement('tr');
-        const badgeClass = s.urgency === 'ghost' ? 'danger' : (s.urgency === 'overstay' ? 'blacklisted' : 'staff');
-        const urgencyLabel = s.urgency === 'ghost' ? 'Ghost (>12h)' : (s.urgency === 'overstay' ? 'Overstay (>8h)' : 'Active');
+        const hours = Number(s.hours_active || 0);
+        const badgeClass = hours >= 12 ? 'danger' : (hours >= 8 ? 'blacklisted' : 'staff');
+        const urgencyLabel = hours >= 12 ? 'Review ≥12h' : (hours >= 8 ? 'Long stay ≥8h' : 'Active');
 
         tr.innerHTML = `
             <td><span style="display:inline-block; font-family:monospace; font-size:12px; font-weight:800; background:#eef5fc; color:#0d2b4e; border:1px solid #b0cfec; border-radius:4px; padding:2px 8px; letter-spacing:0.04em;">${escapeHtml(s.formatted_plate || s.plate_number)}</span></td>
@@ -743,7 +742,8 @@ function calculateDeckDelta() {
         return;
     }
 
-    const system = STATE_ADMIN.reconcileMetrics.total_active || 0;
+    if (!Number.isInteger(STATE_ADMIN.reconcileMetrics.total_active)) { badge.style.display='none'; return; }
+    const system = STATE_ADMIN.reconcileMetrics.total_active;
     const delta = system - physical;
 
     badge.style.display = 'inline-flex';
@@ -752,10 +752,10 @@ function calculateDeckDelta() {
         badge.innerHTML = `<span>ZERO DRIFT: Deck matched (${physical} cars)</span>`;
     } else if (delta > 0) {
         badge.className = 'delta-badge variance-pos';
-        badge.innerHTML = `<span>VARIANCE: +${delta} Ghost Sessions (Physical: ${physical} | System: ${system})</span>`;
+        badge.innerHTML = `<span>VARIANCE: +${delta} More system sessions (Physical: ${physical} | System: ${system})</span>`;
     } else {
         badge.className = 'delta-badge variance-neg';
-        badge.innerHTML = `<span>VARIANCE: ${delta} Unrecorded Vehicles (Physical: ${physical} | System: ${system})</span>`;
+        badge.innerHTML = `<span>VARIANCE: ${Math.abs(delta)} More physical vehicles (Physical: ${physical} | System: ${system})</span>`;
     }
 }
 
@@ -788,13 +788,14 @@ async function submitReconcileForceClose() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ session_id: sId, reason: reason })
     });
+    if (json.stale) return;
 
     btn.disabled = false;
     btn.textContent = 'Confirm Reconciliation';
 
     if (json.ok) {
         closeAdminModal('reconcileJustificationModal');
-        loadReconcileList(STATE_ADMIN.reconcileThreshold || 8);
+        loadReconcileList(STATE_ADMIN.reconcileThreshold ?? null);
     } else {
         alert(json.error || 'Failed to reconcile session');
     }
@@ -808,7 +809,9 @@ function openShiftSignoffModal() {
 }
 
 async function submitShiftSignoff() {
-    const physical = parseInt(document.getElementById('signoffPhysicalCount').value, 10) || 0;
+    const raw = document.getElementById('signoffPhysicalCount').value.trim();
+    if (!/^\d+$/.test(raw)) { alert('Enter the physical vehicle count, including 0 for an empty basement.'); return; }
+    const physical = Number(raw);
     const notes = document.getElementById('signoffNotes').value.trim();
     const system = STATE_ADMIN.reconcileMetrics.total_active || 0;
 
@@ -825,6 +828,7 @@ async function submitShiftSignoff() {
             notes: notes
         })
     });
+    if (json.stale) return;
 
     btn.disabled = false;
     btn.textContent = 'Complete & Record Sign-Off';
@@ -842,17 +846,19 @@ async function submitShiftSignoff() {
 // --------------------------------------------------------------------
 async function loadCloudSyncStatus() {
     const json = await apiFetch('../api/admin/cloud_sync.php?action=status');
+    if (json.stale) return;
     if (json.ok && json.data) {
         const d = json.data;
         const setTxt = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
         
-        setTxt('cloudConnStatus', d.health_status === 'OK' ? 'ONLINE' : 'DEGRADED');
+        setTxt('cloudConnStatus', !d.enabled ? 'DISABLED' : d.health_status === 'OK' ? 'ONLINE' : (d.health_status || 'UNKNOWN'));
         setTxt('cloudPendingCount', d.unsynced_count);
-        setTxt('cloudLastSync', d.last_synced_at || 'Just now');
+        setTxt('cloudLastSync', d.last_synced_at || 'No confirmed sync');
         
         const sub = document.getElementById('cloudConnSub');
         if (sub) sub.textContent = `${d.synced_count} of ${d.total_sessions} records synced (${d.hmac_enabled ? 'HMAC-SHA256' : 'Standard'})`;
     }
+    return json.ok;
 }
 
 async function triggerManualCloudSync() {
@@ -869,6 +875,7 @@ async function triggerManualCloudSync() {
     }
 
     const json = await apiFetch('../api/admin/cloud_sync.php?action=trigger', { method: 'POST' });
+    if (json.stale) return;
 
     if (btn) {
         btn.disabled = false;
@@ -889,39 +896,17 @@ async function triggerManualCloudSync() {
 // --------------------------------------------------------------------
 // 11. SYSTEM SETTINGS
 // --------------------------------------------------------------------
+const ADMIN_SETTING_FIELDS = { setCapacity:'capacity',setOverstay:'overstay_hours',setMallName:'mall_name',setPrinterName:'printer_name',setPrinterWidth:'printer_paper_width',setAlprConf:'alpr_confidence_threshold',setAlprDebounce:'alpr_debounce_seconds',setCloudUrl:'cloud_sync_url' };
 async function loadSettings() {
     const json = await apiFetch('../api/admin/settings.php?action=get');
-    if (json.ok && json.data) {
-        const d = json.data;
-        const setVal = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
-        setVal('setCapacity', d.capacity);
-        setVal('setGrace', d.grace_period_mins);
-        setVal('setOverstay', d.overstay_hours);
-        setVal('setCamIn', d.camera_entrance_ip);
-        setVal('setCamOut', d.camera_exit_ip);
-        setVal('setPrinter', d.printer_device);
-        setVal('setCloudUrl', d.cloud_sync_url || '');
-    }
+    if (json.stale) return;
+    if (json.ok) for (const [id,key] of Object.entries(ADMIN_SETTING_FIELDS)) document.getElementById(id).value = json.data[key] ?? '';
 }
-
 async function saveSettings() {
-    const payload = {
-        capacity: document.getElementById('setCapacity').value,
-        grace_period_mins: document.getElementById('setGrace').value,
-        overstay_hours: document.getElementById('setOverstay').value,
-        camera_entrance_ip: document.getElementById('setCamIn').value,
-        camera_exit_ip: document.getElementById('setCamOut').value,
-        printer_device: document.getElementById('setPrinter').value,
-        cloud_sync_url: document.getElementById('setCloudUrl').value,
-    };
-
-    const json = await apiFetch('../api/admin/settings.php?action=save', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-    });
-    if (json.ok) alert('Settings saved successfully.');
-    else alert(json.error || 'Failed to save settings.');
+    const settings = Object.fromEntries(Object.entries(ADMIN_SETTING_FIELDS).map(([id,key]) => [key,document.getElementById(id).value]));
+    const json = await apiFetch('../api/admin/settings.php?action=update', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({settings})});
+    if (json.stale) return;
+    if (json.ok) { alert('Settings saved successfully.'); await loadSettings(); } else alert(json.error || 'Settings could not be saved.');
 }
 
 // --------------------------------------------------------------------
@@ -934,9 +919,11 @@ async function loadBackups() {
     }
 
     const json = await apiFetch('../api/admin/backups.php?action=list');
+    if (json.stale) return;
     if (!tbody) return;
 
-    if (!json.ok || !json.data || !Array.isArray(json.data) || json.data.length === 0) {
+    if (!json.ok) { AdminTools.listError(tbody, json.error); return; }
+    if (!json.data || !Array.isArray(json.data) || json.data.length === 0) {
         tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:30px; color:#64748b;">No database backups created yet.</td></tr>`;
         return;
     }
@@ -965,13 +952,14 @@ async function triggerBackupNow() {
     }
 
     const json = await apiFetch('../api/admin/backups.php?action=create', { method: 'POST' });
+    if (json.stale) return;
     if (btn) {
         btn.disabled = false;
         btn.innerHTML = `<svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" fill="none" stroke-width="2" style="vertical-align:-2px; margin-right:4px;"><polyline points="8 17 12 21 16 17"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.88 18.09A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.29"/></svg>Backup Database Now`;
     }
 
     if (json.ok) {
-        alert(json.data.message || 'Backup generated successfully.');
+        alert((json.data.message || 'Backup generated successfully.') + '\n' + (json.data.external_copy || 'External copy not confirmed.'));
         loadBackups();
     } else {
         alert(json.error || 'Backup creation failed.');
@@ -983,11 +971,12 @@ async function triggerBackupNow() {
 // --------------------------------------------------------------------
 async function loadHealthStatus() {
     const json = await apiFetch('../api/health.php');
+    if (json.stale) return;
     if (json.ok && json.devices) {
         const dev = json.devices;
         const setDev = (id, obj) => {
             const el = document.getElementById(id);
-            if (el && obj) el.textContent = `${obj.status} - ${obj.message}`;
+            if (el && obj) el.textContent = `${id==='healthPrinter' && obj.status==='OK' ? 'Last job OK' : obj.status} · ${obj.message} · ${obj.last_checked_at || 'No device report timestamp'}`;
         };
         setDev('healthDb', dev.database);
         setDev('healthPrinter', dev.printer);
@@ -997,6 +986,7 @@ async function loadHealthStatus() {
         setDev('healthInternet', dev.internet);
         setDev('healthCloud', dev.cloud_sync);
     }
+    return json.ok;
 }
 
 function closeAdminModal(modalId) {

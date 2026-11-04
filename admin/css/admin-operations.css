@@ -1,0 +1,16 @@
+.admin-connection-notice { margin: 0 0 14px; padding: 9px 12px; color: #315573; background: #eef5fc; border: 1px solid #b0cfec; border-radius: 6px; font-size: 12px; }
+.admin-connection-notice[data-state="error"] { color: #92400e; background: #fffbeb; border-color: #fcd34d; }
+.admin-operations-card { padding: 16px; margin-bottom: 16px; }
+.admin-operations-card p, .admin-help { color: var(--text-sub); font-size: 12px; line-height: 1.6; margin: 10px 0; }
+.admin-attention-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.admin-attention-item { padding: 10px 12px; border: 1px solid #b0cfec; border-radius: 6px; background: #eef5fc; color: #0d5ca8; font: inherit; font-size: 12px; cursor: pointer; }
+.admin-pagination, .admin-day-controls, .admin-modal-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 10px; padding: 12px; }
+.admin-day-controls { justify-content: space-between; padding: 0; }
+.admin-pagination span { margin-right: auto; color: var(--text-sub); font-size: 12px; }
+.admin-pagination button:disabled { opacity: .45; cursor: default; }
+.admin-load-error { text-align: center; padding: 24px; color: #92400e; }
+.admin-table-scroll { overflow-x: auto; }
+.admin-form-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; margin-bottom: 16px; }
+.admin-form-grid label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
+.admin-form-grid input { width: 100%; }
+@media (max-width: 640px) { .admin-form-grid { grid-template-columns: 1fr; } }

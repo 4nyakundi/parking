@@ -16,6 +16,8 @@ require_once __DIR__ . '/../../includes/phone_helper.php';
 $user = require_role(['supervisor', 'admin'], true);
 
 $action = $_GET['action'] ?? ($_POST['action'] ?? 'list');
+require_once __DIR__ . '/../../includes/admin_actions.php';
+admin_require_mutation($action, ['update_notes']);
 
 try {
     $db = get_db();
@@ -113,54 +115,8 @@ try {
     $limit       = max(10, min(100, (int)($_GET['limit'] ?? 25)));
     $offset      = ($page - 1) * $limit;
 
-    $plate       = trim((string)($_GET['plate'] ?? ''));
-    $ticket      = trim((string)($_GET['ticket'] ?? ''));
-    $destination = trim((string)($_GET['destination'] ?? ''));
-    $status      = trim((string)($_GET['status'] ?? ''));
-    $dateFrom    = trim((string)($_GET['date_from'] ?? ''));
-    $dateTo      = trim((string)($_GET['date_to'] ?? ''));
-    $guardId     = (int)($_GET['guard_id'] ?? 0);
-
-    $where = ['1=1'];
-    $params = [];
-
-    if (!empty($plate)) {
-        $cleanPlate = PlateHelper::clean($plate);
-        $where[] = 's.plate_number LIKE :plate';
-        $params[':plate'] = "%{$cleanPlate}%";
-    }
-
-    if (!empty($ticket)) {
-        $where[] = 's.ticket_id LIKE :ticket';
-        $params[':ticket'] = "%{$ticket}%";
-    }
-
-    if (!empty($destination)) {
-        $where[] = 's.destination = :dest';
-        $params[':dest'] = $destination;
-    }
-
-    if (!empty($status)) {
-        $where[] = 's.status = :status';
-        $params[':status'] = $status;
-    }
-
-    if (!empty($dateFrom)) {
-        $where[] = 's.entry_time >= :date_from';
-        $params[':date_from'] = "{$dateFrom} 00:00:00";
-    }
-
-    if (!empty($dateTo)) {
-        $where[] = 's.entry_time <= :date_to';
-        $params[':date_to'] = "{$dateTo} 23:59:59";
-    }
-
-    if ($guardId > 0) {
-        $where[] = '(s.approved_by = :guard_id OR s.cleared_by = :guard_id)';
-        $params[':guard_id'] = $guardId;
-    }
-
-    $whereSql = implode(' AND ', $where);
+    require_once __DIR__ . '/../../includes/admin_session_filters.php';
+    [$whereSql, $params] = admin_session_filters($_GET);
 
     // Count total records matching filter
     $countStmt = $db->prepare("SELECT COUNT(*) FROM parking_sessions s WHERE {$whereSql}");

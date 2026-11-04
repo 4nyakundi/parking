@@ -104,22 +104,62 @@ body { height: auto; min-height: 100dvh; }
 .remember-profile { display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 8px 0; color: #315573; }
 .remember-profile input { width: 18px; height: 18px; }
 
-/* Today's movement overview sits directly below the existing capacity cards. */
-.daily-overview { grid-column: 1 / -1; min-width: 0; border-top: 1px solid var(--border); padding-top: 10px; }
-.queue-view-row { display: flex; justify-content: flex-end; }
-.daily-overview-heading { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 16px; margin-bottom: 8px; color: var(--text-secondary); font-size: 12px; }
+/* Capacity and today's movement share the top metric strip. */
+.occupancy-dashboard { grid-template-columns: repeat(7, minmax(0, 1fr)) auto; align-items: stretch; gap: 10px; padding: 12px 20px; }
+.occupancy-dashboard > .metric-card { min-width: 0; padding: 10px 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.occupancy-dashboard .metric-label { font-size: 10px; letter-spacing: .05em; line-height: 1.4; }
+.occupancy-dashboard .metric-number { font-size: 30px; }
+.occupancy-dashboard .occupancy-actions { grid-column: auto; margin: 0; justify-content: center; }
+.occupancy-dashboard .btn-manual-add { padding: 0 12px; font-size: 11px; white-space: nowrap; }
+.daily-overview-heading { grid-column: 1 / -1; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 16px; color: var(--text-secondary); font-size: 11px; }
 .daily-overview-heading > span:first-child { font-weight: 800; color: #315573; }
 #todayOverviewDate { margin-left: 6px; font-weight: 500; }
-.daily-overview-cards { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
-.daily-overview-cards .metric-card { padding: 10px 12px; height: 100%; }
-.daily-overview-cards .metric-label { font-size: 10px; letter-spacing: .06em; line-height: 1.4; }
-.daily-overview-cards .metric-number { font-size: 30px; }
-.daily-metric-note { margin-top: 6px; color: var(--text-secondary); font-size: 11px; line-height: 1.4; }
+.daily-metric-note { margin-top: 5px; color: var(--text-secondary); font-size: 10px; line-height: 1.4; }
 .metric-card.unregistered::before { background: var(--amber); }
 .metric-card.unregistered .metric-number { color: #a35d08; }
-@media (max-width: 760px) { .daily-overview-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; } }
+.queue-sidebar-header { padding: 10px 12px 8px; gap: 6px; }
+.queue-header-top { gap: 8px; }
+.queue-title-badge { min-width: 0; gap: 6px; }
+.queue-counter-badge { flex-shrink: 0; }
+.queue-cam-telemetry-row { margin-top: 0; gap: 6px; }
+.queue-cam-telemetry-row .queue-cam-status-pill { flex: 1; min-width: 0; max-width: none; }
+.queue-cam-telemetry-row .queue-view-toggle { flex-shrink: 0; padding: 1px; }
+.queue-cam-telemetry-row .btn-view-toggle { width: 34px; height: 34px; padding: 0; justify-content: center; }
+.queue-cam-telemetry-row .btn-view-toggle svg { width: 16px; height: 16px; }
+.queue-control-strip { padding: 6px 12px 8px; gap: 0; }
+.queue-filter-row { flex-wrap: wrap; }
+.queue-filter-pills { flex: 1; }
+.queue-filter-pills .q-filter-pill { flex: 1; white-space: nowrap; text-align: center; }
+@media (max-width: 1100px) { .occupancy-dashboard { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+@media (max-width: 640px) {
+    .occupancy-dashboard { grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 8px 10px; gap: 6px; }
+    .occupancy-dashboard .btn-manual-add { white-space: normal; width: 100%; }
+}
 
 /* Read-only vehicle history keeps the existing blue roster styling. */
+.roster-header-bar { container-type: inline-size; padding: 10px 14px; gap: 8px; margin-bottom: 10px; }
+.roster-heading-row { display: flex; align-items: center; justify-content: flex-start; gap: 16px; }
+.roster-heading-row .roster-title-group { flex: 0 1 auto; min-width: 0; }
+.roster-heading-row .roster-title-group > div:last-child { min-width: 0; }
+.roster-heading-row .view-switch-btns { flex-shrink: 0; margin-left: 0; }
+.roster-heading-row .btn-view-toggle { white-space: nowrap; }
+.roster-actions-row { display: grid; grid-template-columns: minmax(220px, 1fr) minmax(420px, 1.25fr); gap: 10px; align-items: stretch; padding-top: 8px; }
+.roster-actions-row .roster-search-wrapper { min-width: 0; max-width: none; }
+.roster-actions-row .roster-search-input { height: 100%; min-height: 44px; }
+.roster-actions-row .roster-status-tabs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); width: 100%; min-width: 0; }
+.roster-actions-row .roster-pill { justify-content: center; padding: 8px; gap: 4px; font-size: 12px; white-space: nowrap; }
+.roster-actions-row .roster-pill span { margin-left: 2px; padding: 2px 5px; }
+@container (max-width: 800px) {
+    .roster-heading-row { flex-wrap: wrap; }
+    .roster-heading-row .roster-title-group { flex: 0 1 auto; }
+    .roster-heading-row .view-switch-btns { margin-left: 0; }
+    .roster-actions-row { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+}
+@container (max-width: 460px) {
+    .roster-actions-row .roster-status-tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .roster-heading-row .view-switch-btns { width: 100%; }
+    .roster-heading-row .btn-view-toggle { flex: 1; padding: 0 8px; font-size: 11px; }
+}
 .roster-status-tabs { flex-wrap: wrap; }
 .traffic-toolbar, .traffic-pagination { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 10px 0; color: var(--text-secondary); font-size: 12px; }
 .traffic-toolbar label { display: flex; align-items: center; gap: 8px; font-weight: 700; color: var(--text-primary); }

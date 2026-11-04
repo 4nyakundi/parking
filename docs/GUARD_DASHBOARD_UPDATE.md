@@ -35,3 +35,14 @@ Search narrows the record list, while daily cards retain whole-day totals. Resul
 `api/guard/history.php` requires authentication and uses a consistent read transaction. History refreshes run sequentially through GuardLive, with stale-response rejection, capped retry backoff, session-expiry clearing, and ten-second refreshes while visible. A history failure preserves existing results and labels them accordingly without changing camera or gate operations.
 
 Checks: `php scripts/test_guard_history.php` exercises temporary tables only, including overnight occupancy, midnight boundaries, repeat visits, cancellation exclusions, missing details, search and pagination. `node --test --test-isolation=none scripts/test_guard_history.cjs scripts/test_guard_dashboard.cjs scripts/test_guard_profiles.cjs` checks display safety, outdated responses, session expiry, retry behavior, and sequential coordination. Visual verification on the target browser/tablet remains outstanding.
+
+
+## Today's overview and queue simplification
+
+Alongside the capacity cards in the same top strip, the same metric styling now shows Recorded Arrivals Today, Registered Today, Unregistered Today, and Exited Today. Dates use Africa/Nairobi. Registered arrivals are ACTIVE/COMPLETED sessions entered today with captured driver details. Unregistered arrivals combine today's saved visits marked Uncollected Driver and distinct unresolved PENDING plates captured today. Requests covered by a saved visit or active session are excluded to prevent duplicate counts. Cancelled, rejected, expired and approved requests do not add to the unresolved total. A later repeat arrival after a completed visit can count separately. These are recorded local arrivals, not a physical vehicle count inferred from every camera frame or cloud-only pending request.
+
+The unregistered card shows its awaiting/left-without-details breakdown. Exits count all completed departures today, including overnight arrivals and departures without details. Thus daily arrivals and exits need not match. Totals refresh inside the existing consistent snapshot, without another polling loop. Saved totals stay visible and are marked as last known during connection failures, and are cleared when the session expires. No database migration is required.
+
+The Gate Camera Entries sidebar search box, its input listener, and its text-matching work have been removed. Existing All / Needs Data / Pre-Filled category tabs and Rows / Cards controls remain. The removed search ran locally and did not issue database searches on each keystroke.
+
+Checks: `php scripts/test_guard_overview.php` uses temporary tables to verify duplicate suppression, registration transitions, repeat visits, overnight exits, empty days and timezone boundaries. The dashboard JavaScript regression suite also covers overview recovery and expiry clearing.

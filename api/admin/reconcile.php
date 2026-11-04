@@ -18,6 +18,8 @@ $user = require_role(['supervisor', 'admin'], true);
 $raw = file_get_contents('php://input');
 $input = json_decode($raw, true) ?? $_POST;
 $action = $_GET['action'] ?? ($input['action'] ?? 'list');
+require_once __DIR__ . '/../../includes/admin_actions.php';
+admin_require_mutation($action, ['force_close', 'batch_reconcile', 'shift_signoff']);
 
 try {
     $db = get_db();
@@ -26,7 +28,9 @@ try {
     // 1. LIST SESSIONS (Configurable Threshold: All Active, >4h, >8h, >12h)
     // -------------------------------------------------------------
     if ($action === 'list') {
-        $hoursThreshold = isset($_GET['hours']) ? (int)$_GET['hours'] : 8;
+        $reviewHours=(int)($db->query("SELECT value FROM system_settings WHERE `key`='overstay_hours'")->fetchColumn() ?: 8);
+        $hoursThreshold = isset($_GET['hours']) && $_GET['hours']!=='' ? max(0,(int)$_GET['hours']) : $reviewHours;
+        $capacity=(int)($db->query("SELECT value FROM system_settings WHERE `key`='capacity'")->fetchColumn() ?: 60);
 
         $sql = '
             SELECT 
@@ -86,8 +90,8 @@ try {
             'count'   => count($data),
             'metrics' => [
                 'total_active'      => $totalActive,
-                'capacity'          => 60,
-                'available'         => max(0, 60 - $totalActive),
+                'capacity' => $capacity,
+                'available' => max(0, $capacity - $totalActive),
                 'overstay_8h'       => $overstay8h,
                 'extended_4h'       => $extended4h,
                 'today_entries'     => $todayEntries,
@@ -120,19 +124,21 @@ try {
         $interval  = $entryTime->diff($exitTime);
         $durationMinutes = ($interval->days * 24 * 60) + ($interval->h * 60) + $interval->i;
 
-        $db->prepare('
+        $update = $db->prepare('
             UPDATE parking_sessions 
             SET status = "COMPLETED", exit_time = NOW(), duration_minutes = :dur,
                 cleared_by = :user_id, exit_method = "supervisor_reconcile",
                 notes = CONCAT(IFNULL(notes, ""), " [RECONCILED: ", :reason, "]"),
                 synced_to_cloud = 0
-            WHERE id = :id
-        ')->execute([
+            WHERE id = :id AND status = "ACTIVE"
+        ');
+        $update->execute([
             ':dur'     => $durationMinutes,
             ':user_id' => $user['id'],
             ':reason'  => $reason,
             ':id'      => $sessionId,
         ]);
+        if (!$update->rowCount()) { http_response_code(409); echo json_encode(['ok'=>false,'error'=>'This session was already closed. Refresh the list.']); exit; }
 
         // Audit log
         audit_log($user['id'], 'RECONCILE_FORCE_CLOSE', 'parking_sessions', $sess['ticket_id'], [
@@ -188,19 +194,21 @@ try {
             $interval  = $entryTime->diff($exitTime);
             $durMins   = ($interval->days * 24 * 60) + ($interval->h * 60) + $interval->i;
 
-            $db->prepare('
+            $update = $db->prepare('
                 UPDATE parking_sessions 
                 SET status = "COMPLETED", exit_time = NOW(), duration_minutes = :dur,
                     cleared_by = :user_id, exit_method = "supervisor_reconcile",
                     notes = CONCAT(IFNULL(notes, ""), " [BATCH RECONCILED: ", :reason, "]"),
                     synced_to_cloud = 0
-                WHERE id = :id
-            ')->execute([
+                WHERE id = :id AND status = "ACTIVE"
+            ');
+        $update->execute([
                 ':dur'     => $durMins,
                 ':user_id' => $user['id'],
                 ':reason'  => $reason,
                 ':id'      => $sessId,
             ]);
+        if (!$update->rowCount()) { continue; }
 
             audit_log($user['id'], 'RECONCILE_BATCH_CLOSE', 'parking_sessions', $sess['ticket_id'], null, [
                 'reason'     => $reason,
@@ -210,6 +218,7 @@ try {
             $cleared++;
         }
 
+        if ($cleared) fire_event('session_completed', ['reconciled_count'=>$cleared]);
         echo json_encode([
             'ok'      => true,
             'message' => "Successfully reconciled {$cleared} session(s). Basement occupancy updated.",
@@ -222,19 +231,9 @@ try {
     // 4. SUPERVISOR SHIFT SIGN-OFF & DECK LOG
     // -------------------------------------------------------------
     if ($action === 'shift_signoff') {
-        $physicalCount = (int)($input['physical_count'] ?? 0);
-        $systemCount   = (int)($input['system_count'] ?? 0);
-        $notes         = trim((string)($input['notes'] ?? 'Shift deck count completed.'));
-        $delta         = $systemCount - $physicalCount;
-
-        audit_log($user['id'], 'SUPERVISOR_SHIFT_SIGNOFF', 'system', 'DECK_AUDIT', null, [
-            'supervisor'     => $user['full_name'],
-            'physical_count' => $physicalCount,
-            'system_count'   => $systemCount,
-            'drift_delta'    => $delta,
-            'notes'          => $notes,
-            'timestamp'      => date('Y-m-d H:i:s'),
-        ]);
+        require_once __DIR__ . '/../../includes/admin_signoff.php';
+        $details=admin_record_signoff($db,$user,$input['physical_count']??null,trim((string)($input['notes']??'')));
+        $delta=$details['drift_delta'];
 
         echo json_encode([
             'ok'      => true,
@@ -246,6 +245,7 @@ try {
 
     echo json_encode(['ok' => false, 'error' => 'Invalid reconcile action.']);
 } catch (Throwable $e) {
+    http_response_code($e instanceof InvalidArgumentException ? 400 : 500);
     error_log('RECONCILE ERROR: ' . $e->getMessage());
     echo json_encode(['ok' => false, 'error' => $e->getMessage()]);
 }

@@ -15,6 +15,8 @@ require_once __DIR__ . '/../../includes/cloud_sync_service.php';
 $user = require_role(['supervisor', 'admin'], true);
 
 $action = $_GET['action'] ?? ($_POST['action'] ?? 'status');
+require_once __DIR__ . '/../../includes/admin_actions.php';
+admin_require_mutation($action, ['trigger']);
 
 try {
     $db = get_db();
@@ -29,13 +31,12 @@ try {
         $totalSessions = (int)$db->query('SELECT COUNT(*) FROM parking_sessions')->fetchColumn();
         $syncedSessions = (int)$db->query('SELECT COUNT(*) FROM parking_sessions WHERE synced_to_cloud = 1')->fetchColumn();
 
-        $healthStmt = $db->query('SELECT status, last_checked_at, message FROM device_health WHERE device = "cloud_sync" LIMIT 1');
+        $healthStmt = $db->query('SELECT status, last_checked_at, message, TIMESTAMPDIFF(SECOND,last_checked_at,NOW()) age_seconds FROM device_health WHERE device = "cloud_sync" LIMIT 1');
         $health = $healthStmt->fetch() ?: [
-            'status'          => 'OK',
-            'last_checked_at' => date('Y-m-d H:i:s'),
-            'message'         => 'Ready for synchronization',
+            'status' => 'UNKNOWN', 'last_checked_at' => null, 'message' => 'No synchronization report received',
         ];
 
+        if (isset($health['age_seconds']) && (int)$health['age_seconds']>120) { $health['status']='WARNING'; $health['message']='Synchronization report is stale'; }
         $lastSyncedSession = $db->query('SELECT synced_at FROM parking_sessions WHERE synced_to_cloud = 1 AND synced_at IS NOT NULL ORDER BY synced_at DESC LIMIT 1')->fetchColumn();
 
         echo json_encode([
@@ -50,7 +51,7 @@ try {
                 'health_status'       => $health['status'],
                 'health_message'      => $health['message'],
                 'last_health_check'   => $health['last_checked_at'],
-                'last_synced_at'      => $lastSyncedSession ?: $health['last_checked_at'],
+                'last_synced_at' => $lastSyncedSession ?: null,
                 'hmac_enabled'        => !empty($sCfg['hmac_secret']),
             ],
         ], JSON_UNESCAPED_UNICODE);
@@ -75,7 +76,7 @@ try {
                 'ok'      => true,
                 'synced'  => $syncedCount,
                 'message' => $res['message'],
-                'log'     => "[" . date('H:i:s') . "] Processed sync batch (" . $syncedCount . " records).\n[" . date('H:i:s') . "] HMAC-SHA256 signature verified.\n[" . date('H:i:s') . "] 200 OK — Cloud Mirror database parity confirmed.",
+                'log'     => "[" . date('H:i:s') . "] Processed sync batch (" . $syncedCount . " records).\n[" . date('H:i:s') . "] Batch request completed. Review pending count for remaining records.",
             ]);
             exit;
         } else {

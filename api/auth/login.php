@@ -56,6 +56,7 @@ try {
             exit;
         }
 
+        session_regenerate_id(true);
         // Setup session
         $_SESSION['user_id']       = (int)$matchedUser['id'];
         $_SESSION['username']      = $matchedUser['username'] ?? '';
@@ -110,6 +111,7 @@ try {
     }
 
     // Setup session
+    session_regenerate_id(true);
     $_SESSION['user_id']       = (int)$user['id'];
     $_SESSION['username']      = $user['username'];
     $_SESSION['full_name']     = $user['full_name'];

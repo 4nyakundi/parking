@@ -15,6 +15,8 @@ $user = require_role(['supervisor', 'admin'], true);
 $raw = file_get_contents('php://input');
 $input = json_decode($raw, true) ?? $_POST;
 $action = $_GET['action'] ?? ($input['action'] ?? 'list');
+require_once __DIR__ . '/../../includes/admin_actions.php';
+admin_require_mutation($action, ['save', 'toggle_active']);
 
 try {
     $db = get_db();

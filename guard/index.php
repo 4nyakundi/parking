@@ -12,7 +12,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Guard Station — Mombasa Mall Basement Parking</title>
     <link rel="stylesheet" href="css/guard.css">
-    <link rel="stylesheet" href="css/guard-dashboard.css?v=20261103d">
+    <link rel="stylesheet" href="css/guard-dashboard.css?v=<?= filemtime(__DIR__ . '/css/guard-dashboard.css') ?>">
 </head>
 <body>
 
@@ -105,39 +105,35 @@
         <div class="metric-number" id="statAvailable">--</div>
         <div id="parkingFullBadge" class="full-parking-badge">CAPACITY FULL</div>
     </div>
+    <div class="metric-card total">
+        <div class="metric-label">Recorded Arrivals Today</div>
+        <div class="metric-number" id="statTodayArrivals">--</div>
+        <div class="daily-metric-note">Registered + unregistered</div>
+    </div>
+    <div class="metric-card occupied">
+        <div class="metric-label">Registered Today</div>
+        <div class="metric-number" id="statTodayRegistered">--</div>
+        <div class="daily-metric-note">Visits with captured details</div>
+    </div>
+    <div class="metric-card unregistered">
+        <div class="metric-label">Unregistered Today</div>
+        <div class="metric-number" id="statTodayUnregistered">--</div>
+        <div class="daily-metric-note" id="todayUnregisteredBreakdown">Awaiting registration or left without details</div>
+    </div>
+    <div class="metric-card available">
+        <div class="metric-label">Exited Today</div>
+        <div class="metric-number" id="statTodayExited">--</div>
+        <div class="daily-metric-note">All recorded departures</div>
+    </div>
     <div class="occupancy-actions">
         <button id="btnOpenManualAdd" class="btn-manual-add">
             <svg class="i-icon" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             Register Vehicle
         </button>
     </div>
-    <div class="daily-overview" aria-label="Today's recorded vehicle movement">
-        <div class="daily-overview-heading">
-            <span>Today's Overview <span id="todayOverviewDate"></span></span>
-            <span id="todayOverviewFreshness">Waiting for live totals</span>
-        </div>
-        <div class="daily-overview-cards">
-            <div class="metric-card total">
-                <div class="metric-label">Recorded Arrivals Today</div>
-                <div class="metric-number" id="statTodayArrivals">--</div>
-                <div class="daily-metric-note">Registered + unregistered</div>
-            </div>
-            <div class="metric-card occupied">
-                <div class="metric-label">Registered Today</div>
-                <div class="metric-number" id="statTodayRegistered">--</div>
-                <div class="daily-metric-note">Visits with captured details</div>
-            </div>
-            <div class="metric-card unregistered">
-                <div class="metric-label">Unregistered Today</div>
-                <div class="metric-number" id="statTodayUnregistered">--</div>
-                <div class="daily-metric-note" id="todayUnregisteredBreakdown">Awaiting registration or left without details</div>
-            </div>
-            <div class="metric-card available">
-                <div class="metric-label">Exited Today</div>
-                <div class="metric-number" id="statTodayExited">--</div>
-                <div class="daily-metric-note">All recorded departures</div>
-            </div>
-        </div>
+    <div class="daily-overview-heading">
+        <span>Today's Overview <span id="todayOverviewDate"></span></span>
+        <span id="todayOverviewFreshness">Waiting for live totals</span>
     </div>
 </section>
 
@@ -293,13 +289,29 @@
 
         <!-- Center Stage Header & Filters -->
         <div class="roster-header-bar">
-            <div class="roster-title-group">
-                <div class="roster-badge-icon">
-                    <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+            <div class="roster-heading-row">
+                <div class="roster-title-group">
+                    <div class="roster-badge-icon">
+                        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+                    </div>
+                    <div>
+                        <h2 class="roster-title" id="centerStageTitle">Basement Parking — Active Vehicles Inside</h2>
+                        <p class="roster-subtitle" id="centerStageSubtitle">Newest arrivals first &bull; Longest parked last &bull; Free up to 2 hours</p>
+                    </div>
                 </div>
-                <div>
-                    <h2 class="roster-title" id="centerStageTitle">Basement Parking — Active Vehicles Inside</h2>
-                    <p class="roster-subtitle" id="centerStageSubtitle">Newest arrivals first &bull; Longest parked last &bull; Free up to 2 hours</p>
+                <!-- View Switcher Tabs inside Center Area -->
+                <div class="view-switch-btns">
+                    <button class="btn-view-toggle active" id="btnToggleRoster" onclick="switchCenterView('roster')">
+                        <svg class="i-icon" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+                        Basement Roster
+                    </button>
+                    <button class="btn-view-toggle" id="btnToggleExit" onclick="switchCenterView('exit')">
+                        <svg class="i-icon" viewBox="0 0 24 24"><polyline points="19 12 5 12"/><polyline points="12 19 5 12 12 5"/></svg>
+                        Exit Clearance
+                    </button>
+                    <button class="btn-roster-refresh" id="btnRefreshRoster" onclick="GuardHistory.invalidate(); loadActiveSessions(true)" title="Refresh vehicle records">
+                        <svg class="i-icon refresh-icon" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                    </button>
                 </div>
             </div>
 
@@ -318,21 +330,6 @@
                     <button type="button" class="roster-pill danger" id="tabOverstayedCars" role="tab" aria-selected="false" aria-controls="viewBasementRoster" tabindex="-1" data-filter="critical">Overstayed Cars <span id="countPillCrit">0</span></button>
                     <button type="button" class="roster-pill" id="tabExitedCars" role="tab" aria-selected="false" aria-controls="viewTrafficHistory" tabindex="-1" data-filter="exited">Exited Cars</button>
                     <button type="button" class="roster-pill" id="tabDailyTraffic" role="tab" aria-selected="false" aria-controls="viewTrafficHistory" tabindex="-1" data-filter="day">Daily Traffic</button>
-                </div>
-
-                <!-- View Switcher Tabs inside Center Area -->
-                <div class="view-switch-btns">
-                    <button class="btn-view-toggle active" id="btnToggleRoster" onclick="switchCenterView('roster')">
-                        <svg class="i-icon" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
-                        Basement Roster
-                    </button>
-                    <button class="btn-view-toggle" id="btnToggleExit" onclick="switchCenterView('exit')">
-                        <svg class="i-icon" viewBox="0 0 24 24"><polyline points="19 12 5 12"/><polyline points="12 19 5 12 12 5"/></svg>
-                        Exit Clearance
-                    </button>
-                    <button class="btn-roster-refresh" id="btnRefreshRoster" onclick="GuardHistory.invalidate(); loadActiveSessions(true)" title="Refresh vehicle records">
-                        <svg class="i-icon refresh-icon" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-                    </button>
                 </div>
             </div>
         </div>
@@ -423,7 +420,7 @@
                 </div>
                 <span id="pendingCountBadge" class="queue-counter-badge">0 Waiting</span>
             </div>
-            <p class="queue-subtitle">Captured cars entered awaiting data or driver details</p>
+            <p class="queue-subtitle">Arrivals awaiting driver details</p>
 
             <!-- Hardware Telemetry Status Strip -->
             <div class="queue-cam-telemetry-row">
@@ -431,7 +428,14 @@
                     <span class="pulse-dot"></span>
                     <span id="camEntranceStatusLabel">Gate 1 (192.168.1.230): Online</span>
                 </div>
-                <span class="cam-feed-badge live-streaming" title="Continuous Real-Time Event Stream Active">⚡ AUTO-STREAM</span>
+                <div class="queue-view-toggle" role="group" aria-label="Queue display">
+                    <button type="button" class="btn-view-toggle" id="btnViewCompact" onclick="setQueueViewMode('compact')" title="Row view" aria-label="Row view" aria-pressed="false">
+                        <svg aria-hidden="true" viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" fill="none" stroke-width="2.5"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+                    </button>
+                    <button type="button" class="btn-view-toggle active" id="btnViewCards" onclick="setQueueViewMode('cards')" title="Card view" aria-label="Card view" aria-pressed="true">
+                        <svg aria-hidden="true" viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" fill="none" stroke-width="2.5"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                    </button>
+                </div>
             </div>
 
             <!-- Action Buttons: Clean 2-Button Row (Release Stale + Fast Queue Sync) -->
@@ -478,19 +482,6 @@
 
         <!-- Queue category filters and view toggle. -->
         <div class="queue-control-strip">
-            <div class="queue-view-row">
-                <div class="queue-view-toggle">
-                    <button type="button" class="btn-view-toggle" id="btnViewCompact" onclick="setQueueViewMode('compact')" title="Compact High-Density Rows (View 15+ cars at once)">
-                        <svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" fill="none" stroke-width="2.5"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
-                        <span>Rows</span>
-                    </button>
-                    <button type="button" class="btn-view-toggle active" id="btnViewCards" onclick="setQueueViewMode('cards')" title="Detailed Cards View with Snapshots">
-                        <svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" fill="none" stroke-width="2.5"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-                        <span>Cards</span>
-                    </button>
-                </div>
-            </div>
-
             <!-- Queue Category Filter Pills -->
             <div class="queue-filter-row">
                 <div class="queue-filter-pills">
@@ -1079,11 +1070,11 @@
 
 <!-- Application Scripts -->
 <script src="js/guard_i18n.js"></script>
-<script src="js/guard-live-model.js?v=20261103d"></script>
-<script src="js/guard.js?v=20261103d"></script>
+<script src="js/guard-live-model.js?v=20261103g"></script>
+<script src="js/guard.js?v=20261103h"></script>
 <script src="js/guard-profiles.js?v=20261103"></script>
 <script src="js/guard-history.js?v=20261103a"></script>
-<script src="js/guard-live.js?v=20261103d"></script>
+<script src="js/guard-live.js?v=20261103g"></script>
 <script type="module" src="../assets/js/firebase-init.js"></script>
 
 <script>

@@ -12,6 +12,8 @@ require_once __DIR__ . '/../../includes/audit.php';
 $user = require_role(['supervisor', 'admin'], true);
 
 $action = $_GET['action'] ?? ($_POST['action'] ?? 'list');
+require_once __DIR__ . '/../../includes/admin_actions.php';
+admin_require_mutation($action, ['create']);
 
 try {
     $db = get_db();
@@ -71,7 +73,7 @@ try {
             mkdir($backupDir, 0777, true);
         }
 
-        $filename = sprintf('parking_backup_%s_%s.sql', date('Y-m-d'), date('His'));
+        $filename = sprintf('parking_backup_%s_%s_%s.sql', date('Y-m-d'), date('His'), bin2hex(random_bytes(3)));
         $targetFile = $backupDir . '/' . $filename;
 
         // Path to mysqldump in XAMPP
@@ -81,26 +83,26 @@ try {
         }
 
         $dbCfg = $config['db'];
-        $pwdArg = !empty($dbCfg['password']) ? "-p{$dbCfg['password']}" : '';
-
-        // Execute mysqldump
-        $cmd = sprintf('"%s" -h %s -u %s %s %s > "%s"',
-            $mysqldumpPath,
-            $dbCfg['host'],
-            $dbCfg['username'],
-            $pwdArg,
-            $dbCfg['dbname'],
-            $targetFile
-        );
+        $cmd = [$mysqldumpPath, '--host='.$dbCfg['host'], '--port='.($dbCfg['port']??3306),
+            '--user='.$dbCfg['username'], '--single-transaction', '--routines', '--triggers', '--result-file='.$targetFile];
+        if (!empty($dbCfg['password'])) $cmd[] = '--password='.$dbCfg['password'];
+        $cmd[] = $dbCfg['dbname'];
 
         $output = [];
         $exitCode = 0;
-        exec($cmd, $output, $exitCode);
+        $process = proc_open($cmd, [0=>['pipe','r'],1=>['pipe','w'],2=>['pipe','w']], $pipes);
+        if (!is_resource($process)) throw new RuntimeException('Unable to start backup.');
+        fclose($pipes[0]); stream_get_contents($pipes[1]); fclose($pipes[1]);
+        $error = stream_get_contents($pipes[2]); fclose($pipes[2]); $exitCode = proc_close($process);
+        if ($exitCode !== 0) { error_log('BACKUP dump failed: '.$error); throw new RuntimeException('Backup did not complete successfully. No valid backup was recorded.'); }
 
         // Also attempt copy to D:\ParkingBackups if folder exists
         $extDir = $config['paths']['backups'] ?? 'D:\\ParkingBackups';
+        $externalCopy = 'Not copied: external backup folder is unavailable';
         if (is_dir($extDir)) {
-            @copy($targetFile, $extDir . '\\' . $filename);
+            $copyPath = $extDir . DIRECTORY_SEPARATOR . $filename;
+            $copied = @copy($targetFile, $copyPath);
+            $externalCopy = $copied && hash_file('sha256',$targetFile) === hash_file('sha256',$copyPath) ? 'External copy verified' : 'External copy failed';
         }
 
         $fileSize = file_exists($targetFile) ? filesize($targetFile) : 0;
@@ -120,7 +122,7 @@ try {
 
             audit_log($user['id'], 'CREATE_DATABASE_BACKUP', 'backups', (string)$backupId, null, [
                 'filename' => $filename,
-                'size'     => $fileSize,
+                'size' => $fileSize, 'external_copy'=>$externalCopy, 'sha256'=>hash_file('sha256',$targetFile),
             ]);
 
             echo json_encode([
@@ -128,7 +130,7 @@ try {
                 'data' => [
                     'id'       => $backupId,
                     'filename' => $filename,
-                    'size'     => $fileSize,
+                    'size' => $fileSize, 'external_copy' => $externalCopy,
                     'message'  => "Database backup created successfully (" . round($fileSize / 1024, 1) . " KB).",
                 ],
             ]);

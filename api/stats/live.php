@@ -9,6 +9,9 @@ declare(strict_types=1);
 header('Content-Type: application/json; charset=utf-8');
 
 require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../includes/auth.php';
+require_auth(true); session_write_close();
+header('Cache-Control: no-store');
 require_once __DIR__ . '/../../includes/plate_helper.php';
 
 try {
@@ -19,7 +22,7 @@ try {
     $settings = $setStmt->fetchAll(PDO::FETCH_KEY_PAIR);
 
     $capacity = isset($settings['capacity']) ? (int)$settings['capacity'] : 60;
-    $overstayHours = isset($settings['overstay_hours']) ? (int)$settings['overstay_hours'] : 8;
+    $overstayHours = 2; // Same free-parking limit as the guard roster. Long-stay review is separate.
 
     // 1. Live Occupancy
     $occStmt = $db->query('SELECT COUNT(*) FROM parking_sessions WHERE status = "ACTIVE"');
@@ -27,7 +30,7 @@ try {
     $available = max(0, $capacity - $occupied);
 
     // 2. Today's Entries & Exits
-    $entryStmt = $db->query('SELECT COUNT(*) FROM parking_sessions WHERE DATE(entry_time) = CURDATE()');
+    $entryStmt = $db->query('SELECT COUNT(*) FROM parking_sessions WHERE status IN ("ACTIVE","COMPLETED") AND entry_time >= CURDATE() AND entry_time < DATE_ADD(CURDATE(),INTERVAL 1 DAY)');
     $todayEntries = (int)$entryStmt->fetchColumn();
 
     $exitStmt = $db->query('SELECT COUNT(*) FROM parking_sessions WHERE status = "COMPLETED" AND DATE(exit_time) = CURDATE()');

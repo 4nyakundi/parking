@@ -854,6 +854,8 @@ function setQueueViewMode(mode) {
     const btnCompact = document.getElementById('btnViewCompact');
     if (btnCards) btnCards.classList.toggle('active', mode === 'cards');
     if (btnCompact) btnCompact.classList.toggle('active', mode === 'compact');
+    btnCards?.setAttribute('aria-pressed', String(mode === 'cards'));
+    btnCompact?.setAttribute('aria-pressed', String(mode === 'compact'));
 
     const grid = document.getElementById('pendingCardsGrid');
     if (!grid) return;

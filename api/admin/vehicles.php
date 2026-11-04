@@ -19,18 +19,23 @@ $user = require_role(['supervisor', 'admin'], true);
 $raw = file_get_contents('php://input');
 $input = json_decode($raw, true) ?? $_POST;
 $action = $_GET['action'] ?? ($input['action'] ?? 'list');
+require_once __DIR__ . '/../../includes/admin_actions.php';
+admin_require_mutation($action, ['save', 'toggle_active']);
 
 try {
     $db = get_db();
 
     // 1. LIST VEHICLES
     if ($action === 'list') {
+        $page=max(1,(int)($_GET['page']??1)); $limit=50;
+        $total=(int)$db->query('SELECT COUNT(*) FROM registered_vehicles')->fetchColumn();
+        $pages=max(1,(int)ceil($total/$limit)); $page=min($page,$pages); $offset=($page-1)*$limit;
         $stmt = $db->query('SELECT r.*, COALESCE(s.visits,0) AS visit_count,
             (COALESCE(s.visits,0) >= 3) AS is_frequent, s.last_seen AS last_visit_at
             FROM registered_vehicles r LEFT JOIN
             (SELECT plate_number, COUNT(*) AS visits, MAX(entry_time) AS last_seen FROM parking_sessions WHERE ' . DataBank::validVisitsSql() . ' GROUP BY plate_number) s
             ON s.plate_number=r.plate_number
-            ORDER BY r.category="blacklisted" DESC, r.category="vip" DESC, is_frequent DESC, r.id DESC');
+            ORDER BY r.category="blacklisted" DESC, r.category="vip" DESC, is_frequent DESC, r.id DESC LIMIT ' . $limit . ' OFFSET ' . $offset);
         $rows = $stmt->fetchAll();
 
         $vehicles = [];
@@ -57,7 +62,7 @@ try {
             ];
         }
 
-        echo json_encode(['ok' => true, 'data' => $vehicles]);
+        echo json_encode(['ok' => true, 'data' => $vehicles, 'pagination'=>['page'=>$page,'pages'=>$pages,'total'=>$total]]);
         exit;
     }
 
