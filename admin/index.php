@@ -19,8 +19,9 @@ $user = require_role(['supervisor', 'admin'], false);
     <link rel="stylesheet" href="css/admin.css">
     <link rel="stylesheet" href="css/admin-operations.css?v=<?= filemtime(__DIR__ . '/css/admin-operations.css') ?>">
 <link rel="stylesheet" href="../assets/css/parking-operations.css?v=<?= filemtime(__DIR__.'/../assets/css/parking-operations.css') ?>">
+    <link rel="stylesheet" href="../assets/css/dashboard-interface.css?v=<?= filemtime(__DIR__.'/../assets/css/dashboard-interface.css') ?>">
 </head>
-<body data-user-role="<?= htmlspecialchars($user['role']) ?>">
+<body class="management-dashboard dashboard-admin" data-user-role="<?= htmlspecialchars($user['role']) ?>">
 
     <!-- Sidebar Navigation -->
     <aside class="sidebar">

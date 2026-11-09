@@ -1,0 +1,102 @@
+/* Admin/supervisor and cloud presentation. Existing navigation and print styles remain intact. */
+@media screen {
+    .management-dashboard {
+        --ui-bg: #f3f6fd; --ui-card: #fff; --ui-soft: #f5f9fe;
+        --ui-border: #dce8f4; --ui-text: #173b60; --ui-muted: #486987;
+        --ui-blue: #116fc7; --ui-shadow: 0 4px 18px rgba(24, 65, 108, .05);
+        background: var(--ui-bg); color: var(--ui-text); -webkit-font-smoothing: antialiased;
+    }
+    .dashboard-admin {
+        --bg-root: var(--ui-bg); --bg-card: var(--ui-card); --bg-card-alt: var(--ui-soft);
+        --bg-input: var(--ui-soft); --border: var(--ui-border); --border-l: #e3edf7;
+        --text-main: var(--ui-text); --text-sub: var(--ui-muted); --text-mut: #557594;
+        --radius: 14px; --shadow-card: var(--ui-shadow);
+    }
+    .dashboard-cloud {
+        --bg: var(--ui-bg); --card: var(--ui-card); --card-hover: var(--ui-soft);
+        --border: var(--ui-border); --border-subtle: var(--ui-border); --text: var(--ui-text);
+        --text-sub: var(--ui-muted); --blue: var(--ui-blue); --blue-lite: #609fda;
+        --radius: 18px; --radius-sm: 10px; --shadow: var(--ui-shadow);
+    }
+    [data-theme="dark"] .dashboard-cloud {
+        --ui-bg: #101b2c; --ui-card: #17273d; --ui-soft: #1d304a;
+        --ui-border: #304963; --ui-text: #edf5ff; --ui-muted: #b0c8e0;
+        --ui-blue: #78b9f5; --ui-shadow: 0 4px 18px rgba(0, 0, 0, .12);
+    }
+    .management-dashboard :is(button, input, select, textarea) { font-family: inherit; }
+    .management-dashboard :is(button, a, input, select, textarea, summary):focus-visible { outline: 3px solid var(--ui-blue); outline-offset: 3px; }
+    .management-dashboard :is(input, select, textarea) { accent-color: #116fc7; }
+    .dashboard-admin .sidebar { background: #103559; border-right-color: #21496e; }
+    .dashboard-admin .sidebar-header { padding: 20px 18px; }
+    .dashboard-admin .sidebar-title h2 { font-size: 15px; font-weight: 650; }
+    .dashboard-admin .sidebar-title p { letter-spacing: .025em; text-transform: none; }
+    .dashboard-admin .sidebar-wordmark { background: transparent; }
+    .dashboard-admin .sidebar-wordmark img { opacity: .8; }
+    .dashboard-admin .sidebar-nav { padding: 12px 10px; gap: 5px; }
+    .dashboard-admin .nav-section-label { color: #b0cfec; letter-spacing: .06em; padding-top: 16px; }
+    .dashboard-admin .nav-link { border-radius: 10px; padding: 12px; font-weight: 550; color: #dcecff; }
+    .dashboard-admin .nav-link:hover { background: #ffffff12; }
+    .dashboard-admin .nav-link.active { background: #116fc7; color: #fff; }
+    .dashboard-admin .sidebar-footer { border-top-color: #ffffff18; padding: 16px; }
+    .dashboard-admin .btn-logout-sidebar { border-radius: 9px; }
+    .dashboard-admin .sidebar :focus-visible { outline-color: #b0cfec; }
+    .dashboard-admin .top-nav { background: #fff; border-bottom-color: var(--ui-border); box-shadow: 0 2px 12px #173b6005; }
+    .dashboard-admin .top-nav h2 { font-size: 21px; letter-spacing: -.025em; text-transform: none; font-weight: 700; }
+    .dashboard-cloud .top-bar { border: 1px solid var(--ui-border); padding: 20px 24px; }
+    .dashboard-cloud .brand-badge .icon { background: #116fc7; border-radius: 12px; box-shadow: none; }
+    .dashboard-cloud .cloud-nav-strip { border-radius: 14px; border-color: var(--ui-border); padding: 6px; gap: 5px; }
+    .dashboard-cloud .cloud-nav-btn { border-radius: 10px; font-weight: 600; text-transform: none; letter-spacing: 0; min-height: 42px; }
+    .dashboard-cloud .cloud-nav-btn.active { background: #116fc7; color: #fff; }
+    .management-dashboard .kpi-card { border: 1px solid var(--ui-border); border-radius: 16px; padding: 20px; box-shadow: var(--ui-shadow); }
+    .dashboard-admin .kpi-card::before { left: 18px; right: 18px; height: 3px; border-radius: 0 0 4px 4px; }
+    .dashboard-admin .kpi-title { font-size: 12px; text-transform: none; letter-spacing: 0; font-weight: 600; color: var(--ui-muted); }
+    .dashboard-admin .kpi-val, .dashboard-cloud .kpi-card .num { font-size: 32px; font-weight: 700; letter-spacing: -.04em; font-variant-numeric: tabular-nums; }
+    .dashboard-admin .kpi-sub { line-height: 1.5; }
+    .management-dashboard :is(.table-card, .chart-card, .admin-operations-card, .hw-card, .shift-card) { border-radius: 16px; border-color: var(--ui-border); box-shadow: var(--ui-shadow); }
+    .management-dashboard :is(.table-header-bar, .table-header-row) { padding: 16px 18px; gap: 12px; flex-wrap: wrap; border-bottom-color: var(--ui-border); }
+    .dashboard-admin .table-header-bar h3 { font-size: 15px; font-weight: 650; }
+    .dashboard-cloud .chart-card { padding: 20px; }
+    .dashboard-cloud .hw-card { padding: 16px; }
+    .management-dashboard :is(.admin-table-scroll, .table-responsive) { scrollbar-gutter: stable; }
+    .management-dashboard :is(.data-table th, .table-card th) { background: var(--ui-soft); color: var(--ui-muted); font-family: inherit; font-size: 11px; font-weight: 600; text-transform: none; letter-spacing: .015em; padding: 14px 16px; border-bottom: 1px solid var(--ui-border); }
+    .management-dashboard :is(.data-table td, .table-card td) { padding: 15px 16px; border-bottom-color: var(--ui-border); line-height: 1.5; }
+    .management-dashboard :is(.data-table, .table-card table) tbody tr:last-child td { border-bottom: 0; }
+    .management-dashboard :is(.plate-badge-ke, .plate-badge) { border-radius: 8px; font-size: 14px; letter-spacing: .045em; }
+    .management-dashboard :is(.badge, .status-tag) { border-radius: 20px; padding: 5px 9px; font-size: 11px; letter-spacing: 0; text-transform: none; }
+    .management-dashboard :is(.filter-input, .search-input-box, .delta-input) { border-radius: 10px; border-color: var(--ui-border); min-height: 42px; }
+    .management-dashboard :is(.filter-pill-btn, .filter-pill, .rec-preset-btn) { border-radius: 20px; min-height: 36px; text-transform: none; letter-spacing: 0; }
+    .management-dashboard :is(.btn-primary, .btn-success, .btn-danger, .btn-warning, .btn, .admin-attention-item) { border-radius: 9px; min-height: 40px; font-size: 12px; font-weight: 600; text-transform: none; letter-spacing: 0; }
+    .management-dashboard .admin-connection-notice { border-radius: 10px; padding: 12px 14px; line-height: 1.5; }
+    .management-dashboard .delta-calculator-card { border-radius: 14px; }
+    .dashboard-admin .admin-modal-overlay { background: #0d2b4e66; backdrop-filter: blur(4px); }
+    .dashboard-admin .admin-modal { border-radius: 20px; box-shadow: 0 24px 80px #0d2b4e33; border-color: var(--ui-border); }
+    .dashboard-admin .modal-header h3 { font-weight: 700; letter-spacing: -.02em; }
+    .dashboard-admin .admin-form-grid { gap: 16px; }
+    .dashboard-admin .admin-form-grid label { font-size: 12px; font-weight: 600; color: var(--ui-muted); }
+    .dashboard-admin .ops-panel { background: var(--ui-bg); border-radius: 20px; }
+    .dashboard-admin .ops-panel > header { padding-bottom: 14px; border-bottom: 1px solid var(--ui-border); }
+    .dashboard-admin .ops-panel h2 { font-size: 23px; font-weight: 700; letter-spacing: -.03em; }
+    .dashboard-admin #opsStatus { padding: 12px; margin-block: 14px; background: #edf5ff; border: 1px solid var(--ui-border); border-radius: 10px; font-size: 12px; }
+    .dashboard-admin #opsContent { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+    .dashboard-admin .ops-metrics { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .dashboard-admin .ops-metrics span { min-width: 0; background: #fff; border: 1px solid var(--ui-border); border-radius: 12px; font-size: 12px; }
+    .dashboard-admin .ops-metrics strong { color: #116fc7; font-weight: 700; font-size: 28px; }
+    .dashboard-admin .ops-card { margin: 0; min-width: 0; border-radius: 14px; border-color: var(--ui-border); padding: 20px; }
+    .dashboard-admin :is(.ops-vehicle-card, .ops-exceptions-card, .ops-recent-card, #opsRefresh) { grid-column: 1 / -1; }
+    .dashboard-admin .ops-panel :is(button, input, select, textarea) { border-radius: 9px; min-height: 42px; }
+    .dashboard-admin .ops-panel input:not([type=checkbox]) { margin-top: 6px; }
+    .dashboard-admin .ops-panel textarea { min-height: 96px; resize: vertical; }
+    .dashboard-admin .ops-panel label { font-size: 12px; font-weight: 600; }
+    .dashboard-admin .ops-scroll { border: 1px solid var(--ui-border); border-radius: 10px; }
+}
+@media screen and (max-width: 760px) {
+    .dashboard-admin .section-content { padding: 16px; }
+    .management-dashboard .kpi-card { padding: 16px; }
+    .dashboard-cloud { padding: 12px; }
+    .dashboard-cloud .top-bar { padding: 16px; }
+    .dashboard-admin #opsContent { grid-template-columns: minmax(0, 1fr); }
+    .dashboard-admin .ops-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media screen and (prefers-reduced-motion: reduce) {
+    .management-dashboard *, .management-dashboard *::before, .management-dashboard *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}

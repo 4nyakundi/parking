@@ -200,11 +200,11 @@
 
 /* Sidebar tiles use the same two-column rhythm as the session statistics. */
 @media screen {
-    .roster-actions-row .roster-status-tabs { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .roster-actions-row .roster-status-tabs { grid-template-columns: repeat(5, minmax(max-content, 1fr)); overflow-x: auto; }
     .overstay-holding-notice { padding: 12px 14px; margin-bottom: 12px; border: 1px solid #b0cfec; border-radius: 12px; background: #edf5ff; color: #315573; font-size: 12px; line-height: 1.6; }
     .overstay-holding-notice[hidden] { display: none; }
     @container (max-width: 460px) {
-        .roster-actions-row .roster-status-tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .roster-actions-row .roster-status-tabs { grid-template-columns: repeat(5, minmax(max-content, 1fr)); }
     }
     .left-panel .panel-brand-header {
         flex-wrap: wrap; align-items: center; gap: 10px;

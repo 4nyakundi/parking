@@ -1031,7 +1031,7 @@
                 </div>
             </div>
             <div id="exitRestrictionFields" hidden><strong id="exitRestrictionMessage" style="color:#b91c1c"></strong><label style="display:block;margin-top:10px">Supervisor code<input id="exitSupervisorPin" type="password" inputmode="numeric" maxlength="6" autocomplete="off" class="filter-input"></label><label style="display:block;margin-top:10px">Departure authorization reason<textarea id="exitDepartureReason" maxlength="4000" class="filter-input" style="width:100%"></textarea></label></div>
-            <p class="exit-confirm-notice">This will record the departure time in the audit log, and release 1 parking bay back to total capacity. Operate the physical barrier using the station procedure.</p>
+            <p id="exitDepartureNotice" class="exit-confirm-notice">This will record the departure time in the audit log, and release 1 parking bay back to total capacity. Operate the physical barrier using the station procedure.</p>
         </div>
         <div class="modal-footer">
             <button type="button" class="btn-cancel-modal" onclick="closeExitConfirmModal()">Cancel / Keep Parked</button>

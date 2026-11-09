@@ -56,3 +56,24 @@ The server verifies the code against hashed account credentials, checks that the
 The nullable `parking_actions.shift_id` and `authorized_by` columns were installed on the existing database through `database/upgrade_shift_followup_20261109.sql`. The main migration script includes this idempotent upgrade. Checks use temporary tables; no sample incidents, approvals, shifts or credentials are inserted into the working database.
 
 Run `node --test --test-isolation=none scripts/test_shift_followup.cjs` for current-shift reuse, one-time attachment of older sign-ins, code-required handover submission and prevention of accidental new shifts after handover. PHP operation/login checks cover shift attribution, incorrect or inactive codes, retry limits, actor/supervisor attribution, and credential exclusion from audit data.
+
+## Incidents, clamps and blacklisted plates
+
+The operations panel opens on vehicle follow-ups. Handover, extra-time approval and historical shifts are collapsed so they do not obscure incident work. The vehicle selector and roster show Incident, Clamped and Blacklisted labels.
+
+- Select **Incident** or **Vehicle clamped**, enter the details/reference and supply the supervisor code to save the action against the current shift.
+- An unresolved clamp blocks recorded departure. In Action history, enter the release details and choose **Record clamp release**, with supervisor approval. This records that staff removed the physical clamp; the software does not operate clamping hardware.
+- **Add vehicle to blacklist** requires a reason and supervisor approval. It updates the existing vehicle register while preserving the profile, earlier notes and visit history. The blacklist remains in force for later visits and after an individually authorized departure. Management can maintain categories through the existing vehicle register.
+- Open incidents and blacklisted plates require a supervisor code and a departure reason before an exit can be recorded. A code does not bypass an unresolved clamp. Reconciliation cannot bypass these restrictions either; its batch action reports restricted visits separately.
+- When either camera detects a restricted plate, the guard screen shows a persistent warning recovered from the live snapshot. Blacklisted detections show **BLACKLISTED CAR APPROACHING** and **Authorize to leave**. This opens departure authorization; it does not immediately complete the visit. A clamped detection directs the guard to follow-up/release controls instead.
+- Blacklisted plates cannot be admitted through manual or request approval. Camera detection of restricted cars never auto-completes a departure, including cases where driver details were not collected. Ordinary unflagged camera handling retains its existing behaviour.
+
+Recent camera warnings cover the latest two minutes of recorded detections and clear after a recorded departure or expiry. Unresolved incidents remain in follow-ups beyond that warning period. The active blacklist is independent of both the visit and the shift. Physical barrier operation remains part of the station procedure.
+
+No additional schema upgrade is required for these flags: action types use the existing action-history table, and blacklisted categories use the existing vehicle register.
+
+`scripts/test_vehicle_restrictions.php` exercises clamp/release history, blacklist preservation, approved departures, camera warning recovery, rejected admission and restricted reconciliation using temporary tables. `scripts/test_parking_alerts.cjs` checks warning text, safe rendering, repeated-sound limits and routing to authorization rather than automatic departure.
+
+## Cloud login database correction
+
+The local cloud configuration was corrected from the nonexistent `mombasam_parking` database to the existing `mombasa_parking_cloud` mirror. Existing cloud users and mirrored visits were retained. A connection check and a rejected-login HTTP check verified that the login now reaches credential validation instead of an unknown-database error. This local configuration change does not publish or reconfigure a remote cPanel server. The login page logs database details on the server rather than displaying raw connection exceptions.

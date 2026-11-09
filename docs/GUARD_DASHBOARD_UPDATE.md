@@ -57,3 +57,8 @@ Checks: `php scripts/test_guard_overview.php` uses temporary tables to verify du
 ## Current-shift follow-ups
 
 Follow-ups reuse the signed-in guard’s open shift and no longer ask for a separate shift start. Existing supervisor/admin PINs authorize each incident/follow-up save, resolution, extension or handover. The recording guard and approving supervisor are preserved separately. See SHIFT_OPERATIONS.md for code setup and retry limits.
+
+
+## Separate active and overdue tabs
+
+Active Cars now contains only vehicles within their approved parking time, including approaching-deadline warnings. Once a deadline passes, the live timer removes the car from Active Cars and shows it in Overstayed Cars. Vehicles overdue by eight hours beyond their approved deadline remain in Overstay Holding. These three tab counts partition the parked roster; changing tabs or moving between them never clears a visit or reduces occupancy. All five tabs share one horizontal row; the search field uses a smaller share of the toolbar, and narrow tab strips scroll horizontally instead of wrapping.

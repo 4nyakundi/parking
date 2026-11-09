@@ -44,12 +44,12 @@ test('holding records leave both main views, remain searchable, and retain occup
     const h = harness();
     h.elements.get('statOccupied').textContent = '3';
     h.context.updateRosterFilterCounters(3, 1, 0, 2);
-    assert.equal(h.elements.get('countPillAll').textContent, '2');
+    assert.equal(h.elements.get('countPillAll').textContent, '1');
     assert.equal(h.elements.get('countPillCrit').textContent, '1');
     assert.equal(h.elements.get('countPillHolding').textContent, '1');
     assert.equal(h.elements.get('rosterCountBadge').textContent, '3');
     assert.equal(h.elements.get('statOccupied').textContent, '3');
-    h.select('all'); assert.deepEqual(h.rows.map(row => row.style.display), ['', '', 'none']);
+    h.select('all'); assert.deepEqual(h.rows.map(row => row.style.display), ['', 'none', 'none']);
     h.select('critical'); assert.deepEqual(h.rows.map(row => row.style.display), ['none', '', 'none']);
     h.select('holding', 'kdc'); assert.deepEqual(h.rows.map(row => row.style.display), ['none', 'none', '']);
     h.select('holding', 'unknown'); assert.equal(h.elements.get('rosterFilterEmpty').hidden, false);
@@ -57,5 +57,27 @@ test('holding records leave both main views, remain searchable, and retain occup
     h.rows[1].getAttribute = name => ({ 'data-overstay-level': 'critical', 'data-overstay-holding': 'true' })[name];
     h.context.updateRosterFilterCounters(3, 1, 0, 2);
     assert.equal(h.elements.get('countPillHolding').textContent, '2');
+    assert.equal(h.elements.get('statOccupied').textContent, '3');
+});
+
+
+test('active and overstayed tabs remain disjoint as cars reach their approved deadline', () => {
+    const h = harness();
+    h.elements.get('statOccupied').textContent = '3';
+    const original = h.rows[0].getAttribute;
+    h.rows[0].getAttribute = name => name === 'data-overstay-level' ? 'warning' : original(name);
+    h.context.updateRosterFilterCounters(3, 0, 1, 2);
+    h.select('all');
+    assert.deepEqual(h.rows.map(row => row.style.display), ['', 'none', 'none']);
+    assert.equal(h.elements.get('countPillAll').textContent, '1');
+    h.rows[0].getAttribute = name => name === 'data-overstay-level' ? 'critical' : original(name);
+    h.context.updateRosterFilterCounters(3, 0, 0, 3);
+    h.select('all');
+    assert.deepEqual(h.rows.map(row => row.style.display), ['none', 'none', 'none']);
+    assert.equal(h.elements.get('countPillAll').textContent, '0');
+    h.select('critical');
+    assert.deepEqual(h.rows.map(row => row.style.display), ['', '', 'none']);
+    assert.equal(h.elements.get('countPillCrit').textContent, '2');
+    assert.equal(h.elements.get('countPillHolding').textContent, '1');
     assert.equal(h.elements.get('statOccupied').textContent, '3');
 });

@@ -37,6 +37,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if ($user && password_verify($password, $user['password_hash'])) {
+            session_regenerate_id(true);
             $_SESSION['cloud_user_id'] = $user['id'];
             $_SESSION['cloud_name']    = $user['full_name'];
             $_SESSION['cloud_role']    = $user['role'];
@@ -46,7 +47,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $error = 'Invalid credentials. Access denied.';
         }
     } catch (Throwable $e) {
-        $error = 'Database connection error: ' . $e->getMessage();
+        error_log('CLOUD LOGIN DATABASE: '.$e->getMessage());
+        $error = 'Cloud database is unavailable. Please contact your administrator.';
     }
 }
 ?>

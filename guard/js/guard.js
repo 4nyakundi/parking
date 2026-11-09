@@ -2362,6 +2362,7 @@ function openExitConfirmModal(sessionId, plateNumber) {
     document.getElementById('exitSupervisorPin').value='';
     document.getElementById('exitDepartureReason').value='';
     pendingExitData = { sessionId, plateNumber, plate };
+    document.getElementById('exitDepartureNotice').textContent=session?'Record this parked vehicle departure and return its parking bay to availability. Operate the physical barrier using the station procedure.':'Record authorization for this vehicle to leave. A vehicle without an active parking visit does not release an occupied bay. Operate the physical barrier using the station procedure.';
 
     const btn = document.getElementById('btnConfirmClearExit');
     const lbl = document.getElementById('exitBtnLabel');
@@ -2743,7 +2744,7 @@ function updateRosterFilterCounters(total, safe, warn, crit) {
     const elCrit = document.getElementById('countPillCrit');
     const elBadge = document.getElementById('rosterCountBadge');
 
-    if (elAll) elAll.textContent = String(total - held);
+    if (elAll) elAll.textContent = String(safe + warn);
     if (elSafe) elSafe.textContent = String(safe);
     if (elWarn) elWarn.textContent = String(warn);
     if (elCrit) elCrit.textContent = String(crit - held);
@@ -2782,7 +2783,7 @@ function applyRosterFilters(shouldAnimate = false) {
 
         const matchesQuery = !query || plate.includes(query) || driver.includes(query) || dest.includes(query);
         const held = row.getAttribute('data-overstay-holding') === 'true';
-        const matchesFilter = filterType === 'holding' ? held : !held && ((filterType === 'all') || (filterType === level));
+        const matchesFilter = filterType === 'holding' ? held : !held && ((filterType === 'all' && level !== 'critical') || (filterType === level));
 
         if (matchesQuery && matchesFilter) {
             row.style.display = '';
@@ -2803,7 +2804,7 @@ function applyRosterFilters(shouldAnimate = false) {
     empty.firstElementChild.textContent = query ? 'No vehicles match your search in this tab.'
         : filterType === 'holding' ? 'No vehicles in overstay holding.'
         : filterType === 'critical' ? 'No vehicles overdue for less than 8 hours. Longer overdue vehicles appear in Overstay Holding.'
-        : 'No vehicles in the main roster. Older overdue vehicles appear in Overstay Holding.';
+        : 'No cars within their approved parking time. Overdue cars appear in Overstayed Cars or Overstay Holding.';
 
     if (shouldAnimate && window.gsap && visibleRows.length > 0 && visibleRows.length <= 40) {
         gsap.fromTo(visibleRows, { opacity: 0.35, y: 3 }, { opacity: 1, y: 0, duration: 0.18, stagger: 0.02, ease: 'power1.out' });

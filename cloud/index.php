@@ -191,8 +191,9 @@ try {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Remote Executive Command &amp; Admin Dashboard - Mombasa Mall Parking</title>
     <link rel="stylesheet" href="css/cloud.css">
+    <link rel="stylesheet" href="../assets/css/dashboard-interface.css?v=<?= filemtime(__DIR__.'/../assets/css/dashboard-interface.css') ?>">
 </head>
-<body>
+<body class="management-dashboard dashboard-cloud">
 
     <!-- ================================================================
          TOP APPLICATION HEADER & STATUS

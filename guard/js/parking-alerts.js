@@ -12,8 +12,8 @@ const ParkingAlerts=(()=>{
             const plate=document.createElement('div');plate.className='restriction-plate';plate.textContent=item.formatted_plate||item.plate_number;
             const note=document.createElement('p');note.textContent=`${item.camera==='exit'?'Exit':'Entrance'} camera - ${item.is_clamped?'Supervisor must record clamp release before departure.':'Supervisor authorization required to leave.'}`;
             card.append(title,plate,note);
-            if(Number(item.session_id)){const review=document.createElement('button');review.textContent=item.is_clamped?'Follow up / release clamp':'Review incident / follow-up';review.onclick=()=>ParkingOperations.open(Number(item.session_id));card.appendChild(review);}
-            if(!item.is_clamped){const leave=document.createElement('button');leave.textContent='Authorize to leave';leave.onclick=()=>executeClearExit(Number(item.session_id)||0,item.plate_number);card.appendChild(leave);}
+            if(Number(item.session_id)){const review=document.createElement('button');review.textContent=item.is_clamped?'Follow up / release clamp':'Review incident / follow-up';review.onclick=()=>{dismissed.add(key(item));render();ParkingOperations.open(Number(item.session_id));};card.appendChild(review);}
+            if(!item.is_clamped){const leave=document.createElement('button');leave.textContent='Authorize to leave';leave.onclick=()=>{dismissed.add(key(item));render();executeClearExit(Number(item.session_id)||0,item.plate_number);};card.appendChild(leave);}
             const dismiss=document.createElement('button');dismiss.textContent='Dismiss alert';dismiss.onclick=()=>{dismissed.add(key(item));render();};card.appendChild(dismiss);node.appendChild(card);
         }
     }

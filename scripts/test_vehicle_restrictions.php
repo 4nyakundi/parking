@@ -34,12 +34,17 @@ if($case==='core'){
     restriction_reject(fn()=>vehicle_require_departure($policy,$supervisor,''),'Blacklisted departures require an authorization reason');
     vehicle_require_departure($policy,$supervisor,'Supervisor directs vehicle to leave');restriction_check(true,'Supervisor can authorize a blacklisted vehicle to leave after clamp release');
     restriction_check(vehicle_exit_policy($db,'KDA123A')['is_blacklisted'],'Blacklist persists independently of the current parking visit');
+    $db->beginTransaction();vehicle_complete_departure($db,$guard,1,$supervisor,'Supervisor directed the vehicle to leave',null);$db->commit();
+    restriction_check($db->query('SELECT status FROM parking_sessions WHERE id=1')->fetchColumn()==='COMPLETED','Supervisor-approved departure completes the visit after clamp release');
+    $audit=json_decode((string)$db->query("SELECT new_value FROM audit_log WHERE action='CLEAR_EXIT' ORDER BY id DESC LIMIT 1")->fetchColumn(),true);
+    restriction_check($audit['authorized_by']===2&&$audit['departure_reason']==='Supervisor directed the vehicle to leave','Authorized departure preserves supervisor identity and reason');
+    restriction_check(vehicle_exit_policy($db,'KDA123A')['is_blacklisted'],'Authorizing one departure does not remove the blacklist');
     exit;
 }
 if(str_contains($case,'blacklist')||$case==='batch_restricted')$db->exec("UPDATE registered_vehicles SET category='blacklisted' WHERE plate_number='KDA123A'");
 if(str_contains($case,'clamp'))parking_operation($db,$guard,'log_action',$approval+['type'=>'clamped','notes'=>'Clamp applied']);
 if(str_contains($case,'incident')||$case==='exit_guard_code')parking_operation($db,$guard,'log_action',$approval+['type'=>'incident','notes'=>'Incident under review']);
-if(in_array($case,['camera_blacklist_unknown','camera_blacklist_entrance_pending'],true))$db->exec("UPDATE parking_sessions SET status='COMPLETED',exit_time=DATE_SUB(NOW(),INTERVAL 1 HOUR) WHERE id=1");
+if(in_array($case,['camera_blacklist_unknown','camera_blacklist_entrance_pending','exit_blacklist_unknown_authorized'],true))$db->exec("UPDATE parking_sessions SET status='COMPLETED',exit_time=DATE_SUB(NOW(),INTERVAL 1 HOUR) WHERE id=1");
 if($case==='camera_blacklist_entrance_pending')$db->exec("INSERT INTO visitors(plate_number,driver_name,driver_phone,destination,status) VALUES('KDA123A','Visitor','','Shop','PENDING')");
 session_save_path(sys_get_temp_dir());session_id('vehicle-restriction-'.bin2hex(random_bytes(8)));session_start();
 $sessionPath=session_save_path().DIRECTORY_SEPARATOR.'sess_'.session_id();
@@ -47,6 +52,7 @@ $_SESSION=['user_id'=>1,'role'=>'guard','full_name'=>'Test Guard','last_activity
 $_SERVER['REQUEST_METHOD']='POST';$_SERVER['REMOTE_ADDR']='127.0.0.1';$_SERVER['HTTP_X_CSRF_TOKEN']='test-token';$_GET=[];
 $endpoint='gate/clear-exit.php';$_POST=['session_id'=>1];
 if(str_starts_with($case,'camera_')){$endpoint='gate/plate-detected.php';$_POST=['camera'=>$case==='camera_blacklist_entrance_pending'?'entrance':'exit','plate'=>'KDA123A'];}
+elseif($case==='exit_blacklist_unknown_authorized')$_POST=['plate_number'=>'KDA123A','supervisor_pin'=>'834672','departure_reason'=>'Supervisor directed this blacklisted vehicle to leave'];
 elseif($case==='exit_clamp_blocked_with_code')$_POST=$approval+['departure_reason'=>'Supervisor approved'];
 elseif($case==='exit_guard_code')$_POST=['session_id'=>1,'supervisor_pin'=>'123456','departure_reason'=>'Attempt'];
 elseif($case==='exit_completed_no_duplicate')$db->exec("UPDATE parking_sessions SET status='COMPLETED',exit_time=NOW() WHERE id=1");
@@ -61,7 +67,8 @@ ob_start();register_shutdown_function(function()use($db,$case,$sessionPath){
         $good=$good&&!empty($json['ok']);$alerts=$db->query("SELECT payload FROM events WHERE type='vehicle_restricted'")->fetchAll();
         if($case==='camera_normal_uncollected')$good=$good&&$visit==='COMPLETED'&&!$alerts;
         else{$good=$good&&count($alerts)===1&&$count===1;if(!in_array($case,['camera_blacklist_unknown','camera_blacklist_entrance_pending'],true))$good=$good&&$visit==='ACTIVE';$good=$good&&count(vehicle_recent_alerts($db))===1;}
-    }elseif($case==='batch_restricted')$good=$good&&!empty($json['ok'])&&$json['restricted']===1&&$json['cleared']===1&&$visit==='ACTIVE';
+    }elseif($case==='exit_blacklist_unknown_authorized'){$good=$good&&!empty($json['ok'])&&$count===2;$last=$db->query('SELECT * FROM parking_sessions ORDER BY id DESC LIMIT 1')->fetch();$good=$good&&(int)$last['cleared_by']===1&&(int)$last['approved_by']===2&&$last['status']==='COMPLETED'&&vehicle_exit_policy($db,'KDA123A')['is_blacklisted'];}
+    elseif($case==='batch_restricted')$good=$good&&!empty($json['ok'])&&$json['restricted']===1&&$json['cleared']===1&&$visit==='ACTIVE';
     else{$good=$good&&empty($json['ok'])&&in_array($status,[403,422],true)&&$count===1;if($case==='exit_completed_no_duplicate')$good=$good&&$visit==='COMPLETED';else $good=$good&&$visit==='ACTIVE';}
     if(session_status()===PHP_SESSION_ACTIVE)session_write_close();if(is_file($sessionPath))unlink($sessionPath);
     echo ($good?'PASS: ':'FAIL: ').$case.' with temporary tables'.PHP_EOL;if(!$good){echo substr($output,0,1500).PHP_EOL;exit(1);}

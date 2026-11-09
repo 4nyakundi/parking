@@ -7,7 +7,7 @@ return [
     'db' => [
         'host'     => '127.0.0.1',
         'port'     => 3306,
-        'dbname'   => 'mombasam_parking',
+        'dbname'   => 'mombasa_parking_cloud',
         'username' => 'root',
         'password' => '',
         'charset'  => 'utf8mb4',
