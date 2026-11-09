@@ -6,6 +6,7 @@ header('Cache-Control: no-store');
 require_once __DIR__ . '/../../includes/auth.php';
 require_once __DIR__ . '/../../includes/guard_snapshot.php';
 require_once __DIR__ . '/../../includes/guard_overview.php';
+require_once __DIR__.'/../../includes/vehicle_restrictions.php';
 require_auth(true);
 session_write_close();
 try {
@@ -20,9 +21,10 @@ try {
     $devices = $db->query('SELECT device, status, message, last_checked_at, TIMESTAMPDIFF(SECOND, last_checked_at, NOW()) AS age_seconds FROM device_health')->fetchAll();
     $failures = $db->query('SELECT id, ticket_id, plate_number, updated_at FROM parking_sessions WHERE print_status = "failed" ORDER BY id DESC LIMIT 100')->fetchAll();
     $capacity = $db->query('SELECT value FROM system_settings WHERE `key` = "capacity"')->fetchColumn();
+    $vehicleAlerts=vehicle_recent_alerts($db);
     $db->commit();
     echo json_encode(['ok' => true, 'last_event_id' => $cursor, 'server_timestamp' => time(),
-        'pending' => $pending, 'roster' => $roster, 'devices' => $devices, 'daily_overview' => $dailyOverview,
+        'vehicle_alerts'=>$vehicleAlerts,'pending' => $pending, 'roster' => $roster, 'devices' => $devices, 'daily_overview' => $dailyOverview,
         'print_failures' => $failures, 'capacity' => (int)($capacity ?: 60)]);
 } catch (Throwable $e) {
     if (isset($db) && $db->inTransaction()) $db->rollBack();

@@ -27,9 +27,16 @@ function admin_report(PDO $db, string $start, string $end): array
     $peak = null;
     foreach ($hourly as $hour) if (!$peak || $hour['count'] > $peak['count']) $peak = $hour;
     $summary['peak_hour'] = $peak ? sprintf('%02d:00–%02d:00 (%d arrivals)', $peak['hr'], ($peak['hr']+1)%24, $peak['count']) : 'No arrivals';
-    $q = $db->prepare("SELECT destination, COUNT(*) count, ROUND(AVG(TIMESTAMPDIFF(MINUTE,entry_time,COALESCE(exit_time,NOW())))) avg_dwell_mins
-        FROM parking_sessions WHERE status IN ('ACTIVE','COMPLETED') AND entry_time >= ? AND entry_time < ? GROUP BY destination ORDER BY count DESC");
-    $q->execute([$start,$end]); $destinations = $q->fetchAll();
+    $q = $db->prepare("SELECT intended.destination,COUNT(*) count,ROUND(AVG(intended.dwell)) avg_dwell_mins FROM (
+        SELECT vd.destination_name COLLATE utf8mb4_unicode_ci destination,TIMESTAMPDIFF(MINUTE,s.entry_time,COALESCE(s.exit_time,NOW())) dwell
+        FROM parking_sessions s JOIN visit_destinations vd ON vd.entity_type='session' AND vd.entity_id=s.id
+        WHERE s.status IN ('ACTIVE','COMPLETED') AND s.entry_time>=? AND s.entry_time<?
+        UNION ALL
+        SELECT s.destination COLLATE utf8mb4_unicode_ci,TIMESTAMPDIFF(MINUTE,s.entry_time,COALESCE(s.exit_time,NOW()))
+        FROM parking_sessions s WHERE s.status IN ('ACTIVE','COMPLETED') AND s.entry_time>=? AND s.entry_time<?
+        AND NOT EXISTS (SELECT 1 FROM visit_destinations vd WHERE vd.entity_type='session' AND vd.entity_id=s.id)
+        ) intended GROUP BY intended.destination ORDER BY count DESC");
+    $q->execute([$start,$end,$start,$end]); $destinations = $q->fetchAll();
     $maps=[];
     foreach ([['parking_sessions','approved_by','entry_time',"status IN ('ACTIVE','COMPLETED')"],['parking_sessions','cleared_by','exit_time',"status='COMPLETED'"],['visitors','handled_by','created_at',"status='REJECTED'"]] as [$table,$actor,$time,$condition]) {
         $q=$db->prepare("SELECT {$actor} actor,COUNT(*) count FROM {$table} WHERE {$condition} AND {$time}>=? AND {$time}<? GROUP BY {$actor}");

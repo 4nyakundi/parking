@@ -1,3 +1,4 @@
+let selectedDestinations = [];
 /**
  * Mombasa Mall Basement Parking — Driver Mobile Self Sign-In Logic
  * v4.0 — Full 45-Store Directory (Ground Floor, First Floor, Second Floor, Third Floor)
@@ -246,9 +247,10 @@ function renderDetectedCars(cars) {
         card.setAttribute('data-plate', car.plate_number);
         card.onclick = () => selectCameraCar(car.plate_number);
 
+        const placeholderHtml = `<div class="cam-car-placeholder-thumb"><img src="../assets/img/vehicle-placeholder.svg" alt="Vehicle symbol" class="cam-car-symbol"><span>Photo unavailable</span></div>`;
         const thumbHtml = car.snapshot_url 
             ? `<img src="../${car.snapshot_url}" alt="${car.formatted_plate}" class="cam-car-thumb" loading="lazy">`
-            : `<div class="cam-car-placeholder-thumb"><span>🚗</span></div>`;
+            : placeholderHtml;
 
         const statusClass = car.has_pending_info ? 'prefilled' : 'needs';
         const statusText  = car.has_pending_info ? '✓ Pre-Filled' : 'Awaiting Data';
@@ -270,6 +272,12 @@ function renderDetectedCars(cars) {
             </button>
         `;
 
+        const snapshot = card.querySelector('.cam-car-thumb');
+        if (snapshot) snapshot.addEventListener('error', () => {
+            const fallback = document.createElement('div');
+            fallback.innerHTML = placeholderHtml;
+            snapshot.replaceWith(fallback.firstElementChild);
+        }, { once: true });
         carousel.appendChild(card);
     });
 }
@@ -340,6 +348,7 @@ function selectCameraCar(plateNumber) {
 function selectStoreByName(storeName) {
     if (!storeName) return;
     selectedDestination = storeName;
+    selectedDestinations=[storeName];
     const destErr = document.getElementById('destError');
     if (destErr) destErr.style.display = 'none';
 
@@ -460,7 +469,7 @@ function renderStoresGrid() {
 
     filtered.forEach(s => {
         const card = document.createElement('div');
-        const isSelected = selectedDestination === s.name;
+        const isSelected = selectedDestinations.includes(s.name);
         card.className = 'dest-card' + (isSelected ? ' selected' : '');
         card.setAttribute('data-name', s.name);
         card.onclick = () => pickDest(s.name, card, s);
@@ -481,9 +490,11 @@ function renderStoresGrid() {
  * Destination tile selection
  */
 function pickDest(name, el, storeObj) {
-    selectedDestination = name;
+    if (!document.getElementById('driverMultiStore')?.checked) selectedDestinations=[];
+    const at=selectedDestinations.indexOf(name); if(at>=0) selectedDestinations.splice(at,1); else selectedDestinations.push(name);
+    selectedDestination = selectedDestinations[0] || '';
     document.querySelectorAll('.dest-card').forEach(c => c.classList.remove('selected'));
-    if (el) el.classList.add('selected');
+    document.querySelectorAll('.dest-card').forEach(c => c.classList.toggle('selected',selectedDestinations.includes(c.dataset.name)));
 
     document.getElementById('destError').style.display = 'none';
 
@@ -491,7 +502,7 @@ function pickDest(name, el, storeObj) {
     const banner = document.getElementById('selectedDestBanner');
     const label = document.getElementById('selectedDestText');
     if (banner && label) {
-        label.textContent = name;
+        label.textContent = selectedDestinations.join(', ') || 'None';
         banner.style.display = 'block';
     }
 }
@@ -577,6 +588,7 @@ async function submitDriverSignIn() {
         driver_name:   name,
         driver_phone:  phone,
         destination:   selectedDestination,
+        destinations: selectedDestinations,
         consent:       consent,
         hp_website:    hp,
     };
@@ -603,7 +615,7 @@ async function submitDriverSignIn() {
     } catch (localErr) {
         console.warn('Local API error, checking cloud fallback:', localErr);
         // Fallback to Firebase Cloud Firestore only if local PHP failed or pure static cloud
-        if (window.firebaseBridge && typeof window.firebaseBridge.submitDriverRequest === 'function') {
+        if (selectedDestinations.length <= 1 && window.firebaseBridge && typeof window.firebaseBridge.submitDriverRequest === 'function') {
             try {
                 const fbResult = await window.firebaseBridge.submitDriverRequest(payload);
                 if (fbResult && fbResult.ok) {
@@ -623,7 +635,7 @@ async function submitDriverSignIn() {
     }
 
     // 2. Asynchronously mirror submission to Cloud Firestore for remote sync
-    if (window.firebaseBridge && typeof window.firebaseBridge.submitDriverRequest === 'function') {
+    if (selectedDestinations.length <= 1 && window.firebaseBridge && typeof window.firebaseBridge.submitDriverRequest === 'function') {
         window.firebaseBridge.submitDriverRequest(payload).catch(e => console.warn('[Cloud Mirror]', e));
     }
 
@@ -692,6 +704,8 @@ async function submitDriverSignIn() {
  */
 function resetForm() {
     selectedDestination = '';
+    selectedDestinations=[];
+    if(document.getElementById('driverMultiStore'))document.getElementById('driverMultiStore').checked=false;
     activeFloor = 'ALL';
     document.querySelectorAll('.dest-card').forEach(c => c.classList.remove('selected'));
 

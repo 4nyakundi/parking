@@ -40,7 +40,7 @@ const AdminTools = (() => {
         for (const [id,value] of Object.entries({ovTotal:data.capacity,ovOccupied:data.occupied,ovAvailable:Math.max(0,data.capacity-data.occupied),
             ovEntries:daily.total_arrivals,ovExits:daily.exited,ovRegistered:daily.registered,ovUnregistered:daily.unregistered,
             ovOverstay:data.overstays,ovAvgStay:`${data.avg_stay_mins}m`})) text(id,value);
-        text('ovOverstayRule',`Parked at least ${data.overstay_hours} hours`);
+        text('ovOverstayRule',`Past approved deadline (${data.overstay_hours} hours by default)`);
         const attention = el('adminAttention'); attention.replaceChildren();
         const issues = [[daily.pending_registration,'Awaiting registration','visitors'],[data.overstays,'Overstayed cars','sessions','overstay'],
             [data.attention['Print failures'],'Print failures','sessions','print_failed'],[data.attention['Message failures'],'Message failures','sessions','message_failed'],

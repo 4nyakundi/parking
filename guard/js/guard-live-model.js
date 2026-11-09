@@ -30,6 +30,10 @@ const GuardLiveModel = {
         const seconds = Math.max(0, (nowMs - entryMs) / 1000);
         return seconds >= 7200 ? 'critical' : seconds >= 5400 ? 'warning' : 'safe';
     },
+    inOverstayHolding(entryMs, nowMs, limitSeconds = 7200) {
+        const elapsed = (nowMs - entryMs) / 1000;
+        return Number.isFinite(elapsed) && elapsed >= limitSeconds + 8 * 3600;
+    },
     retryDelay(failures) { return Math.min(30000, 2000 * 2 ** Math.min(failures, 4)); },
     device(info, disconnected = false) {
         if (disconnected || !info) return 'Unknown';

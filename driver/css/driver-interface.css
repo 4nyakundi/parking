@@ -1,0 +1,43 @@
+/* Driver sign-in presentation; camera sources and arrival selection stay intact. */
+.form-card { border-radius: 18px; border-color: #cfdfef; border-top-color: #116fc7; box-shadow: 0 8px 32px #173b600d; }
+.form-card-header { background: #f8fbff; padding: 20px; gap: 18px; border-bottom-color: #e0eaf5; }
+.form-card-header img { max-width: 45%; height: auto; max-height: 40px; }
+.form-card-header-text { min-width: 0; }
+.form-card-header-text h2 { font-size: 18px; letter-spacing: -.025em; }
+.form-card-header-text p { font-size: 10px; text-transform: none; letter-spacing: .02em; line-height: 1.5; }
+.parking-policy-banner { border-radius: 10px; }
+.cam-detected-section { background: #f5f9ff; border: 1px solid #cbdff5; border-radius: 14px; box-shadow: 0 3px 14px #173b6008; }
+.cam-section-header { gap: 12px; align-items: flex-start; }
+.cam-header-title { flex-wrap: wrap; min-width: 0; gap: 7px; text-transform: none; letter-spacing: 0; line-height: 1.5; font-size: 12px; }
+.cam-section-hint { color: #486987; line-height: 1.6; letter-spacing: 0; font-size: 12px; }
+.btn-cam-refresh { min-height: 36px; border-radius: 8px; flex-shrink: 0; }
+.cam-cars-carousel { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; overflow: visible; padding-bottom: 4px; }
+.cam-car-card { width: auto; min-width: 0; padding: 10px; border-radius: 12px; border-color: #d8e6f5; box-shadow: 0 2px 8px #173b6008; }
+.cam-car-card-top { flex-wrap: wrap; gap: 5px; margin-bottom: 9px; }
+.cam-car-time { font-size: 10px; color: #55718d; }
+.cam-car-status-pill { font-size: 9px; letter-spacing: .02em; border-radius: 5px; }
+.cam-car-thumb { width: 100%; height: 94px; object-fit: contain; background: #edf4fc; border-radius: 9px; border-color: #e0eaf5; }
+.cam-car-placeholder-thumb { height: 94px; width: 100%; display: flex; flex-direction: column; gap: 3px; align-items: center; justify-content: center; border-radius: 9px; background: #edf4fc; border: 1px solid #e0eaf5; }
+.cam-car-placeholder-thumb .cam-car-symbol { display: block; width: 92px; height: 49px; max-width: 100%; object-fit: contain; }
+.cam-car-placeholder-thumb > span { font: 10px/1.4 system-ui, sans-serif; color: #55718d; }
+.cam-car-plate-wrap { margin: 10px 0; }
+.cam-car-plate { max-width: 100%; font-size: 14px; letter-spacing: .04em; padding: 5px 7px; border-radius: 6px; }
+.btn-select-car { min-height: 38px; height: auto; border-radius: 8px; font-size: 11px; text-transform: none; letter-spacing: 0; }
+.cam-car-card.selected { border-color: #116fc7; box-shadow: 0 0 0 2px #116fc733; }
+.cam-section-footer { flex-wrap: wrap; gap: 8px; border-top-color: #cfdfef; padding-top: 12px; }
+.btn-manual-toggle { min-height: 36px; }
+.form-section-label { font-size: 10px; letter-spacing: .07em; color: #486987; }
+.field label { font-size: 11px; letter-spacing: .02em; text-transform: none; color: #486987; }
+.field input, .dest-search-input { border-radius: 10px; background: #f8fbff; border-color: #cfdfef; }
+.field input.plate { border-radius: 10px; font-size: 24px; }
+.floor-tab { border-radius: 8px; min-height: 36px; }
+.btn-submit { border-radius: 10px; }
+button:focus-visible, input:focus-visible { outline: 3px solid #116fc7; outline-offset: 3px; }
+@media (max-width: 540px) {
+    .form-card { border-radius: 14px; }
+    .form-card-header { padding: 18px 16px; }
+    .form-card-header-text h2 { font-size: 17px; }
+    .cam-detected-section { margin-inline: 14px; }
+    .cam-cars-carousel { gap: 8px; }
+    .cam-car-card { padding: 8px; }
+}

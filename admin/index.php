@@ -18,6 +18,7 @@ $user = require_role(['supervisor', 'admin'], false);
     <title><?= $user['role'] === 'supervisor' ? 'Supervisor Dashboard' : 'Admin Dashboard' ?> - Mombasa Mall Parking</title>
     <link rel="stylesheet" href="css/admin.css">
     <link rel="stylesheet" href="css/admin-operations.css?v=<?= filemtime(__DIR__ . '/css/admin-operations.css') ?>">
+<link rel="stylesheet" href="../assets/css/parking-operations.css?v=<?= filemtime(__DIR__.'/../assets/css/parking-operations.css') ?>">
 </head>
 <body data-user-role="<?= htmlspecialchars($user['role']) ?>">
 
@@ -50,6 +51,7 @@ $user = require_role(['supervisor', 'admin'], false);
                 Driver Requests
             </a>
 
+            <a class="nav-link" data-section="operations">Shifts &amp; Follow-ups</a>
             <div class="nav-section-label">Registry</div>
             <a class="nav-link" data-section="vehicles">
                 <svg class="nav-icon" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
@@ -322,16 +324,12 @@ $user = require_role(['supervisor', 'admin'], false);
         <!-- ============================================================== -->
         <!-- 5. USERS & ROLES -->
         <!-- ============================================================== -->
+        <section id="sec-operations" class="section-content"><div class="table-card" style="padding:24px"><h3>Shifts, Overstays &amp; Incidents</h3><p>Review outstanding cases, approve extensions, and record shift handovers.</p><button class="btn-primary" onclick="ParkingOperations.open()">Open operations</button></div></section>
         <section id="sec-users" class="section-content">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
                 <p style="color:var(--text-sub);">Create and manage security guards (PIN login) and management users.</p>
-                <?php if ($user['role'] === 'admin'): ?>
-                <button class="btn-primary btn-success" onclick="openUserModal()">
-                    <svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" fill="none" stroke-width="2" style="vertical-align:-2px; margin-right:4px;"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>Add Security User
-                </button>
-                <?php else: ?>
-                <span class="badge" style="background:#eef5fc; color:#2e5c8a; border:1px solid #b0cfec; padding:6px 12px; font-weight:700;">Supervisor View Only</span>
-                <?php endif; ?>
+                <button class="btn-primary btn-success" onclick="openUserModal()">Add Guard / User</button>
+                <span class="admin-help">Supervisors manage guards; administrators manage all accounts.</span>
             </div>
 
             <div class="table-card">
@@ -379,7 +377,7 @@ $user = require_role(['supervisor', 'admin'], false);
         <!-- ============================================================== -->
         <!-- 7. REPORTS SECTION -->
         <!-- ============================================================== -->
-        <section id="sec-reports" class="section-content">
+        <section id="sec-reports" class="section-content"><p class="admin-help">Store totals count each intended store selected for a visit. A multi-store visit appears under each selected store; parking arrivals count once.</p>
             <div class="filter-bar">
                 <label>Date Range:</label>
                 <input type="date" id="repDateFrom" class="filter-input">
@@ -812,7 +810,7 @@ $user = require_role(['supervisor', 'admin'], false);
                     </select>
                 </div>
                 <div><label>Phone Number</label><input type="tel" id="userPhone" class="filter-input" style="width:100%;"></div>
-                <div><label>4-Digit Guard PIN (For tablet keypad login)</label><input type="password" id="userPin" class="filter-input" style="width:100%;" placeholder="e.g. 1234"></div>
+                <div><label>4–6 Digit Guard PIN (For tablet keypad login)</label><input type="password" id="userPin" inputmode="numeric" minlength="4" maxlength="6" class="filter-input" style="width:100%;" placeholder="e.g. 1234"></div>
                 <div><label>Password (For supervisors & admins)</label><input type="password" id="userPassword" class="filter-input" style="width:100%;" placeholder="Leave blank to keep current"></div>
                 <button class="btn-primary btn-success" onclick="saveUser()">Save User Account</button>
             </div>
@@ -917,5 +915,6 @@ $user = require_role(['supervisor', 'admin'], false);
         });
     </script>
     <script type="module" src="../assets/js/firebase-init.js"></script>
+<script src="../assets/js/parking-operations.js?v=<?= filemtime(__DIR__.'/../assets/js/parking-operations.js') ?>"></script>
 </body>
 </html>

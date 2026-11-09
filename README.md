@@ -374,3 +374,8 @@ nssm restart MombasaANPR
 REM Run Manual On-Demand Backup
 call "C:\xampp\htdocs\parking\scripts\backup.bat"
 ```
+
+
+### Shift operations upgrade (2026-11-09)
+
+Before deploying this update to an existing database, run `C:\xampp\php\php.exe scripts\operations_migrate.php` from this project directory (or import `database/upgrade_operations_20261109.sql`). Setup and workflow details are in [Shift operations](docs/SHIFT_OPERATIONS.md). The update adds shifts/handovers, overstay follow-ups, approved extensions, incidents, multi-store visits and supervisor guard-account management.

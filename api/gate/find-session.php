@@ -30,10 +30,11 @@ try {
     // Fetch matching ACTIVE sessions first
     $stmt = $db->prepare('
         SELECT 
-            s.*,
+            s.*, e.approved_until,
             u.full_name AS guard_name,
             TIMESTAMPDIFF(MINUTE, s.entry_time, NOW()) AS dwell_minutes
         FROM parking_sessions s
+        LEFT JOIN parking_extensions e ON e.session_id=s.id
         LEFT JOIN users u ON u.id = s.approved_by
         WHERE (
             s.plate_number LIKE :exactPlate
@@ -54,11 +55,12 @@ try {
         ':name'       => "%{$query}%",
     ]);
 
-    $rows = $stmt->fetchAll();
+    require_once __DIR__.'/../../includes/visit_destinations.php';
+    $rows = visit_store_decorate($db,$stmt->fetchAll());
     $results = [];
 
     $config = require __DIR__ . '/../../config/config.php';
-    $overstayHours = (int)($config['app']['overstay_hours'] ?? 8);
+    $overstayHours = 2;
 
     foreach ($rows as $row) {
         $dwellMins = (int)$row['dwell_minutes'];
@@ -66,7 +68,7 @@ try {
         $mins  = $dwellMins % 60;
         $dwellStr = $hours > 0 ? "{$hours}h {$mins}m" : "{$mins} mins";
 
-        $isOverstay = ($dwellMins >= ($overstayHours * 60)) && ($row['status'] === 'ACTIVE');
+        $isOverstay = (time() >= max(strtotime($row['entry_time'])+7200, strtotime($row['approved_until']??'1970-01-01'))) && ($row['status'] === 'ACTIVE');
 
         $results[] = [
             'id'               => (int)$row['id'],

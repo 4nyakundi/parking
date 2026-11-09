@@ -14,7 +14,7 @@ function admin_session_filters(array $input): array
         $value = trim((string)($input[$key] ?? ''));
         if ($value === '') continue;
         if ($key === 'status' && !in_array($value, ['ACTIVE','COMPLETED','CANCELLED'], true)) throw new InvalidArgumentException('Invalid session status.');
-        $where[] = "{$column} = :{$key}"; $params[":{$key}"] = $value;
+        if ($key==='destination') { $where[] = '(s.destination=:destination OR EXISTS (SELECT 1 FROM visit_destinations vd WHERE vd.entity_type="session" AND vd.entity_id=s.id AND vd.destination_name=:store_name))'; $params[':store_name']=$value; } else $where[] = "{$column} = :{$key}"; $params[":{$key}"] = $value;
     }
     foreach (['date_from','date_to'] as $key) {
         $value = trim((string)($input[$key] ?? ''));
@@ -31,7 +31,7 @@ function admin_session_filters(array $input): array
     }
     $issue = (string)($input['issue'] ?? '');
     $issues = ['print_failed'=>"s.print_status='failed'",'message_failed'=>"s.whatsapp_status='failed'",
-        'overstay'=>"s.status='ACTIVE' AND s.entry_time<=DATE_SUB(NOW(),INTERVAL 2 HOUR)",
+        'overstay'=>"s.status='ACTIVE' AND COALESCE((SELECT approved_until FROM parking_extensions pe WHERE pe.session_id=s.id),DATE_ADD(s.entry_time,INTERVAL 2 HOUR))<=NOW()",
         'missing_details'=>"s.driver_name='Uncollected Driver'",'unsynced'=>'s.synced_to_cloud=0'];
     if ($issue !== '') {
         if (!isset($issues[$issue])) throw new InvalidArgumentException('Invalid issue filter.');

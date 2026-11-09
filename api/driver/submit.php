@@ -8,6 +8,7 @@
 declare(strict_types=1);
 
 header('Content-Type: application/json; charset=utf-8');
+require_once __DIR__ . '/../../includes/visit_destinations.php';
 
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../includes/plate_helper.php';
@@ -73,6 +74,8 @@ if (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
 
 try {
     $db = get_db();
+    $stores=visit_stores($db,$input,$destination);
+    if($stores) $destination=$stores[0]['name'];
 
     // 5. Rate Limiting: Max 10 submissions per IP or Phone within 10 minutes
     $isLocalIp = ($ip === '127.0.0.1' || $ip === '::1' || str_starts_with($ip, '192.168.') || str_starts_with($ip, '10.') || str_starts_with($ip, '172.'));
@@ -170,6 +173,7 @@ try {
     $requestId = null;
     $timeInTimestamp = time();
 
+    $db->beginTransaction();
     if ($existingPending) {
         // Vehicle was already queued by camera: UPDATE it with the driver details!
         $requestId = (int)$existingPending['id'];
@@ -211,12 +215,16 @@ try {
         $requestId = (int)$db->lastInsertId();
     }
 
+    visit_store_save($db,'visitor',$requestId,$stores);
+    $db->commit();
+
     // Link ALPR detection if available
     if ($alprDetection && $requestId) {
         $db->prepare('UPDATE alpr_detections SET matched_request_id = ? WHERE id = ?')
            ->execute([$requestId, $alprDetection['id']]);
     }
 
+    if ($stores) $destination=implode(', ',array_column($stores,'name'));
     // 11. Broadcast Realtime Events to Guard Tablet & Screen
     $eventPayload = [
         'request_id'      => $requestId,
@@ -226,6 +234,7 @@ try {
         'driver_phone'    => PhoneHelper::formatDisplay($cleanPhone),
         'raw_phone'       => $cleanPhone,
         'destination'     => $destination,
+        'destinations' => $stores ? array_column($stores,'name') : [$destination],
         'source'          => 'self_signin',
         'alpr_verified'   => true,
         'category'        => $category,
@@ -249,6 +258,7 @@ try {
             'driver_name'       => $driverName,
             'driver_phone'      => PhoneHelper::formatDisplay($cleanPhone),
             'destination'       => $destination,
+        'destinations' => $stores ? array_column($stores,'name') : [$destination],
             'time_in'           => $timeInFormatted,
             'expected_time_out' => $expectedTimeOut,
             'parking_limit'     => '2 Hours (120 Mins) — Free',
@@ -257,6 +267,7 @@ try {
         ],
     ]);
 } catch (Throwable $e) {
+    if(isset($db) && $db->inTransaction()) $db->rollBack();
     error_log('DRIVER SIGNIN SUBMIT ERROR: ' . $e->getMessage());
     echo json_encode(['ok' => false, 'error' => 'An error occurred while saving your sign-in. Please see the guard.']);
 }

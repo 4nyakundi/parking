@@ -42,7 +42,9 @@ try {
         ");
         $stmt->execute($params);
 
+        require_once __DIR__.'/../../includes/visit_destinations.php';
         while ($r = $stmt->fetch()) {
+            $r=visit_store_decorate($db,[$r])[0];
             $values = [
                 $r['ticket_id'],
                 PlateHelper::format($r['plate_number']),

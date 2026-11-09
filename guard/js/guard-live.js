@@ -104,6 +104,7 @@ const GuardLive = (() => {
         STATE.user = null;
         clearOverview();
         if (typeof GuardHistory !== 'undefined') GuardHistory.reset();
+        if (typeof ParkingAlerts !== 'undefined') ParkingAlerts.reset();
         clearTimeout(timer);
         clearTimeout(STATE.firestoreRetryTimer);
         if (STATE.firestoreUnsubscribe) STATE.firestoreUnsubscribe();
@@ -241,6 +242,7 @@ const GuardLive = (() => {
         if (epoch !== generation) return;
         if (version !== mutationVersion) { snapshotNeeded = true; return; }
         offset = data.server_timestamp * 1000 - Date.now();
+        if (typeof ParkingAlerts !== 'undefined') ParkingAlerts.set(data.vehicle_alerts||[]);
         local = data.pending;
         renderOverview(data.daily_overview);
         renderRoster(data.roster.sessions);

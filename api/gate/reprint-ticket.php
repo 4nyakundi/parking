@@ -39,8 +39,12 @@ try {
         exit;
     }
 
+    require_once __DIR__.'/../../includes/visit_destinations.php';
+    $session=visit_store_decorate($db,[$session])[0];
     // Attempt reprint
     $entryTs = !empty($session['entry_time']) ? strtotime($session['entry_time']) : time();
+    $q=$db->prepare('SELECT approved_until FROM parking_extensions WHERE session_id=?');$q->execute([$session['id']]);
+    $deadline=max($entryTs+7200,strtotime($q->fetchColumn()?:'1970-01-01'));
     $sessionPayload = [
         'session_id'         => $session['id'],
         'ticket_id'          => $session['ticket_id'],
@@ -51,8 +55,8 @@ try {
         'destination'        => $session['destination'],
         'entry_time'         => $session['entry_time'],
         'entry_time_fmt'     => date('H:i:s - d/m/Y', $entryTs),
-        'expected_exit_time' => date('Y-m-d H:i:s', $entryTs + (120 * 60)),
-        'expected_exit_fmt'  => date('H:i:s - d/m/Y', $entryTs + (120 * 60)),
+        'expected_exit_time' => date('Y-m-d H:i:s', $deadline),
+        'expected_exit_fmt'  => date('H:i:s - d/m/Y', $deadline),
         'max_hours'          => 2.0,
         'guard_name'         => $user['full_name'],
     ];

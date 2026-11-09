@@ -10,6 +10,7 @@ header('Content-Type: application/json; charset=utf-8');
 
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../includes/audit.php';
+require_once __DIR__ . '/../../includes/parking_operations.php';
 
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
@@ -56,7 +57,12 @@ try {
             exit;
         }
 
+        $signedInAt=date('Y-m-d H:i:s');
+        $activeShift=parking_use_current_shift($db,$matchedUser,$signedInAt);
         session_regenerate_id(true);
+        $_SESSION['signed_in_at']=$signedInAt;
+        $_SESSION['parking_shift_id']=(int)$activeShift['id'];
+        unset($_SESSION['parking_shift_ended']);
         // Setup session
         $_SESSION['user_id']       = (int)$matchedUser['id'];
         $_SESSION['username']      = $matchedUser['username'] ?? '';
@@ -110,8 +116,14 @@ try {
         exit;
     }
 
+    // Reuse the account's present shift when signing in to management.
+    $signedInAt=date('Y-m-d H:i:s');
+    $activeShift=parking_use_current_shift($db,$user,$signedInAt);
     // Setup session
     session_regenerate_id(true);
+    $_SESSION['signed_in_at']=$signedInAt;
+    $_SESSION['parking_shift_id']=(int)$activeShift['id'];
+    unset($_SESSION['parking_shift_ended']);
     $_SESSION['user_id']       = (int)$user['id'];
     $_SESSION['username']      = $user['username'];
     $_SESSION['full_name']     = $user['full_name'];

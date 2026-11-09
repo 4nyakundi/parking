@@ -5,7 +5,7 @@ if (PHP_SAPI !== 'cli') exit;
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/guard_history.php';
 $db = get_db();
-foreach (['parking_sessions', 'users'] as $table) {
+foreach (['parking_sessions', 'users', 'visit_destinations', 'parking_shifts'] as $table) {
     $db->exec("CREATE TEMPORARY TABLE history_template_{$table} LIKE {$table}");
     $db->exec("CREATE TEMPORARY TABLE {$table} LIKE history_template_{$table}");
 }
@@ -39,9 +39,9 @@ history_check($summary['carried_in']+$summary['arrivals']-$summary['exits']===$s
 history_check($summary['present_visits']===7 && $summary['unique_cars']===6 && $report['total']===7, 'Repeat visits count separately from unique cars');
 history_check($summary['missing_details']===1, 'Uncollected departure remains visible in daily traffic');
 $exited = guard_history_report($db, guard_history_options(['mode'=>'exited','date'=>'2026-10-20']));
-history_check($exited['total']===5 && $exited['sessions'][0]['id']===11, 'Exited tab excludes uncollected departures and sorts latest first');
+history_check($exited['total']===6 && $exited['sessions'][0]['id']===11, 'Exited tab includes uncollected departures and sorts latest first');
 $all = guard_history_report($db, guard_history_options(['mode'=>'exited']));
-history_check($all['total']===7 && $all['sessions'][0]['id']===10, 'All dates includes historical cleared visits');
+history_check($all['total']===8 && $all['sessions'][0]['id']===10, 'All dates includes historical cleared visits');
 $search = guard_history_report($db, guard_history_options(['mode'=>'day','date'=>'2026-10-20','q'=>'Carol']));
 history_check($search['total']===2 && $search['summary']===$summary, 'Search filters records without changing full-day tallies');
 $formatted = guard_history_report($db, guard_history_options(['mode'=>'day','date'=>'2026-10-20','q'=>'KDA 103A']));

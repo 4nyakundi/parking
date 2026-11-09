@@ -129,6 +129,7 @@ class CloudSyncService
                         :emeth, :xmeth, :notes, NOW()
                     )
                     ON DUPLICATE KEY UPDATE
+                        destination      = VALUES(destination),
                         exit_time        = VALUES(exit_time),
                         status           = VALUES(status),
                         duration_minutes = VALUES(duration_minutes),

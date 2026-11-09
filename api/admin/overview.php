@@ -10,7 +10,7 @@ try {
     $db = get_db();
     $db->exec('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ'); $db->beginTransaction();
     $daily = guard_daily_overview($db);
-    $counts = $db->query("SELECT COUNT(*) occupied, COALESCE(SUM(entry_time<=DATE_SUB(NOW(),INTERVAL 2 HOUR)),0) overstays FROM parking_sessions WHERE status='ACTIVE'")->fetch();
+    $counts = $db->query("SELECT COUNT(*) occupied, COALESCE(SUM(COALESCE((SELECT approved_until FROM parking_extensions pe WHERE pe.session_id=parking_sessions.id),DATE_ADD(entry_time,INTERVAL 2 HOUR))<=NOW()),0) overstays FROM parking_sessions WHERE status='ACTIVE'")->fetch();
     $capacity = $db->query("SELECT value FROM system_settings WHERE `key`='capacity'")->fetchColumn();
     $devices = $db->query('SELECT device,status,message,last_checked_at,TIMESTAMPDIFF(SECOND,last_checked_at,NOW()) age_seconds FROM device_health')->fetchAll();
     $attention = [

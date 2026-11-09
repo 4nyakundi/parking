@@ -16,8 +16,11 @@ require_once __DIR__ . '/../../includes/plate_helper.php';
 require_once __DIR__ . '/../../includes/phone_helper.php';
 require_once __DIR__ . '/../../includes/whatsapp_service.php';
 require_once __DIR__ . '/../../includes/cloud_sync_service.php';
+require_once __DIR__.'/../../includes/parking_operations.php';
+require_once __DIR__.'/../../includes/admin_actions.php';
 
 $user = require_auth(true);
+admin_require_mutation('clear_exit',['clear_exit']);
 
 $raw = file_get_contents('php://input');
 $input = json_decode($raw, true) ?? $_POST;
@@ -49,30 +52,33 @@ try {
         $session = $stmt->fetch();
     }
 
+    if(($sessionId>0||$ticketId!=='')&&(!$session||$session['status']!=='ACTIVE'))throw new InvalidArgumentException('Active visit not found or already closed. Refresh the vehicle list.');
+    $cleanPlate=$session?$session['plate_number']:PlateHelper::clean($rawPlate);
+    if(!PlateHelper::validate($cleanPlate))throw new InvalidArgumentException('A valid vehicle plate is required.');
+    $departureReason=trim((string)($input['departure_reason']??$input['override_reason']??''));
+    $policy=vehicle_exit_policy($db,$cleanPlate,(int)($session['id']??0));
+    if($policy['is_clamped'])vehicle_require_departure($policy,null,$departureReason);
+    $exitApprover=null;
+    if($policy['requires_supervisor']||$supervisorPin!=='')$exitApprover=parking_supervisor_code($db,$user,$input);
+    vehicle_require_departure($policy,$exitApprover,$departureReason);
+    $db->beginTransaction();
+    $q=$db->prepare("SELECT * FROM parking_sessions WHERE plate_number=? AND status='ACTIVE' ORDER BY id DESC LIMIT 1 FOR UPDATE");$q->execute([$cleanPlate]);$lockedVisit=$q->fetch();
+    if($session&&!$lockedVisit)throw new DomainException('This visit was already closed. Refresh the list.');
+    $session=$lockedVisit?:null;
+    $policy=vehicle_exit_policy($db,$cleanPlate,(int)($session['id']??0),true);
+    if($exitApprover){$q=$db->prepare("SELECT pin_hash FROM users WHERE id=? AND is_active=1 AND role IN ('supervisor','admin') FOR UPDATE");$q->execute([$exitApprover['id']]);$hash=$q->fetchColumn();if(!$hash||!password_verify($supervisorPin,$hash))throw new DomainException('Supervisor approval is no longer valid.');}
+    vehicle_require_departure($policy,$exitApprover,$departureReason);
+
     // -------------------------------------------------------------
     // Departure Processing if No Active Session Found
     // "even if the car left without data being collected, let it get out and inform the guard that the car left without collection of detail"
     // -------------------------------------------------------------
     if (!$session || $session['status'] !== 'ACTIVE') {
-        $cleanPlate = !empty($rawPlate) ? PlateHelper::clean($rawPlate) : 'UNKNOWN';
+        // Canonical plate was verified before any departure writes.
         $displayPlate = PlateHelper::format($cleanPlate);
 
-        // Check if supervisor PIN was explicitly provided
-        $authorizedSupervisor = null;
-        if (!empty($supervisorPin)) {
-            $supStmt = $db->prepare('
-                SELECT id, full_name, pin_hash 
-                FROM users 
-                WHERE is_active = 1 AND role IN ("supervisor", "admin") AND pin_hash IS NOT NULL
-            ');
-            $supStmt->execute();
-            foreach ($supStmt->fetchAll() as $s) {
-                if (password_verify($supervisorPin, $s['pin_hash'])) {
-                    $authorizedSupervisor = $s;
-                    break;
-                }
-            }
-        }
+        $authorizedSupervisor=$exitApprover;
+        if($departureReason!=='')$overrideReason=$departureReason;
 
         // Look up vehicle entry time from visitors or alpr_detections
         $entryTime = null;
@@ -138,14 +144,16 @@ try {
         $newSessId = (int)$db->lastInsertId();
 
         // Audit Log
-        audit_log($user['id'], 'EXIT_WITHOUT_DETAILS', 'parking_sessions', $ticketId, null, [
+        operation_audit($db,$user, 'EXIT_WITHOUT_DETAILS', 'parking_sessions', $ticketId, [
             'plate'       => $cleanPlate,
             'entry_time'  => $entryTime,
             'duration'    => $durationMinutes,
             'cleared_by'  => $user['full_name'],
             'supervisor'  => $authorizedSupervisor ? $authorizedSupervisor['full_name'] : null,
+            'authorized_by'=>$exitApprover['id']??null,'departure_reason'=>$departureReason,'restriction'=>$policy,
         ]);
 
+        $db->commit();
         // Fire realtime event to inform all guard stations
         fire_event('exit_without_details', [
             'session_id'         => $newSessId,
@@ -209,34 +217,8 @@ try {
     $snapStmt->execute([$cleanPlate]);
     $exitSnapshot = $snapStmt->fetchColumn() ?: $session['exit_snapshot'];
 
-    // Calculate duration in minutes
-    $entryTime = new DateTime($session['entry_time']);
-    $exitTime  = new DateTime();
-    $interval  = $entryTime->diff($exitTime);
-    $durationMinutes = ($interval->days * 24 * 60) + ($interval->h * 60) + $interval->i;
-
-    $durHours = floor($durationMinutes / 60);
-    $durMins  = $durationMinutes % 60;
-    $durationText = $durHours > 0 ? "{$durHours}h {$durMins}m" : "{$durMins} mins";
-
-    // Update session to COMPLETED
-    $upd = $db->prepare('
-        UPDATE parking_sessions 
-        SET status = "COMPLETED",
-            exit_time = NOW(),
-            duration_minutes = :duration,
-            cleared_by = :guard_id,
-            exit_snapshot = :snapshot,
-            exit_method = "guard_clear",
-            synced_to_cloud = 0
-        WHERE id = :id
-    ');
-    $upd->execute([
-        ':duration' => $durationMinutes,
-        ':guard_id' => $user['id'],
-        ':snapshot' => $exitSnapshot,
-        ':id'       => $sessId,
-    ]);
+    $recorded=vehicle_complete_departure($db,$user,$sessId,$exitApprover,$departureReason,$exitSnapshot);
+    $durationMinutes=$recorded['duration_minutes'];$durationText=$recorded['duration_text'];
 
     // Send WhatsApp exit notification if configured
     if (!empty($session['driver_phone'])) {
@@ -249,14 +231,7 @@ try {
         ]);
     }
 
-    // Audit Log
-    audit_log($user['id'], 'CLEAR_EXIT', 'parking_sessions', $session['ticket_id'], [
-        'status' => 'ACTIVE',
-    ], [
-        'status'           => 'COMPLETED',
-        'duration_minutes' => $durationMinutes,
-        'cleared_by'       => $user['full_name'],
-    ]);
+    $db->commit();
 
     // Broadcast realtime event
     fire_event('session_completed', [
@@ -287,6 +262,8 @@ try {
         ],
     ]);
 } catch (Throwable $e) {
+    if(isset($db)&&$db->inTransaction())$db->rollBack();
+    http_response_code($e instanceof DomainException?403:($e instanceof InvalidArgumentException?422:500));
     error_log('CLEAR EXIT ERROR: ' . $e->getMessage());
-    echo json_encode(['ok' => false, 'error' => 'Failed to process exit: ' . $e->getMessage()]);
+    echo json_encode(['ok'=>false,'error'=>$e instanceof LogicException?$e->getMessage():'Failed to record departure. Please retry.','restriction'=>$policy??null]);
 }

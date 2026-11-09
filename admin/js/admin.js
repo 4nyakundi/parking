@@ -70,6 +70,7 @@ function navigateTo(sectionId) {
     });
 
     const titles = {
+        operations: 'Shifts, Overstays & Follow-ups',
         overview: 'Management Operations Overview',
         sessions: 'Active & Historical Parking Sessions',
         visitors: 'Driver Self-Check-in Digital Requests',
@@ -517,7 +518,7 @@ async function loadUsers() {
     tbody.innerHTML = '';
     json.data.forEach(u => {
         const tr = document.createElement('tr');
-        const actionsHtml = isAdmin ? `
+        const actionsHtml = (isAdmin || u.role === 'guard') ? `
             <button class="btn-primary" style="padding:4px 10px; font-size:12px;" data-edit-user="${Number(u.id)}">Edit / PIN</button>
             <button class="btn-primary ${u.is_active ? 'btn-danger' : 'btn-success'}" style="padding:4px 10px; font-size:12px; margin-left:4px;" onclick="toggleUserActive(${u.id})">
                 ${u.is_active ? 'Deactivate' : 'Activate'}
@@ -547,6 +548,11 @@ function openUserModal(u = null) {
     document.getElementById('userPin').value = '';
     document.getElementById('userPassword').value = '';
 
+    const supervisor = document.body.dataset.userRole !== 'admin';
+    document.getElementById('userRole').disabled = supervisor;
+    if (supervisor) document.getElementById('userRole').value = 'guard';
+    document.getElementById('userUsername').closest('div').hidden = supervisor;
+    document.getElementById('userPassword').closest('div').hidden = supervisor;
     document.getElementById('userModal').classList.add('open');
 }
 
@@ -777,7 +783,8 @@ function selectRecPreset(btn) {
 
 async function submitReconcileForceClose() {
     const sId = document.getElementById('recSessionId').value;
-    const reason = document.getElementById('recReasonInput').value.trim() || 'Physical sweep confirmed vehicle already departed.';
+    const reason = document.getElementById('recReasonInput').value.trim();
+    if(!reason){alert('Choose a verification reason or enter your own.');return;}
 
     const btn = document.getElementById('btnConfirmReconcile');
     btn.disabled = true;

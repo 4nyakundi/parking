@@ -1,0 +1,345 @@
+/* Guard-only presentation. Screen scope preserves the existing ticket print layout.
+   Keep the three-column workspace, camera bindings, and operational states intact. */
+@media screen {
+    :root {
+        --bg-root: #f3f6fd;
+        --bg-panel: #f8faff;
+        --bg-card-alt: #f5f9fe;
+        --border: #cfdfef;
+        --border-lite: #e3edf7;
+        --text-muted: #557594;
+        --radius-sm: 8px;
+        --radius-md: 12px;
+        --radius-lg: 20px;
+        --shadow-card: 0 4px 16px rgba(24, 65, 108, .05);
+        --shadow-modal: 0 24px 80px rgba(13, 43, 78, .2);
+        --guard-surface-shadow: 0 3px 16px rgba(24, 65, 108, .045);
+    }
+
+    body { -webkit-font-smoothing: antialiased; }
+    button, input, select, textarea { font-family: var(--font); }
+    button, a, input, select, textarea { -webkit-tap-highlight-color: rgba(17, 111, 199, .12); }
+    button:focus-visible, a:focus-visible, input:focus-visible,
+    select:focus-visible, textarea:focus-visible, summary:focus-visible {
+        outline: 3px solid var(--blue);
+        outline-offset: 3px;
+    }
+    .top-bar :focus-visible { outline-color: #fff; }
+
+    /* Familiar blue header with calmer type and softly rounded controls. */
+    .top-bar { box-shadow: 0 3px 14px rgba(17, 111, 199, .13); }
+    .brand-text h1 { font-size: 13px; letter-spacing: .01em; text-transform: none; }
+    .brand-text p { color: rgba(255, 255, 255, .8); letter-spacing: .01em; }
+    .health-status-bar { gap: 12px; padding-inline: 14px; }
+    .status-item { color: rgba(255, 255, 255, .88); letter-spacing: 0; }
+    .live-clock { font-family: var(--font); font-size: 17px; letter-spacing: .01em; }
+    .guard-pill { border-radius: 24px; font-weight: 600; }
+    .guard-role-tag { border-radius: 12px; letter-spacing: .03em; }
+    .icon-btn { border-radius: 10px; height: 36px; text-transform: none; letter-spacing: 0; }
+
+    /* Retain the existing metric grid and its capacity warning colors. */
+    .occupancy-dashboard { background: var(--bg-root); border-bottom-color: var(--border-lite); gap: 10px; }
+    .occupancy-dashboard > .metric-card {
+        background: #fff; border-color: var(--border-lite); border-radius: 14px;
+        padding: 12px 8px; box-shadow: var(--guard-surface-shadow);
+    }
+    .metric-card::before { left: 18px; right: 18px; height: 3px; border-radius: 0 0 4px 4px; }
+    .occupancy-dashboard .metric-label {
+        font-size: 11px; text-transform: none; letter-spacing: 0;
+        font-weight: 600; color: var(--text-secondary);
+    }
+    .occupancy-dashboard .metric-number { font-size: 32px; font-weight: 700; letter-spacing: -.04em; }
+    .daily-metric-note { color: #55718d; line-height: 1.45; }
+    .daily-overview-heading { padding-inline: 2px; }
+    .occupancy-dashboard .btn-manual-add {
+        border-radius: 12px; text-transform: none; letter-spacing: 0; font-size: 12px;
+        font-weight: 700; box-shadow: 0 4px 12px rgba(17, 111, 199, .16);
+    }
+
+    /* Existing sidebar and workspace positions remain unchanged. */
+    .left-panel { background: var(--bg-panel); border-right: 1px solid var(--border-lite); gap: 16px; padding: 14px 12px; }
+    .panel-brand-header { gap: 8px; padding-bottom: 12px; }
+    .panel-station-tag { border-radius: 8px; font-size: 9px; letter-spacing: 0; text-transform: none; }
+    .panel-section { gap: 9px; }
+    .panel-section-title {
+        font-size: 11px; font-weight: 700; letter-spacing: .025em;
+        color: #55718d; border-bottom: 0; padding-bottom: 0;
+    }
+    .panel-stats-grid { gap: 8px; }
+    .panel-stat-card { padding: 10px; border-radius: 12px; border-color: var(--border-lite); box-shadow: var(--guard-surface-shadow); }
+    .panel-stat-card .panel-stat-label { font-size: 10px; text-transform: none; letter-spacing: 0; font-weight: 600; }
+    .panel-stat-card .panel-stat-value { font-size: 22px; font-weight: 700; line-height: 1.3; }
+    .panel-stat-card.dwell .panel-stat-value { font-size: 16px; }
+    .panel-queue-strip { border-radius: 9px; padding: 8px; }
+    .panel-actions-list { gap: 7px; }
+    .panel-quick-btn { border-radius: 10px; border-color: var(--border-lite); font-weight: 600; padding: 10px; box-shadow: 0 2px 4px rgba(24, 65, 108, .02); }
+    .panel-quick-btn:hover { transform: none; }
+    .panel-quick-btn .i-icon { width: 17px; height: 17px; }
+    .sidebar-live-status { border-radius: 12px; border-color: var(--border-lite); gap: 9px; }
+    .live-retry { border-radius: 9px; background: #f3f7fd; }
+    .device-chip { border-radius: 9px; padding: 9px 8px; }
+    .device-name { color: #55718d; font-weight: 600; }
+    .panel-log { border-radius: 10px; background: #102e4b; border-color: #234761; }
+    .left-panel .sidebar-print-issues { border-radius: 12px; }
+
+    .roster-header-bar {
+        border: 1px solid var(--border-lite); border-radius: 18px;
+        padding: 16px; gap: 12px; margin-bottom: 14px;
+        box-shadow: var(--guard-surface-shadow);
+    }
+    .roster-badge-icon { border-radius: 12px; width: 42px; height: 42px; }
+    .roster-title { font-size: 20px; font-weight: 700; letter-spacing: -.025em; }
+    .roster-subtitle { font-size: 12px; color: #55718d; margin-top: 4px; }
+    .roster-actions-row { border-top-color: var(--border-lite); padding-top: 12px; }
+    .roster-search-input { border-radius: 24px; border-color: var(--border-lite); background: #f4f7fc; }
+    .roster-search-input::placeholder { color: #55718d; }
+    .roster-status-tabs { border-radius: 12px; border-color: var(--border-lite); background: #f3f6fb; }
+    .roster-status-tabs .roster-pill { border-radius: 9px; font-weight: 600; }
+    .roster-status-tabs .roster-pill.active { box-shadow: 0 2px 6px rgba(24, 65, 108, .09); }
+    .btn-view-toggle, .btn-roster-refresh { border-radius: 9px; }
+    .roster-table-wrapper { border: 1px solid var(--border-lite); border-radius: 14px; background: #fff; box-shadow: var(--guard-surface-shadow); }
+    .roster-cars-table thead th { background: #f5f8fd; color: #486987; letter-spacing: .025em; padding-block: 15px; }
+    .roster-cars-table tbody td { border-bottom-color: var(--border-lite); padding-block: 16px; }
+    .roster-cars-table tbody tr:last-child td { border-bottom: 0; }
+    .roster-driver-name { font-weight: 600; }
+    .roster-plate-badge { border-radius: 8px; }
+    .btn-roster-action { border-radius: 9px; font-weight: 600; }
+    .traffic-stat { border-color: var(--border-lite); background: #fff; padding: 14px; border-radius: 12px; }
+    .traffic-stat strong { font-weight: 700; }
+    .traffic-toolbar input { border-radius: 9px; }
+
+    /* Queue appearance only: no changes to capture, events, or controls. */
+    .right-queue-sidebar { border-left: 1px solid var(--border-lite); background: #f8faff; }
+    .queue-sidebar-header { padding: 16px 12px 12px; gap: 10px; border-bottom-color: var(--border-lite); }
+    .queue-title { font-size: 15px; font-weight: 700; text-transform: none; letter-spacing: -.015em; }
+    .queue-subtitle { color: #55718d; font-size: 12px; line-height: 1.5; }
+    .queue-counter-badge { border-color: var(--border-lite); text-transform: none; letter-spacing: 0; }
+    .queue-view-toggle { border-radius: 10px; }
+    .queue-filter-pills { gap: 4px; }
+    .q-filter-pill { border-radius: 20px; font-weight: 600; }
+    .queue-control-strip { padding-top: 10px; padding-bottom: 10px; }
+    .queue-cards-list { gap: 14px; }
+    .camera-queue-card { border-radius: 14px; box-shadow: var(--guard-surface-shadow); flex-shrink: 0; }
+    .camera-queue-card:hover { transform: none; box-shadow: 0 5px 18px rgba(17, 111, 199, .1); }
+    .cqc-header { padding: 14px; }
+    .cqc-body { padding: 12px 14px; }
+    .cqc-actions { padding: 12px; }
+    .cqc-plate-badge { border-radius: 8px; }
+    .cqc-badge-tag { border-radius: 12px; }
+    .btn-cqc-primary, .btn-cqc-dismiss { border-radius: 9px; letter-spacing: 0; text-transform: none; }
+    .queue-empty-radar { background: #edf4fc; border-color: var(--blue-light); }
+    .queue-empty-text { font-size: 13px; line-height: 1.6; }
+
+    /* Match dialogs and operational forms without changing their behavior. */
+    .modal-overlay { background: rgba(13, 43, 78, .32); }
+    .modal-box { border-radius: 20px; border-color: var(--border-lite); }
+    .modal-title { font-weight: 700; letter-spacing: -.02em; }
+    .modal-close-btn { border-radius: 10px; width: 36px; height: 36px; }
+    .form-field label, .intake-field label { text-transform: none; letter-spacing: 0; font-weight: 600; }
+    .form-field input, .intake-field input, .intake-field select, .search-input-large { border-radius: 10px; }
+    .ops-panel { border-radius: 20px; box-shadow: var(--shadow-modal); }
+    .ops-card { border-radius: 14px; border-color: var(--border-lite); }
+    .ops-panel button { border-radius: 9px; min-height: 42px; }
+    .ops-panel input:not([type=checkbox]), .ops-panel select, .ops-panel textarea { border-radius: 9px; }
+    .mode-tab { text-transform: none; letter-spacing: 0; font-size: 12px; }
+}
+
+/* Shift workspace: visual changes stay local to the guard interface. */
+@media screen {
+    #parkingOperations { padding: 24px; background: rgba(13, 43, 78, .4); backdrop-filter: blur(4px); }
+    #parkingOperations .ops-panel { padding: 24px; background: #f3f6fd; max-height: 92dvh; scrollbar-gutter: stable; }
+    #parkingOperations .ops-panel > header { gap: 16px; padding-bottom: 16px; border-bottom: 1px solid #dce8f4; }
+    #parkingOperations h2 { font-size: 23px; font-weight: 700; letter-spacing: -.035em; }
+    #parkingOperations h3 { font-size: 16px; font-weight: 700; letter-spacing: -.015em; margin-bottom: 12px; line-height: 1.5; }
+    #parkingOperations h4 { font-size: 14px; }
+    #parkingOperations #opsClose { background: #fff; color: #315573; border: 1px solid #cfdfef; padding-inline: 18px; margin: 0; }
+    #opsStatus { padding: 12px 14px; margin: 14px 0; border: 1px solid #cfdfef; border-radius: 10px; background: #edf5ff; color: #315573; font-size: 12px; line-height: 1.6; }
+    #opsContent { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+    #parkingOperations .ops-metrics { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+    #parkingOperations .ops-metrics > span { min-width: 0; padding: 16px; border-radius: 14px; background: #fff; border: 1px solid #e3edf7; color: #55718d; font-size: 12px; box-shadow: var(--guard-surface-shadow); }
+    #parkingOperations .ops-metrics strong { font-size: 28px; line-height: 1.3; font-weight: 700; color: var(--blue); margin-bottom: 5px; font-variant-numeric: tabular-nums; }
+    #parkingOperations .ops-metrics > span:nth-child(2) strong { color: #b45309; }
+    #parkingOperations .ops-card { margin: 0; padding: 20px; min-width: 0; border-color: #e0eaf5; box-shadow: var(--guard-surface-shadow); }
+    #parkingOperations .ops-card > p { color: #55718d; font-size: 12px; line-height: 1.7; margin-bottom: 16px; }
+    #parkingOperations .ops-approval-card { border-top: 3px solid #116fc7; }
+    #parkingOperations .ops-vehicle-card, #parkingOperations .ops-exceptions-card,
+    #parkingOperations .ops-recent-card, #opsRefresh { grid-column: 1 / -1; }
+    #parkingOperations label { color: #315573; font-size: 12px; font-weight: 600; line-height: 1.5; margin: 12px 0; }
+    #parkingOperations input:not([type=checkbox]), #parkingOperations select, #parkingOperations textarea {
+        margin-top: 6px; min-height: 44px; padding: 11px 12px; border-color: #cfdfef; background: #fbfdff; font-size: 14px; font-weight: 400;
+    }
+    #parkingOperations input::placeholder, #parkingOperations textarea::placeholder { color: #607b95; }
+    #parkingOperations textarea { min-height: 96px; resize: vertical; }
+    #parkingOperations #opsSupervisorPin { font-size: 18px; letter-spacing: .12em; }
+    #parkingOperations #opsSupervisorPin::placeholder { font-size: 13px; letter-spacing: 0; }
+    #parkingOperations button { font-size: 12px; font-weight: 600; padding: 10px 15px; }
+    #parkingOperations button:hover:not(:disabled) { filter: brightness(.95); }
+    #parkingOperations #opsVehicleContent { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+    #opsVehicleContent > p, #opsVehicleContent > details, #opsVehicleContent > h4,
+    #opsVehicleContent > #opsHistory { grid-column: 1 / -1; margin: 0; }
+    #parkingOperations #opsVehicleContent > form { padding: 16px; border: 1px solid #e0eaf5; border-radius: 12px; background: #f8fbff; margin: 0; }
+    #parkingOperations #opsVehicleContent > form > h4 { margin-top: 0; }
+    #parkingOperations #opsVehicleContent > form > p { color: #55718d; font-size: 12px; }
+    #parkingOperations .ops-scroll { border: 1px solid #e0eaf5; border-radius: 10px; }
+    #parkingOperations table { min-width: 620px; }
+    #parkingOperations th { background: #f3f7fd; font-size: 12px; font-weight: 600; white-space: nowrap; }
+    #parkingOperations td { font-size: 12px; line-height: 1.6; padding: 13px 12px; }
+    #parkingOperations tbody tr:last-child td { border-bottom: 0; }
+    #parkingOperations .ops-history { border-radius: 10px; padding: 14px; font-size: 12px; line-height: 1.7; }
+    #parkingOperations #opsRefresh { justify-self: end; margin: 0; background: #fff; color: var(--blue); border: 1px solid #b0cfec; }
+}
+@media screen and (max-width: 760px) {
+    #parkingOperations { padding: 10px; }
+    #parkingOperations .ops-panel { padding: 16px; max-height: 96dvh; }
+    #parkingOperations h2 { font-size: 19px; }
+    #opsContent, #parkingOperations #opsVehicleContent { grid-template-columns: minmax(0, 1fr); }
+    #parkingOperations .ops-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+    #parkingOperations .ops-metrics > span { padding: 12px; }
+    #parkingOperations .ops-card { padding: 16px; }
+}
+
+/* Sidebar tiles use the same two-column rhythm as the session statistics. */
+@media screen {
+    .roster-actions-row .roster-status-tabs { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .overstay-holding-notice { padding: 12px 14px; margin-bottom: 12px; border: 1px solid #b0cfec; border-radius: 12px; background: #edf5ff; color: #315573; font-size: 12px; line-height: 1.6; }
+    .overstay-holding-notice[hidden] { display: none; }
+    @container (max-width: 460px) {
+        .roster-actions-row .roster-status-tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    .left-panel .panel-brand-header {
+        flex-wrap: wrap; align-items: center; gap: 10px;
+    }
+    .left-panel .panel-station-tag { white-space: normal; line-height: 1.4; }
+    .left-panel .panel-stats-grid,
+    .left-panel .panel-actions-list,
+    .left-panel .panel-device-grid {
+        display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px;
+    }
+    .left-panel .panel-stat-card { min-width: 0; }
+    .left-panel .panel-stat-value { overflow-wrap: anywhere; }
+    .left-panel .panel-actions-list .panel-quick-btn {
+        min-width: 0; min-height: 84px; height: 100%;
+        flex-direction: column; align-items: flex-start; justify-content: flex-start;
+        gap: 9px; padding: 12px 10px; line-height: 1.4; font-size: 12px;
+        text-align: left;
+    }
+    .left-panel .panel-actions-list .panel-quick-btn .i-icon { width: 19px; height: 19px; }
+    .left-panel .panel-actions-list .panel-quick-btn span { min-width: 0; overflow-wrap: anywhere; }
+    .left-panel .panel-device-grid .device-chip {
+        display: grid; grid-template-columns: 7px minmax(0, 1fr);
+        align-content: start; align-items: center; gap: 7px 5px;
+        min-width: 0; min-height: 68px; padding: 10px 8px;
+        white-space: normal; overflow: visible;
+    }
+    .left-panel .device-chip .device-name { font-size: 11px; line-height: 1.3; }
+    .left-panel .device-chip .device-val {
+        grid-column: 1 / -1; font-size: 12px; line-height: 1.4;
+        overflow: visible; overflow-wrap: anywhere; text-overflow: clip;
+    }
+    .left-panel .sidebar-live-status {
+        display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 8px;
+    }
+    .left-panel .sidebar-live-status .live-connection,
+    .left-panel .sidebar-live-status .live-retry,
+    .left-panel .sidebar-live-status #dashboardResourceNotice { grid-column: 1 / -1; }
+    .left-panel .sidebar-live-status #dashboardFreshness,
+    .left-panel .sidebar-cloud-status { font-size: 11px; line-height: 1.5; min-width: 0; overflow-wrap: anywhere; }
+    .left-panel .sidebar-cloud-status strong { display: block; font-weight: 600; }
+    .left-panel .sidebar-live-status #dashboardResourceNotice:empty { display: none; }
+}
+
+/* Active roster: give each record a clear reading order and consistent controls.
+   Scoped to this panel so history tables and camera intake keep their styling. */
+@media screen {
+    #viewBasementRoster .roster-cars-table { font-size: 13px; }
+    #viewBasementRoster .roster-cars-table thead th {
+        padding: 16px; font-size: 11px; font-weight: 600;
+        text-transform: none; letter-spacing: 0; border-bottom: 1px solid #dce8f4;
+    }
+    #insideTableBody > tr { transition: background-color .15s ease; }
+    #insideTableBody > tr:not(.overstay-warning):not(.overstay-critical):nth-child(even) { background: #f8fbff; }
+    #insideTableBody > tr:not(.overstay-warning):not(.overstay-critical):hover { background: #edf5ff; }
+    #insideTableBody > tr:focus-within { outline: 2px solid var(--blue-mid); outline-offset: -2px; }
+    #insideTableBody > tr > td { padding: 18px 16px; }
+    #insideTableBody > tr > td:first-child { padding-left: 20px; }
+    #insideTableBody > tr > td:last-child { padding-right: 20px; }
+    #insideTableBody .roster-plate-badge {
+        padding: 9px 11px; gap: 9px; border: 1px solid #b0cfec; border-radius: 10px;
+        background: #fff; color: #0d2b4e; box-shadow: 0 2px 5px rgba(17, 111, 199, .06);
+        font-family: var(--font); font-size: 16px; font-weight: 750;
+        letter-spacing: .045em; line-height: 1.2;
+    }
+    #insideTableBody .roster-plate-flag {
+        display: inline-flex; align-items: center; justify-content: center;
+        min-width: 24px; min-height: 24px; padding: 3px;
+        border-radius: 6px; font-family: var(--font); font-size: 9px; font-weight: 700;
+    }
+    #insideTableBody .roster-driver-meta { gap: 5px; min-width: 130px; }
+    #insideTableBody .roster-driver-name { font-size: 14px; font-weight: 650; flex-wrap: wrap; }
+    #insideTableBody .roster-driver-phone { font-size: 12px; font-weight: 400; color: #55718d; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    #insideTableBody .roster-dest-badge {
+        max-width: 190px; padding: 7px 9px; border-radius: 8px;
+        background: #edf5ff; border-color: transparent; font-size: 12px; font-weight: 600;
+    }
+    #insideTableBody .roster-dest-badge > span:last-child { overflow: hidden; text-overflow: ellipsis; }
+    #insideTableBody .roster-time-in, #insideTableBody .roster-time-expected {
+        font-family: var(--font); font-size: 13px; font-weight: 550;
+        font-variant-numeric: tabular-nums; letter-spacing: 0; white-space: nowrap;
+    }
+    #insideTableBody .roster-time-in { color: #315573; }
+    #insideTableBody .roster-time-expected {
+        background: transparent; border-color: transparent; color: #315573; padding: 5px 0;
+    }
+    #insideTableBody .roster-live-timer {
+        padding: 8px 10px; gap: 8px; border-radius: 9px;
+        background: #edf5ff; border: 1px solid #d8e8fa; box-shadow: none;
+        font-family: var(--font); font-variant-numeric: tabular-nums;
+        font-size: 15px; font-weight: 650; letter-spacing: .025em;
+    }
+    #insideTableBody .timer-pulse-icon { animation: none; }
+    #insideTableBody .roster-status-badge {
+        min-height: 30px; padding: 6px 10px; gap: 7px;
+        font-size: 11px; font-weight: 650; text-transform: none; letter-spacing: 0;
+        border-radius: 20px; line-height: 1.3;
+    }
+    #insideTableBody .roster-actions-cell { gap: 7px; }
+    #insideTableBody .btn-roster-action {
+        min-height: 40px; height: auto; padding: 9px 12px;
+        justify-content: center; border-radius: 9px; white-space: nowrap;
+        font-size: 12px; font-weight: 600; line-height: 1.35;
+        background: #fff; color: #315573; border-color: #cfdfef;
+        transition: background-color .15s ease, border-color .15s ease;
+    }
+    #insideTableBody .btn-roster-action:hover { background: #edf5ff; border-color: #609fda; }
+    #insideTableBody .btn-roster-action.reprint { background: #edf5ff; color: var(--blue); border-color: #d8e8fa; }
+    #insideTableBody .btn-roster-action.reprint:hover { background: #dcecff; border-color: #609fda; }
+    #insideTableBody .btn-roster-action.exit { background: var(--blue); color: #fff; border-color: var(--blue); padding-inline: 15px; }
+    #insideTableBody .btn-roster-action.exit:hover { background: var(--blue-hover); border-color: var(--blue-hover); }
+}
+
+@media screen and (max-width: 1280px) {
+    .brand-section { gap: 9px; }
+    .user-clock-section { gap: 6px; }
+    .icon-btn { padding-inline: 8px; }
+}
+@media screen and (max-width: 992px) {
+    .roster-header-bar { border-radius: 16px; }
+    .right-queue-sidebar.mobile-open { border-top: 1px solid var(--border-lite); }
+}
+@media screen and (max-width: 640px) {
+    .top-bar { height: auto; min-height: 58px; padding-block: 8px; flex-wrap: wrap; gap: 8px; }
+    .brand-text h1 { font-size: 12px; }
+    .user-clock-section { flex-wrap: wrap; }
+    .live-clock { font-size: 14px; }
+    .icon-btn { min-width: 36px; height: 36px; padding-inline: 7px; }
+    .occupancy-dashboard > .metric-card { padding: 11px 8px; border-radius: 12px; }
+    .occupancy-dashboard .metric-number { font-size: 28px; }
+    .occupancy-dashboard .metric-label { font-size: 11px; }
+    .occupancy-dashboard .btn-manual-add { white-space: normal; }
+    .center-main-area { padding: 12px 10px; }
+    .roster-header-bar { padding: 12px; }
+    .roster-title { font-size: 18px; }
+    .roster-status-tabs .roster-pill { min-height: 44px; }
+    .modal-box { padding: 18px; border-radius: 16px; }
+    .mode-tab { min-height: 44px; }
+}

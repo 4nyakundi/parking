@@ -31,3 +31,8 @@ No production settings, accounts, destinations, visit records or camera actions 
 Deploy the matching admin pages, scripts, helpers and APIs together, then reload the admin page so it receives the current scripts and CSRF token. Existing guard changes in the working tree are separate from the admin update. No Git push was performed for this work.
 
 A visual walkthrough on the target browser/tablet remains outstanding. Verify an actual installed printer/camera only through the normal installation checks. Scheduled backup configuration, disk capacity and recovery of a real operational backup have not been certified by the sample test. The overview deliberately displays unconfirmed recovery readiness rather than inventing a successful test date. Hardware service configuration and traffic capture remain outside this update.
+
+
+## November 9 operational update
+
+See [SHIFT_OPERATIONS.md](SHIFT_OPERATIONS.md) for additive database installation, shifts and handovers, supervisor guard management, incident follow-ups, approved extensions, and multi-store selections. Live overstay counts now respect approved extensions to the two-hour base allowance. The three excluded features (driver reminders, store validation, parking zones) were not added.

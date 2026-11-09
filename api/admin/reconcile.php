@@ -12,6 +12,7 @@ require_once __DIR__ . '/../../includes/auth.php';
 require_once __DIR__ . '/../../includes/audit.php';
 require_once __DIR__ . '/../../includes/events.php';
 require_once __DIR__ . '/../../includes/plate_helper.php';
+require_once __DIR__.'/../../includes/vehicle_restrictions.php';
 
 $user = require_role(['supervisor', 'admin'], true);
 
@@ -108,9 +109,11 @@ try {
     // -------------------------------------------------------------
     if ($action === 'force_close') {
         $sessionId = (int)($input['session_id'] ?? 0);
-        $reason    = trim((string)($input['reason'] ?? 'Supervisor physical count verified vehicle departed.'));
+        $reason    = trim((string)($input['reason'] ?? ''));
 
-        $stmt = $db->prepare('SELECT * FROM parking_sessions WHERE id = ? AND status = "ACTIVE"');
+        if ($reason==='' || mb_strlen($reason)>4000) throw new InvalidArgumentException('Enter a reconciliation reason up to 4,000 characters.');
+        $db->beginTransaction();
+        $stmt = $db->prepare('SELECT * FROM parking_sessions WHERE id = ? AND status = "ACTIVE" FOR UPDATE');
         $stmt->execute([$sessionId]);
         $sess = $stmt->fetch();
 
@@ -119,6 +122,8 @@ try {
             exit;
         }
 
+        $restriction=vehicle_exit_policy($db,$sess['plate_number'],$sessionId,true);
+        if($restriction['requires_supervisor'])throw new DomainException('Use the supervisor-authorized departure flow for blacklisted cars, incidents or clamps.');
         $entryTime = new DateTime($sess['entry_time']);
         $exitTime  = new DateTime();
         $interval  = $entryTime->diff($exitTime);
@@ -150,6 +155,7 @@ try {
             'supervisor'       => $user['full_name'],
         ]);
 
+        $db->commit();
         // Broadcast realtime event
         fire_event('session_completed', [
             'session_id'       => $sessionId,
@@ -174,20 +180,24 @@ try {
     // -------------------------------------------------------------
     if ($action === 'batch_reconcile') {
         $ids = $input['session_ids'] ?? [];
-        $reason = trim((string)($input['reason'] ?? 'Supervisor physical count verified ghost sessions departed.'));
+        $reason = trim((string)($input['reason'] ?? ''));
 
         if (!is_array($ids) || empty($ids)) {
             echo json_encode(['ok' => false, 'error' => 'Please select at least one session to reconcile.']);
             exit;
         }
 
-        $cleared = 0;
+        if ($reason==='' || mb_strlen($reason)>4000) throw new InvalidArgumentException('Enter a reconciliation reason up to 4,000 characters.');
+        $cleared = 0;$restricted=0;
         foreach ($ids as $sId) {
             $sessId = (int)$sId;
-            $stmt = $db->prepare('SELECT * FROM parking_sessions WHERE id = ? AND status = "ACTIVE"');
+            $db->beginTransaction();
+            $stmt = $db->prepare('SELECT * FROM parking_sessions WHERE id = ? AND status = "ACTIVE" FOR UPDATE');
             $stmt->execute([$sessId]);
             $sess = $stmt->fetch();
-            if (!$sess) continue;
+            if (!$sess){$db->commit();continue;}
+            $policy=vehicle_exit_policy($db,$sess['plate_number'],$sessId,true);
+            if($policy['requires_supervisor']){$restricted++;$db->commit();continue;}
 
             $entryTime = new DateTime($sess['entry_time']);
             $exitTime  = new DateTime();
@@ -208,21 +218,22 @@ try {
                 ':reason'  => $reason,
                 ':id'      => $sessId,
             ]);
-        if (!$update->rowCount()) { continue; }
+        if (!$update->rowCount()) { $db->commit();continue; }
 
             audit_log($user['id'], 'RECONCILE_BATCH_CLOSE', 'parking_sessions', $sess['ticket_id'], null, [
                 'reason'     => $reason,
                 'supervisor' => $user['full_name'],
             ]);
 
+            $db->commit();
             $cleared++;
         }
 
         if ($cleared) fire_event('session_completed', ['reconciled_count'=>$cleared]);
         echo json_encode([
             'ok'      => true,
-            'message' => "Successfully reconciled {$cleared} session(s). Basement occupancy updated.",
-            'cleared' => $cleared,
+            'message' => "Reconciled {$cleared} session(s). {$restricted} restricted visit(s) require supervisor-authorized departure.",
+            'cleared' => $cleared,'restricted'=>$restricted,
         ]);
         exit;
     }
@@ -245,7 +256,8 @@ try {
 
     echo json_encode(['ok' => false, 'error' => 'Invalid reconcile action.']);
 } catch (Throwable $e) {
-    http_response_code($e instanceof InvalidArgumentException ? 400 : 500);
+    if(isset($db)&&$db->inTransaction())$db->rollBack();
+    http_response_code($e instanceof DomainException?403:($e instanceof InvalidArgumentException ? 400 : 500));
     error_log('RECONCILE ERROR: ' . $e->getMessage());
     echo json_encode(['ok' => false, 'error' => $e->getMessage()]);
 }

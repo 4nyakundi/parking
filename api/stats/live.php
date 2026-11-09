@@ -41,9 +41,9 @@ try {
         SELECT COUNT(*) 
         FROM parking_sessions 
         WHERE status = "ACTIVE" 
-          AND TIMESTAMPDIFF(HOUR, entry_time, NOW()) >= :hrs
+          AND COALESCE((SELECT approved_until FROM parking_extensions pe WHERE pe.session_id=parking_sessions.id),DATE_ADD(entry_time,INTERVAL 2 HOUR)) <= NOW()
     ');
-    $overStmt->execute([':hrs' => $overstayHours]);
+    $overStmt->execute();
     $overstayCount = (int)$overStmt->fetchColumn();
 
     // 4. Longest parked active vehicle

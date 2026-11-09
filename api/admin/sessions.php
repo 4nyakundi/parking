@@ -81,6 +81,9 @@ try {
             exit;
         }
 
+        require_once __DIR__.'/../../includes/visit_destinations.php';
+        $session=visit_store_decorate($db,[$session])[0];
+
         // Fetch audit records for this session ticket
         $auditStmt = $db->prepare('
             SELECT a.*, u.full_name AS user_name
@@ -145,7 +148,8 @@ try {
     $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
     $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
     $stmt->execute();
-    $rows = $stmt->fetchAll();
+    require_once __DIR__.'/../../includes/visit_destinations.php';
+    $rows = visit_store_decorate($db,$stmt->fetchAll());
 
     $sessions = [];
     foreach ($rows as $r) {

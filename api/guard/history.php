@@ -4,10 +4,10 @@ header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
 require_once __DIR__ . '/../../includes/auth.php';
 require_once __DIR__ . '/../../includes/guard_history.php';
-require_auth(true);
+$user=require_auth(true);
 session_write_close();
 try {
-    $options = guard_history_options($_GET);
+    $options = guard_history_options(array_merge($_GET,['guard_id'=>$user['id']]));
     $db = get_db();
     $db->exec('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ');
     $db->beginTransaction();

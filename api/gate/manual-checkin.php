@@ -7,6 +7,7 @@
 declare(strict_types=1);
 
 header('Content-Type: application/json; charset=utf-8');
+require_once __DIR__ . '/../../includes/visit_destinations.php';
 
 require_once __DIR__ . '/../../includes/auth.php';
 require_once __DIR__ . '/../../includes/audit.php';
@@ -16,6 +17,7 @@ require_once __DIR__ . '/../../includes/phone_helper.php';
 require_once __DIR__ . '/../../includes/printer_service.php';
 require_once __DIR__ . '/../../includes/whatsapp_service.php';
 require_once __DIR__ . '/../../includes/databank.php';
+require_once __DIR__.'/../../includes/vehicle_restrictions.php';
 
 $user = require_auth(true);
 
@@ -52,6 +54,11 @@ if (empty($driverName)) {
 
 try {
     $db = get_db();
+    $stores=visit_stores($db,$input,$destination);
+    if($stores) $destination=$stores[0]['name'];
+
+    $entryPolicy=vehicle_exit_policy($db,$cleanPlate);
+    if($entryPolicy['is_blacklisted']){http_response_code(403);echo json_encode(['ok'=>false,'error'=>'Blacklisted car approaching. Do not admit; ask a supervisor to authorize departure.']);exit;}
 
     // Check for active session
     $chkStmt = $db->prepare('SELECT id, ticket_id, entry_time FROM parking_sessions WHERE plate_number = ? AND status = "ACTIVE"');
@@ -86,6 +93,7 @@ try {
     $snapshotPath = $snapStmt->fetchColumn() ?: null;
 
     $db->beginTransaction();
+    if(vehicle_exit_policy($db,$cleanPlate,0,true)['is_blacklisted'])throw new DomainException('Blacklisted vehicle: admission is not permitted.');
 
     $stmt = $db->prepare('
         INSERT INTO parking_sessions (
@@ -110,8 +118,10 @@ try {
     ]);
     $sessionId = (int)$db->lastInsertId();
 
+    visit_store_save($db,'session',$sessionId,$stores);
     $db->commit();
 
+    if ($stores) $destination=implode(', ',array_column($stores,'name'));
     $profileSaved = false;
     // Record visit in Data Bank (enables frequent client promotion after 3 visits)
     try {
@@ -130,6 +140,7 @@ try {
         'plate_number'       => $cleanPlate,
         'driver_name'        => $driverName,
         'destination'        => $destination,
+        'destinations' => $stores ? array_column($stores,'name') : [$destination],
         'entry_time'         => $entryTime,
         'expected_exit_time' => $expectedExitTime,
         'guard_name'         => $user['full_name'],
@@ -154,6 +165,7 @@ try {
         'plate'        => $cleanPlate,
         'driver'       => $driverName,
         'destination'  => $destination,
+        'destinations' => $stores ? array_column($stores,'name') : [$destination],
         'print_status' => $printStatus,
     ]);
 
@@ -165,6 +177,7 @@ try {
         'formatted_plate' => $displayPlate,
         'driver_name'     => $driverName,
         'destination'     => $destination,
+        'destinations' => $stores ? array_column($stores,'name') : [$destination],
         'entry_time'      => $entryTime,
         'expected_exit'   => $expectedExitTime,
         'print_status'    => $printStatus,
@@ -184,6 +197,7 @@ try {
             'driver_name'        => $driverName,
             'driver_phone'       => $cleanPhone,
             'destination'        => $destination,
+        'destinations' => $stores ? array_column($stores,'name') : [$destination],
             'entry_time'         => $entryTime,
             'entry_time_fmt'     => date('H:i:s - d/m/Y', $now),
             'expected_exit_time' => $expectedExitTime,

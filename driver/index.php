@@ -732,6 +732,7 @@
             .facility-info-card { grid-template-columns: 1fr; gap: 6px; }
         }
     </style>
+    <link rel="stylesheet" href="css/driver-interface.css?v=<?= filemtime(__DIR__.'/css/driver-interface.css') ?>">
 </head>
 <body>
 
@@ -776,7 +777,7 @@
                 <div class="cam-section-header">
                     <div class="cam-header-title">
                         <span class="live-pulse-dot"></span>
-                        <span>GATE 1 LIVE ARRIVALS (192.168.0.3) &bull; TAP YOUR CAR</span>
+                        <span>Entrance arrivals &bull; Select your vehicle</span>
                         <span class="cam-count-chip" id="camCarsCountBadge">0 Cars</span>
                     </div>
                     <button type="button" class="btn-cam-refresh" id="btnCamRefresh" onclick="fetchCameraDetectedPlate(true)" title="Check entrance camera again for latest captures">
@@ -846,7 +847,8 @@
                         </div>
                     </div>
 
-                    <div class="dest-grid" id="driverDestGrid">
+                    <label style="display:block;margin:8px 0"><input type="checkbox" id="driverMultiStore" onchange="if(!this.checked){selectedDestinations=selectedDestinations.slice(0,1);selectedDestination=selectedDestinations[0]||'';renderStoresGrid();document.getElementById('selectedDestText').textContent=selectedDestination||'None';}"> Visit multiple stores</label>
+                <div class="dest-grid" id="driverDestGrid">
                         <!-- Populated dynamically with all 45 shops by driver.js -->
                     </div>
                     <span id="destError" class="dest-error">Please select your destination store</span>
@@ -949,7 +951,7 @@
     </div>
 
     <script src="../assets/vendor/gsap/gsap.min.js"></script>
-    <script src="js/driver.js?v=20261031_1825"></script>
+    <script src="js/driver.js?v=<?= filemtime(__DIR__.'/js/driver.js') ?>"></script>
     <script type="module" src="../assets/js/firebase-init.js?v=20261005_1722"></script>
 </body>
 </html>

@@ -1,7 +1,7 @@
 <?php
 /**
  * Mombasa Mall Basement Parking - User & Security Guard Management API
- * Role-based access control: Only Admin can create/edit users.
+ * Administrators manage all accounts; supervisors manage guards only.
  */
 
 declare(strict_types=1);
@@ -10,6 +10,7 @@ header('Content-Type: application/json; charset=utf-8');
 
 require_once __DIR__ . '/../../includes/auth.php';
 require_once __DIR__ . '/../../includes/audit.php';
+require_once __DIR__ . '/../../includes/parking_operations.php';
 require_once __DIR__ . '/../../includes/phone_helper.php';
 
 $currUser = require_role(['supervisor', 'admin'], true);
@@ -55,13 +56,9 @@ try {
         exit;
     }
 
-    // 2. CREATE / UPDATE USER (Admin only)
+    // 2. CREATE / UPDATE USER (supervisors are restricted to guard accounts)
     if ($action === 'save') {
-        if ($currUser['role'] !== 'admin') {
-            http_response_code(403);
-            echo json_encode(['ok' => false, 'error' => 'Only administrators can create or edit system user accounts.']);
-            exit;
-        }
+
         $userId   = (int)($input['id'] ?? 0);
         $username = trim((string)($input['username'] ?? ''));
         $fullName = trim((string)($input['full_name'] ?? ''));
@@ -70,6 +67,25 @@ try {
         $pin      = trim((string)($input['pin'] ?? ''));
         $password = (string)($input['password'] ?? '');
 
+        $db->beginTransaction();
+        $db->query('SELECT id FROM users ORDER BY id FOR UPDATE')->fetchAll();
+        $target = null;
+        if ($userId > 0) {
+            $q=$db->prepare('SELECT * FROM users WHERE id=?'); $q->execute([$userId]); $target=$q->fetch();
+            if (!$target) throw new InvalidArgumentException('Account not found.');
+        }
+        if ($currUser['role'] !== 'admin' && ($role !== 'guard' || ($target && $target['role'] !== 'guard'))) {
+            http_response_code(403); echo json_encode(['ok'=>false,'error'=>'Supervisors can manage guard accounts only.']); exit;
+        }
+        if (mb_strlen($fullName)>100 || mb_strlen($username)>50) throw new InvalidArgumentException('Name or username is too long.');
+        if ($phone!=='' && !PhoneHelper::validate(PhoneHelper::normalize($phone))) throw new InvalidArgumentException('Enter a valid Kenyan phone number.');
+        if (!$target && $role==='guard' && $pin==='') throw new InvalidArgumentException('A new guard requires a PIN.');
+        if ($role!=='guard' && ($username==='' || (!$target && $password===''))) throw new InvalidArgumentException('Management accounts require a username and password.');
+        if ($pin!=='') {
+            foreach ($db->query('SELECT id,pin_hash FROM users WHERE pin_hash IS NOT NULL')->fetchAll() as $other) {
+                if ((int)$other['id']!==$userId && password_verify($pin,$other['pin_hash'])) throw new InvalidArgumentException('That PIN is already assigned. Choose another.');
+            }
+        }
         if (empty($fullName)) {
             echo json_encode(['ok' => false, 'error' => 'Full Name is required.']);
             exit;
@@ -103,11 +119,16 @@ try {
                 $db->prepare('UPDATE users SET password_hash = ? WHERE id = ?')->execute([$pwdHash, $userId]);
             }
 
-            audit_log($currUser['id'], 'UPDATE_USER', 'users', (string)$userId, null, [
+            operation_audit($db,$currUser, 'UPDATE_USER', 'users', (string)$userId, [
                 'name' => $fullName,
                 'role' => $role,
+                'phone' => $normPhone,
+                'username' => $username,
+                'pin_changed' => $pin!=='',
+                'password_changed' => $password!=='',
             ]);
 
+            $db->commit();
             echo json_encode(['ok' => true, 'message' => 'User updated successfully.']);
             exit;
         } else {
@@ -129,11 +150,16 @@ try {
             ]);
             $newId = (int)$db->lastInsertId();
 
-            audit_log($currUser['id'], 'CREATE_USER', 'users', (string)$newId, null, [
+            operation_audit($db,$currUser, 'CREATE_USER', 'users', (string)$newId, [
                 'name' => $fullName,
                 'role' => $role,
+                'phone' => $normPhone,
+                'username' => $username,
+                'pin_changed' => $pin!=='',
+                'password_changed' => $password!=='',
             ]);
 
+            $db->commit();
             echo json_encode(['ok' => true, 'message' => 'User created successfully.']);
             exit;
         }
@@ -141,37 +167,35 @@ try {
 
     // 3. TOGGLE ACTIVE (Deactivate / Reactivate, never delete)
     if ($action === 'toggle_active') {
-        if ($currUser['role'] !== 'admin') {
-            http_response_code(403);
-            http_response_code(403); echo json_encode(['ok'=>false,'error'=>'Only administrators can activate or deactivate accounts.']); exit;
-        }
         $targetId = (int)($input['id'] ?? 0);
         if ($targetId === $currUser['id']) {
             echo json_encode(['ok' => false, 'error' => 'You cannot deactivate your own account.']);
             exit;
         }
 
-        $stmt = $db->prepare('SELECT id, is_active, full_name FROM users WHERE id = ?');
+        $db->beginTransaction();
+        $stmt = $db->prepare('SELECT id, role, is_active, full_name FROM users WHERE id = ? FOR UPDATE');
         $stmt->execute([$targetId]);
         $target = $stmt->fetch();
 
+        if ($target && $currUser['role']!=='admin' && $target['role']!=='guard') { http_response_code(403); echo json_encode(['ok'=>false,'error'=>'Supervisors can manage guard accounts only.']); exit; }
         if ($target) {
             $newActive = $target['is_active'] ? 0 : 1;
             $db->prepare('UPDATE users SET is_active = ? WHERE id = ?')->execute([$newActive, $targetId]);
 
-            audit_log($currUser['id'], 'TOGGLE_USER_ACTIVE', 'users', (string)$targetId, [
-                'is_active' => $target['is_active'],
-            ], [
-                'is_active' => $newActive,
-            ]);
+            operation_audit($db,$currUser,'TOGGLE_USER_ACTIVE','users',(string)$targetId,['was_active'=>(bool)$target['is_active'],'is_active'=>(bool)$newActive]);
+            $db->commit();
 
             echo json_encode(['ok' => true, 'message' => 'User active status updated.']);
             exit;
         }
+        throw new InvalidArgumentException('Account not found.');
     }
 
     echo json_encode(['ok' => false, 'error' => 'Unknown action.']);
 } catch (Throwable $e) {
+    if ($db->inTransaction()) $db->rollBack();
+    http_response_code($e instanceof InvalidArgumentException ? 422 : 500);
     error_log('USERS MANAGEMENT ERROR: ' . $e->getMessage());
-    echo json_encode(['ok' => false, 'error' => 'Database error: ' . $e->getMessage()]);
+    echo json_encode(['ok' => false, 'error' => $e instanceof InvalidArgumentException ? $e->getMessage() : 'Could not save the account. Check whether the username is already assigned.']);
 }

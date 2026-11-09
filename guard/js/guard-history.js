@@ -1,6 +1,7 @@
 /* Read-only history views, refreshed through the existing sequential live coordinator. */
 const GuardHistory = (() => {
     let mode = 'all', page = 1, pages = 1, revision = 0, loadedAt = 0, query = '';
+    let exitScope = 'current_shift';
     let exitedDate = '', dayDate = '', failures = 0, retryAt = 0, hasResults = false;
     const el = id => document.getElementById(id);
     const selected = () => ['exited', 'day'].includes(mode);
@@ -38,13 +39,14 @@ const GuardHistory = (() => {
         el('viewTrafficHistory').style.display = 'flex';
         el('centerStageTitle').textContent = mode === 'exited' ? 'Exited Cars — Cleared Visits' : 'Daily Traffic — Vehicles & Movement';
         el('centerStageSubtitle').textContent = mode === 'exited'
-            ? 'Latest departures first • Captured driver details • Read-only records'
+            ? 'Latest departures first • Includes departures without driver details'
             : 'Cars present on your selected date • Includes overnight stays • Nairobi time';
         el('trafficDate').max = today();
         el('trafficDate').value = currentDate();
         el('trafficAllDates').hidden = mode !== 'exited';
+        if(el('trafficShift'))el('trafficShift').hidden=mode!=='exited';
         el('trafficHistoryNote').textContent = mode === 'exited'
-            ? 'Cleared visits with captured driver details. Choose a date to filter by departure day, or view all dates.'
+            ? (exitScope==='current_shift'?'Departures during your open shift. If you have no open shift, shows today. Includes departures without driver details.':'All recorded departures, including visits without captured driver details. Choose a date to filter by departure day, or view all dates.')
             : 'Recorded parking visits present at any time that day, including earlier arrivals. Totals cover the full day and are not reduced by search. Repeat visits count separately; movements = arrivals + exits. Departures without driver details are included and marked.';
     }
     function search() {
@@ -56,7 +58,7 @@ const GuardHistory = (() => {
     }
     function dateChanged(value) {
         if (!selected()) return;
-        if (mode === 'day') dayDate = value || today(); else exitedDate = value;
+        if (mode === 'day') dayDate = value || today(); else {exitedDate = value; exitScope='date';}
         page = 1; invalidate(true); show(); GuardLive.snapshot();
     }
     function cell(row, text, className = '') {
@@ -118,7 +120,7 @@ const GuardHistory = (() => {
         if (!selected() || !STATE.user || el('viewTrafficHistory')?.style.display === 'none') return;
         if (Date.now() < retryAt || (loadedAt && Date.now() - loadedAt < 10000)) return;
         const token = revision;
-        const params = new URLSearchParams({ mode, date: currentDate(), q: query, page: String(page) });
+        const params = new URLSearchParams({ scope:mode==='exited'?exitScope:'date', mode, date: currentDate(), q: query, page: String(page) });
         try {
             const response = await fetch(`../api/guard/history.php?${params}`);
             const body = await response.json();
@@ -131,10 +133,11 @@ const GuardHistory = (() => {
             setStatus(`${hasResults ? 'Showing previous results. ' : ''}${error.message || 'History unavailable'}. Retrying…`);
         }
     }
-    function reset() { revision++; loadedAt = 0; clearRecords(); setStatus('Sign in to view recorded visits.'); }
+    function reset() { if(typeof ParkingOperations!=='undefined')ParkingOperations.close(); revision++; loadedAt = 0; clearRecords(); setStatus('Sign in to view recorded visits.'); }
     document.addEventListener('DOMContentLoaded', () => {
         el('trafficDate')?.addEventListener('change', event => dateChanged(event.target.value));
         el('trafficToday')?.addEventListener('click', () => dateChanged(today()));
+        el('trafficShift')?.addEventListener('click',()=>{exitScope='current_shift';exitedDate='';page=1;invalidate(true);show();GuardLive.snapshot();});
         el('trafficAllDates')?.addEventListener('click', () => dateChanged(''));
         for (const [id, increment] of [['trafficPrev', -1], ['trafficNext', 1]]) {
             el(id)?.addEventListener('click', () => {

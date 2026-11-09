@@ -14,6 +14,7 @@ require_once __DIR__ . '/../../includes/plate_helper.php';
 require_once __DIR__ . '/../../includes/phone_helper.php';
 require_once __DIR__ . '/../../includes/events.php';
 require_once __DIR__ . '/../../includes/databank.php';
+require_once __DIR__.'/../../includes/vehicle_restrictions.php';
 
 $config = require __DIR__ . '/../../config/config.php';
 $expectedApiKey = $config['alpr']['api_key'] ?? '';
@@ -136,7 +137,15 @@ try {
     $matchedRequestId = null;
     $matchedSessionId = null;
 
-    if ($camera === 'entrance') {
+    $db->beginTransaction();
+    $restrictionSession=$db->prepare("SELECT id,ticket_id,driver_name,entry_time FROM parking_sessions WHERE plate_number=? AND status='ACTIVE' ORDER BY id DESC LIMIT 1 FOR UPDATE");
+    $restrictionSession->execute([$cleanPlate]);$heldVisit=$restrictionSession->fetch();
+    $policy=vehicle_exit_policy($db,$cleanPlate,(int)($heldVisit['id']??0),true);
+    if ($camera==='exit' && $policy['requires_supervisor']) {
+        // Detection is evidence of approach, not authorization to complete a restricted exit.
+        $matchedSessionId=$heldVisit?(int)$heldVisit['id']:null;
+        fire_event('exit_candidate',array_merge($policy,['session_id'=>$matchedSessionId??0,'plate_number'=>$cleanPlate,'formatted_plate'=>$displayPlate,'ticket_id'=>$heldVisit['ticket_id']??'','driver_name'=>$heldVisit['driver_name']??'Details not collected','entry_time'=>$heldVisit['entry_time']??null,'time'=>date('H:i:s')]));
+    } elseif ($camera === 'entrance') {
         // Find newest PENDING request matching this plate
         $reqStmt = $db->prepare('
             SELECT id, driver_name, driver_phone, destination, created_at 
@@ -442,6 +451,8 @@ try {
         ':sess_id' => $matchedSessionId,
     ]);
     $detId = (int)$db->lastInsertId();
+    if($policy['requires_supervisor'])fire_event('vehicle_restricted',array_merge($policy,['detection_id'=>$detId,'camera'=>$camera,'plate_number'=>$cleanPlate,'formatted_plate'=>$displayPlate,'session_id'=>$heldVisit['id']??0,'detected_at'=>date('Y-m-d H:i:s')]));
+    $db->commit();
 
     echo json_encode([
         'ok'   => true,
@@ -455,6 +466,7 @@ try {
         ],
     ]);
 } catch (Throwable $e) {
+    if(isset($db)&&$db->inTransaction())$db->rollBack();
     error_log('ALPR DETECTION ERROR: ' . $e->getMessage());
     echo json_encode(['ok' => false, 'error' => 'Database error while saving ALPR detection: ' . $e->getMessage()]);
 }

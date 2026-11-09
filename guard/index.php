@@ -13,6 +13,8 @@
     <title>Guard Station — Mombasa Mall Basement Parking</title>
     <link rel="stylesheet" href="css/guard.css">
     <link rel="stylesheet" href="css/guard-dashboard.css?v=<?= filemtime(__DIR__ . '/css/guard-dashboard.css') ?>">
+<link rel="stylesheet" href="../assets/css/parking-operations.css?v=<?= filemtime(__DIR__.'/../assets/css/parking-operations.css') ?>">
+    <link rel="stylesheet" href="css/guard-interface.css?v=<?= filemtime(__DIR__ . '/css/guard-interface.css') ?>">
 </head>
 <body>
 
@@ -328,6 +330,7 @@
                 <div class="roster-filter-pills roster-status-tabs" id="rosterFilterPills" role="tablist" aria-label="Parked vehicle records">
                     <button type="button" class="roster-pill active" id="tabActiveCars" role="tab" aria-selected="true" aria-controls="viewBasementRoster" data-filter="all">Active Cars <span id="countPillAll">0</span></button>
                     <button type="button" class="roster-pill danger" id="tabOverstayedCars" role="tab" aria-selected="false" aria-controls="viewBasementRoster" tabindex="-1" data-filter="critical">Overstayed Cars <span id="countPillCrit">0</span></button>
+                    <button type="button" class="roster-pill" id="tabOverstayHolding" role="tab" aria-selected="false" aria-controls="viewBasementRoster" tabindex="-1" data-filter="holding">Overstay Holding <span id="countPillHolding">0</span></button>
                     <button type="button" class="roster-pill" id="tabExitedCars" role="tab" aria-selected="false" aria-controls="viewTrafficHistory" tabindex="-1" data-filter="exited">Exited Cars</button>
                     <button type="button" class="roster-pill" id="tabDailyTraffic" role="tab" aria-selected="false" aria-controls="viewTrafficHistory" tabindex="-1" data-filter="day">Daily Traffic</button>
                 </div>
@@ -336,6 +339,7 @@
 
         <!-- VIEW A: BASEMENT ACTIVE VEHICLES ROSTER -->
         <section id="viewBasementRoster" class="center-content-section active" role="tabpanel" aria-labelledby="tabActiveCars">
+            <p id="overstayHoldingNotice" class="overstay-holding-notice" role="status" hidden></p>
             <div class="table-responsive roster-table-wrapper">
                 <table class="roster-cars-table">
                     <thead>
@@ -361,6 +365,7 @@
             <div class="traffic-toolbar">
                 <label for="trafficDate">Date <input type="date" id="trafficDate"></label>
                 <button type="button" class="btn-roster-action" id="trafficToday">Today</button>
+                <button type="button" class="btn-roster-action" id="trafficShift">My current shift</button>
                 <button type="button" class="btn-roster-action" id="trafficAllDates">All dates</button>
                 <span id="trafficHistoryStatus" role="status" aria-live="polite">Choose a tab to load recorded visits.</span>
             </div>
@@ -622,6 +627,7 @@
                     <button type="button" class="floor-pill" data-floor="2nd Floor">Second Floor</button>
                     <button type="button" class="floor-pill" data-floor="3rd Floor">Third Floor</button>
                 </div>
+                <label style="display:block;margin:8px 0"><input type="checkbox" id="wizardMultiStore" onchange="resetMultiStore(this)"> Visit multiple stores</label>
                 <div id="wizDestinationsGrid" class="destinations-grid" style="max-height:180px; overflow-y:auto; padding:2px;">
                     <!-- Populated by guard.js loadDestinations() -->
                 </div>
@@ -740,6 +746,7 @@
                 </div>
 
                 <!-- Outlined Shops Available on Clicked Floor -->
+                <label style="display:block;margin:8px 0"><input type="checkbox" id="intakeMultiStore" onchange="resetMultiStore(this)"> Visit multiple stores</label>
                 <div class="intake-shops-grid" id="intakeShopsGrid">
                     <!-- Populated dynamically upon clicking floor -->
                 </div>
@@ -967,15 +974,15 @@
                 <svg viewBox="0 0 24 24" class="logout-icon"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
             </div>
             <div class="logout-modal-title-wrap">
-                <h2 id="logoutModalTitle" class="modal-title" style="color:var(--text-primary); font-size:17px; margin:0;">End Guard Shift &amp; Sign Out?</h2>
+                <h2 id="logoutModalTitle" class="modal-title" style="color:var(--text-primary); font-size:17px; margin:0;">Sign Out of Guard Station?</h2>
                 <div class="logout-modal-meta">Gate 1 Terminal &bull; Active Shift: <strong><?= htmlspecialchars($guardName ?? 'Gate Officer') ?></strong></div>
             </div>
             <button type="button" onclick="closeLogoutConfirmModal()" class="modal-close-btn" title="Cancel">&#x2715;</button>
         </div>
         <div class="logout-modal-body">
-            <p>You are about to sign out of the guard terminal. Any vehicles currently waiting in the gate intake queue will remain preserved for the relieving officer.</p>
+            <p>Complete your handover in Shift &amp; Follow-ups before signing out. Signing out alone leaves your recorded shift open. Any vehicles currently waiting in the gate intake queue will remain preserved for the relieving officer.</p>
         </div>
-        <div class="modal-footer logout-modal-footer">
+        <div class="modal-footer logout-modal-footer"><button type="button" class="btn-cancel-modal" onclick="closeLogoutConfirmModal();ParkingOperations.open()">Open shift handover</button>
             <button type="button" class="btn-cancel-modal" onclick="closeLogoutConfirmModal()">
                 Stay Signed In
             </button>
@@ -1023,6 +1030,7 @@
                     </div>
                 </div>
             </div>
+            <div id="exitRestrictionFields" hidden><strong id="exitRestrictionMessage" style="color:#b91c1c"></strong><label style="display:block;margin-top:10px">Supervisor code<input id="exitSupervisorPin" type="password" inputmode="numeric" maxlength="6" autocomplete="off" class="filter-input"></label><label style="display:block;margin-top:10px">Departure authorization reason<textarea id="exitDepartureReason" maxlength="4000" class="filter-input" style="width:100%"></textarea></label></div>
             <p class="exit-confirm-notice">This will record the departure time in the audit log, and release 1 parking bay back to total capacity. Operate the physical barrier using the station procedure.</p>
         </div>
         <div class="modal-footer">
@@ -1070,11 +1078,12 @@
 
 <!-- Application Scripts -->
 <script src="js/guard_i18n.js"></script>
-<script src="js/guard-live-model.js?v=20261103g"></script>
-<script src="js/guard.js?v=20261103h"></script>
+<script src="js/guard-live-model.js?v=<?= filemtime(__DIR__.'/js/guard-live-model.js') ?>"></script>
+<script src="js/guard.js?v=<?= filemtime(__DIR__.'/js/guard.js') ?>"></script>
 <script src="js/guard-profiles.js?v=20261103"></script>
-<script src="js/guard-history.js?v=20261103a"></script>
-<script src="js/guard-live.js?v=20261103g"></script>
+<script src="js/guard-history.js?v=<?= filemtime(__DIR__.'/js/guard-history.js') ?>"></script>
+<script src="js/parking-alerts.js?v=<?= filemtime(__DIR__.'/js/parking-alerts.js') ?>"></script>
+<script src="js/guard-live.js?v=<?= filemtime(__DIR__.'/js/guard-live.js') ?>"></script>
 <script type="module" src="../assets/js/firebase-init.js"></script>
 
 <script>
@@ -1089,5 +1098,6 @@
         });
     });
 </script>
+<script src="../assets/js/parking-operations.js?v=<?= filemtime(__DIR__.'/../assets/js/parking-operations.js') ?>"></script>
 </body>
 </html>

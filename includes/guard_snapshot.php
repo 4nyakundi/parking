@@ -79,8 +79,9 @@ function guard_pending_snapshot(PDO $db): array
         ];
     }
 
-    return $data;
+    return visit_store_decorate($db,$data,'visitor');
 }
+require_once __DIR__.'/visit_destinations.php';
 function guard_roster_snapshot(PDO $db, string $query = ''): array
 {
     $sql = '
@@ -92,6 +93,7 @@ function guard_roster_snapshot(PDO $db, string $query = ''): array
             s.driver_phone,
             s.destination,
             s.entry_time,
+            e.approved_until,
             s.entry_snapshot,
             s.entry_method,
             s.print_status,
@@ -100,8 +102,11 @@ function guard_roster_snapshot(PDO $db, string $query = ''): array
             TIMESTAMPDIFF(MINUTE, s.entry_time, NOW()) AS dwell_minutes,
             TIMESTAMPDIFF(SECOND, s.entry_time, NOW()) AS dwell_seconds,
             d.icon AS destination_icon,
-            rv.category AS vehicle_category
+            rv.category AS vehicle_category,
+            EXISTS(SELECT 1 FROM parking_actions clamp WHERE clamp.session_id=s.id AND clamp.action_type="clamped" AND clamp.resolved_at IS NULL) is_clamped,
+            EXISTS(SELECT 1 FROM parking_actions incident WHERE incident.session_id=s.id AND incident.action_type="incident" AND incident.resolved_at IS NULL) has_incident
         FROM parking_sessions s
+        LEFT JOIN parking_extensions e ON e.session_id=s.id
         LEFT JOIN users u ON u.id = s.approved_by
         LEFT JOIN destinations d ON d.name = s.destination
         LEFT JOIN registered_vehicles rv ON rv.plate_number = s.plate_number AND rv.is_active = 1
@@ -123,7 +128,7 @@ function guard_roster_snapshot(PDO $db, string $query = ''): array
 
     $stmt = $db->prepare($sql);
     $stmt->execute($params);
-    $rows = $stmt->fetchAll();
+    $rows = visit_store_decorate($db,$stmt->fetchAll());
 
     $sessions = [];
     $overstayCount = 0;
@@ -137,7 +142,8 @@ function guard_roster_snapshot(PDO $db, string $query = ''): array
 
         $entryTs = !empty($row['entry_time']) ? strtotime($row['entry_time']) : time();
         $freeLimitMins = 120; // 2 hours
-        $expectedExitTs = $entryTs + ($freeLimitMins * 60);
+        $expectedExitTs = max($entryTs + ($freeLimitMins * 60), !empty($row['approved_until']) ? strtotime($row['approved_until']) : 0);
+        $freeLimitMins = (int)(($expectedExitTs-$entryTs)/60);
         $expectedExitTime = date('Y-m-d H:i:s', $expectedExitTs);
         $expectedExitDisplay = date('h:i A', $expectedExitTs);
         $isToday = (date('Y-m-d', $entryTs) === date('Y-m-d'));
@@ -147,7 +153,7 @@ function guard_roster_snapshot(PDO $db, string $query = ''): array
         $isOverstay = ($dwellMins >= $freeLimitMins);
         $overdueMins = max(0, $dwellMins - $freeLimitMins);
 
-        $warningThresholdMins = 90; // 1 hour 30 mins
+        $warningThresholdMins = $freeLimitMins - 30; // 1 hour 30 mins
 
         $overstayLevel = 'normal'; // 'normal', 'warning', 'critical'
         if ($isOverstay) {
@@ -166,6 +172,8 @@ function guard_roster_snapshot(PDO $db, string $query = ''): array
             'driver_phone'          => PhoneHelper::formatDisplay($row['driver_phone']),
             'raw_phone'             => $row['driver_phone'],
             'destination'           => $row['destination'] ?: 'Mombasa Mall',
+            'destinations'          => $row['destinations'] ?? [$row['destination']],
+            'approved_until'        => $row['approved_until'] ?? null,
             'destination_icon'      => $row['destination_icon'] ?? 'store',
             'entry_time'            => $row['entry_time'],
             'entry_time_display'    => $entryTimeDisplay,
@@ -184,6 +192,9 @@ function guard_roster_snapshot(PDO $db, string $query = ''): array
             'entry_method'          => $row['entry_method'],
             'guard_name'            => $row['guard_name'] ?? 'Gate Guard',
             'print_status'          => $row['print_status'],
+            'is_clamped'            => (bool)$row['is_clamped'],
+            'has_incident'          => (bool)$row['has_incident'],
+            'is_blacklisted'        => ($row['vehicle_category']??'')==='blacklisted',
             'category'              => $row['vehicle_category'] ?? 'regular',
         ];
     }

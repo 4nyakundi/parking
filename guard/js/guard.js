@@ -551,6 +551,9 @@ function handleServerEvent(event) {
     const p = event.payload;
 
     switch (event.type) {
+        case 'vehicle_restricted':
+            if(typeof ParkingAlerts!=='undefined')ParkingAlerts.show(p);
+            break;
         case 'new_request':
             playDingSound();
             prependPendingCard(p);
@@ -982,7 +985,8 @@ async function executeBatchApproveConfirmed() {
                     action: 'accept',
                     driver_name: item.driver_name || 'Visitor',
                     driver_phone: item.driver_phone || '',
-                    destination: item.destination || 'Mombasa Mall',
+                    destination: item.destinations?.[0] || item.destination || 'Mombasa Mall',
+                    ...(item.destinations?.length ? {destinations:item.destinations} : {}),
                 })
             });
             const result = await response.json();
@@ -1512,6 +1516,8 @@ function openVehicleIntakeModal(requestId) {
     GuardProfiles.lookup('intake', item.plate_number || item.formatted_plate);
 
     // Destinations setup (Floor tabs & outlined shops)
+    STATE.intakeDestinations=[];
+    if(document.getElementById('intakeMultiStore')) document.getElementById('intakeMultiStore').checked=false;
     let initialDest = isSelfCheckin ? (item.destination || '') : '';
     if (STATE.destinations && STATE.destinations.length > 0) {
         const found = STATE.destinations.find(d => 
@@ -1533,7 +1539,11 @@ function openVehicleIntakeModal(requestId) {
     if (destValIn) destValIn.value = initialDest;
 
     const destLabelEl = document.getElementById('intakeSelectedDestLabel');
-    if (destLabelEl) destLabelEl.textContent = initialDest || 'Choose destination';
+    STATE.intakeDestinations = isSelfCheckin ? [...(item.destinations || (initialDest ? [initialDest] : []))] : [];
+    STATE.intakeSelectedDest=STATE.intakeDestinations[0] || initialDest;
+    if(destValIn) destValIn.value=STATE.intakeSelectedDest;
+    if(document.getElementById('intakeMultiStore')) document.getElementById('intakeMultiStore').checked=STATE.intakeDestinations.length>1;
+    if (destLabelEl) destLabelEl.textContent = STATE.intakeDestinations.join(', ') || initialDest || 'Choose destination';
 
     switchIntakeFloor(STATE.intakeActiveFloor);
 
@@ -1631,7 +1641,7 @@ function renderIntakeShops() {
     shops.forEach(d => {
         const btn = document.createElement('button');
         btn.type = 'button';
-        const isSel = (STATE.intakeSelectedDest && (STATE.intakeSelectedDest.toLowerCase() === d.name.toLowerCase() || STATE.intakeSelectedDest.toLowerCase().includes(d.name.toLowerCase())));
+        const isSel = (STATE.intakeDestinations || []).includes(d.name) || (STATE.intakeSelectedDest && (STATE.intakeSelectedDest.toLowerCase() === d.name.toLowerCase() || STATE.intakeSelectedDest.toLowerCase().includes(d.name.toLowerCase())));
         btn.className = `intake-shop-btn ${isSel ? 'active' : ''}`;
         btn.setAttribute('data-name', d.name);
         btn.onclick = () => selectIntakeShop(d.name, btn);
@@ -1649,10 +1659,14 @@ function renderIntakeShops() {
 }
 
 function selectIntakeShop(storeName, btnEl) {
-    STATE.intakeSelectedDest = storeName;
+    const picked = document.getElementById('intakeMultiStore')?.checked ? [...(STATE.intakeDestinations || [])] : [];
+    const at=picked.indexOf(storeName); if(at>=0) picked.splice(at,1); else picked.push(storeName);
+    STATE.intakeDestinations=picked;
+    STATE.intakeSelectedDest = picked[0] || '';
+    storeName=picked.join(', ');
 
     const destValIn = document.getElementById('intakeDestinationValue');
-    if (destValIn) destValIn.value = storeName;
+    if (destValIn) destValIn.value = STATE.intakeSelectedDest;
 
     const destLabelEl = document.getElementById('intakeSelectedDestLabel');
     if (destLabelEl) destLabelEl.textContent = storeName;
@@ -1661,7 +1675,7 @@ function selectIntakeShop(storeName, btnEl) {
     if (grid) {
         grid.querySelectorAll('.intake-shop-btn').forEach(b => b.classList.remove('active'));
     }
-    if (btnEl) btnEl.classList.add('active');
+    if (grid) grid.querySelectorAll('.intake-shop-btn').forEach(b => b.classList.toggle('active',picked.includes(b.dataset.name)));
 }
 
 function closeVehicleIntakeModal() {
@@ -1733,6 +1747,7 @@ async function submitIntakeFromModal() {
                 driver_name: name || 'Visitor',
                 driver_phone: phone,
                 destination: dest || 'Mombasa Mall',
+                ...(STATE.intakeDestinations?.length ? {destinations:STATE.intakeDestinations} : {}),
             }),
         });
         const json = await res.json();
@@ -2344,6 +2359,8 @@ function openExitConfirmModal(sessionId, plateNumber) {
     if (dwellEl) dwellEl.textContent = dwell;
     if (timeEl) timeEl.textContent = entryTime;
 
+    document.getElementById('exitSupervisorPin').value='';
+    document.getElementById('exitDepartureReason').value='';
     pendingExitData = { sessionId, plateNumber, plate };
 
     const btn = document.getElementById('btnConfirmClearExit');
@@ -2354,6 +2371,8 @@ function openExitConfirmModal(sessionId, plateNumber) {
     }
     if (lbl) lbl.textContent = 'Record Exit';
 
+    const cameraPolicy=typeof ParkingAlerts!=='undefined'?ParkingAlerts.policy(session?.plate_number||plateNumber):null;
+    showDepartureRestriction(cameraPolicy||{is_blacklisted:session?.is_blacklisted||session?.category==='blacklisted',is_clamped:session?.is_clamped,has_incident:session?.has_incident});
     modal.classList.add('open');
     if (window.gsap) {
         gsap.fromTo('.exit-confirm-modal-box',
@@ -2364,6 +2383,7 @@ function openExitConfirmModal(sessionId, plateNumber) {
 }
 
 function closeExitConfirmModal() {
+    document.getElementById('exitSupervisorPin').value='';
     const modal = document.getElementById('exitConfirmModal');
     if (!modal) return;
     if (window.gsap) {
@@ -2394,9 +2414,12 @@ async function commitClearExit() {
 
     try {
         const payload = sessionId ? { session_id: sessionId } : { plate_number: plateNumber };
+        payload.supervisor_pin=document.getElementById('exitSupervisorPin').value;
+        payload.departure_reason=document.getElementById('exitDepartureReason').value.trim();
+        document.getElementById('exitSupervisorPin').value='';
         const res = await fetch('../api/gate/clear-exit.php', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-Token':STATE.csrfToken },
             body: JSON.stringify(payload),
         });
         const json = await res.json();
@@ -2422,13 +2445,14 @@ async function commitClearExit() {
             const searchInput = document.getElementById('exitSearchInput');
             if (searchInput) searchInput.value = '';
         } else {
-            showToast('✕ ' + (json.error || 'Failed to clear exit.'));
+            if(json.restriction)showDepartureRestriction(json.restriction);
+            showToast('Exit not recorded: ' + (json.error || 'Failed to clear exit.'));
         }
     } catch (e) {
         showToast('✕ Network error while clearing vehicle exit.');
     } finally {
         if (btn) {
-            btn.disabled = false;
+            btn.disabled = !!pendingExitData?.policy?.is_clamped;
             btn.classList.remove('btn-loading');
         }
         if (lbl) lbl.textContent = 'Record Exit';
@@ -2474,7 +2498,7 @@ async function submitSupervisorOverride() {
     try {
         const res = await fetch('../api/gate/clear-exit.php', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-Token':STATE.csrfToken },
             body: JSON.stringify({
                 plate_number: overridePlate,
                 supervisor_pin: pin,
@@ -2522,8 +2546,9 @@ function renderActiveSessionsTable(sessions) {
 
         // 2-hour policy: 7200 seconds = 120 mins
         // Warning threshold: 5400 seconds = 90 mins
-        const isCritical = sess.overstay_level === 'critical' || elapsedSecs >= 7200;
-        const isWarning = !isCritical && (sess.overstay_level === 'warning' || elapsedSecs >= 5400);
+        const limitSecs = Math.max(7200, Number(sess.expected_exit_ts || 0) - entryTs / 1000);
+        const isCritical = elapsedSecs >= limitSecs;
+        const isWarning = !isCritical && elapsedSecs >= limitSecs - 1800;
 
         if (isCritical) {
             tr.classList.add('overstay-critical');
@@ -2537,6 +2562,8 @@ function renderActiveSessionsTable(sessions) {
 
         tr.setAttribute('data-session-id', sess.id);
         tr.setAttribute('data-entry-ts', entryTs);
+        tr.setAttribute('data-limit-secs', limitSecs);
+        tr.setAttribute('data-overstay-holding', String(GuardLiveModel.inOverstayHolding(entryTs, now, limitSecs)));
         tr.setAttribute('data-plate', (sess.plate_number || '').toUpperCase());
         tr.setAttribute('data-driver', (sess.driver_name || '').toLowerCase());
         tr.setAttribute('data-dest', (sess.destination || '').toLowerCase());
@@ -2557,16 +2584,19 @@ function renderActiveSessionsTable(sessions) {
         if (sess.category === 'vip') catBadge = '<span class="category-badge-pill vip">⭐ VIP</span>';
         else if (sess.category === 'staff') catBadge = '<span class="category-badge-pill staff">👔 STAFF</span>';
 
+        if(sess.is_blacklisted)catBadge+='<span class="category-badge-pill" style="background:#fee2e2;color:#991b1b">BLACKLISTED</span>';
+        if(sess.is_clamped)catBadge+='<span class="category-badge-pill" style="background:#fee2e2;color:#991b1b">CLAMPED</span>';
+        if(sess.has_incident)catBadge+='<span class="category-badge-pill" style="background:#fef3c7;color:#92400e">INCIDENT</span>';
         // Status badge
         let statusBadgeHtml = '';
         if (isCritical) {
-            const overdueMins = Math.floor((elapsedSecs - 7200) / 60);
+            const overdueMins = Math.floor((elapsedSecs - limitSecs) / 60);
             statusBadgeHtml = `<span class="roster-status-badge critical pulse-badge"><span class="badge-dot red"></span> OVERSTAY (+${overdueMins}m)</span>`;
         } else if (isWarning) {
-            const remMins = Math.max(1, Math.ceil((7200 - elapsedSecs) / 60));
+            const remMins = Math.max(1, Math.ceil((limitSecs - elapsedSecs) / 60));
             statusBadgeHtml = `<span class="roster-status-badge warning"><span class="badge-dot amber"></span> Approaching (${remMins}m left)</span>`;
         } else {
-            const remMins = Math.max(1, Math.ceil((7200 - elapsedSecs) / 60));
+            const remMins = Math.max(1, Math.ceil((limitSecs - elapsedSecs) / 60));
             statusBadgeHtml = `<span class="roster-status-badge safe"><span class="badge-dot green"></span> Free (${remMins}m left)</span>`;
         }
 
@@ -2596,7 +2626,7 @@ function renderActiveSessionsTable(sessions) {
                 <span class="roster-time-in">${escapeHtml(sess.entry_time_display || sess.entry_time.split(' ')[1])}</span>
             </td>
             <td>
-                <span class="roster-time-expected" title="Expected departure deadline under 2-hour policy">
+                <span class="roster-time-expected" title="Approved departure deadline; default allowance is 2 hours">
                     ⏱️ ${escapeHtml(expectedExitDisplay)}
                 </span>
             </td>
@@ -2611,8 +2641,9 @@ function renderActiveSessionsTable(sessions) {
             </td>
             <td>
                 <div class="roster-actions-cell">
-                    <button class="btn-roster-action reprint" onclick="reprintTicket(${sess.id})" title="Reprint Parking Ticket">
-                        🖨️ Reprint
+                    <button class="btn-roster-action" onclick="ParkingOperations.open(${Number(sess.id)})">Follow-up / Incident</button>
+                    <button class="btn-roster-action reprint" onclick="reprintTicket(${sess.id})" title="Reprint Parking Ticket" aria-label="Reprint Parking Ticket">
+                        <span aria-hidden="true">🖨️</span>
                     </button>
                     <button class="btn-roster-action exit" onclick="executeClearExit(${sess.id})" title="Clear Departure">
                         Exit ➔
@@ -2662,8 +2693,10 @@ function startRosterLiveTimers() {
             const timerText = row.querySelector('.timer-text');
             if (timerText) timerText.textContent = durationStr;
 
-            const isCritical = elapsedSecs >= 7200; // 2 hours
-            const isWarning = !isCritical && elapsedSecs >= 5400; // 1.5 hours
+            const limitSecs = Number(row.getAttribute('data-limit-secs')) || 7200;
+            const isCritical = elapsedSecs >= limitSecs; // 2 hours
+            const isWarning = !isCritical && elapsedSecs >= limitSecs - 1800; // 1.5 hours
+            row.setAttribute('data-overstay-holding', String(GuardLiveModel.inOverstayHolding(entryTs, now, limitSecs)));
             if (isCritical) criticalCount++; else if (isWarning) warningCount++; else safeCount++;
             const prevLevel = row.getAttribute('data-overstay-level');
             const newLevel = isCritical ? 'critical' : (isWarning ? 'warning' : 'safe');
@@ -2676,20 +2709,20 @@ function startRosterLiveTimers() {
                 const statusCell = row.children[6];
                 if (statusCell) {
                     if (isCritical) {
-                        const overdueMins = Math.floor((elapsedSecs - 7200) / 60);
+                        const overdueMins = Math.floor((elapsedSecs - limitSecs) / 60);
                         statusCell.innerHTML = `<span class="roster-status-badge critical pulse-badge"><span class="badge-dot red"></span> OVERSTAY (+${overdueMins}m)</span>`;
                         if (window.gsap) gsap.from(statusCell.firstElementChild, { scale: 1.15, duration: 0.3 });
                     } else if (isWarning) {
-                        const remMins = Math.max(1, Math.ceil((7200 - elapsedSecs) / 60));
+                        const remMins = Math.max(1, Math.ceil((limitSecs - elapsedSecs) / 60));
                         statusCell.innerHTML = `<span class="roster-status-badge warning"><span class="badge-dot amber"></span> Approaching (${remMins}m left)</span>`;
                     } else {
-                        const remMins = Math.max(1, Math.ceil((7200 - elapsedSecs) / 60));
+                        const remMins = Math.max(1, Math.ceil((limitSecs - elapsedSecs) / 60));
                         statusCell.innerHTML = `<span class="roster-status-badge safe"><span class="badge-dot green"></span> Free (${remMins}m left)</span>`;
                     }
                 }
             } else if (isCritical) {
                 // Update overdue minutes count dynamically
-                const overdueMins = Math.floor((elapsedSecs - 7200) / 60);
+                const overdueMins = Math.floor((elapsedSecs - limitSecs) / 60);
                 const badge = row.querySelector('.roster-status-badge.critical');
                 if (badge) badge.innerHTML = `<span class="badge-dot red"></span> OVERSTAY (+${overdueMins}m)`;
             }
@@ -2700,16 +2733,20 @@ function startRosterLiveTimers() {
 }
 
 function updateRosterFilterCounters(total, safe, warn, crit) {
+    const held = [...document.querySelectorAll('.roster-car-row')]
+        .filter(row => row.getAttribute('data-overstay-holding') === 'true').length;
+    const elHolding = document.getElementById('countPillHolding');
+    if (elHolding) elHolding.textContent = String(held);
     const elAll = document.getElementById('countPillAll');
     const elSafe = document.getElementById('countPillSafe');
     const elWarn = document.getElementById('countPillWarn');
     const elCrit = document.getElementById('countPillCrit');
     const elBadge = document.getElementById('rosterCountBadge');
 
-    if (elAll) elAll.textContent = String(total);
+    if (elAll) elAll.textContent = String(total - held);
     if (elSafe) elSafe.textContent = String(safe);
     if (elWarn) elWarn.textContent = String(warn);
-    if (elCrit) elCrit.textContent = String(crit);
+    if (elCrit) elCrit.textContent = String(crit - held);
     if (elBadge) elBadge.textContent = String(total);
 
     const statOccupied = document.getElementById('statOccupied');
@@ -2723,6 +2760,14 @@ function applyRosterFilters(shouldAnimate = false) {
     const query = (document.getElementById('rosterSearchInput')?.value || '').trim().toLowerCase();
     const activePill = document.querySelector('.roster-pill.active');
     const filterType = activePill ? activePill.getAttribute('data-filter') : 'all';
+    const notice = document.getElementById('overstayHoldingNotice');
+    const heldCount = document.getElementById('countPillHolding')?.textContent || '0';
+    if (notice) {
+        notice.hidden = filterType !== 'holding' && heldCount === '0';
+        notice.textContent = filterType === 'holding'
+            ? 'Vehicles overdue for 8 hours or more beyond their approved departure time. Records stay saved and still count as occupied until a departure is recorded. Use Follow-up / Incident to investigate, or Exit to record a confirmed departure.'
+            : `${heldCount} older overdue vehicle(s) moved to Overstay Holding. They still count as occupied until a departure is recorded.`;
+    }
 
     const btnClear = document.getElementById('btnClearRosterSearch');
     if (btnClear) btnClear.style.display = query.length > 0 ? 'block' : 'none';
@@ -2730,13 +2775,14 @@ function applyRosterFilters(shouldAnimate = false) {
     const rows = document.querySelectorAll('.roster-car-row');
     const visibleRows = [];
     rows.forEach(row => {
-        const plate = row.getAttribute('data-plate') || '';
+        const plate = (row.getAttribute('data-plate') || '').toLowerCase();
         const driver = row.getAttribute('data-driver') || '';
         const dest = row.getAttribute('data-dest') || '';
         const level = row.getAttribute('data-overstay-level') || 'safe';
 
         const matchesQuery = !query || plate.includes(query) || driver.includes(query) || dest.includes(query);
-        const matchesFilter = (filterType === 'all') || (filterType === level);
+        const held = row.getAttribute('data-overstay-holding') === 'true';
+        const matchesFilter = filterType === 'holding' ? held : !held && ((filterType === 'all') || (filterType === level));
 
         if (matchesQuery && matchesFilter) {
             row.style.display = '';
@@ -2753,8 +2799,11 @@ function applyRosterFilters(shouldAnimate = false) {
         const cell = document.createElement('td'); cell.colSpan = 8; cell.className = 'guard-empty';
         empty.appendChild(cell); document.getElementById('insideTableBody')?.appendChild(empty);
     }
-    empty.hidden = visibleRows.length > 0 || rows.length === 0;
-    empty.firstElementChild.textContent = query ? 'No vehicles match your search in this tab.' : 'No overstayed cars. All parked vehicles are within the time limit.';
+    empty.hidden = visibleRows.length > 0;
+    empty.firstElementChild.textContent = query ? 'No vehicles match your search in this tab.'
+        : filterType === 'holding' ? 'No vehicles in overstay holding.'
+        : filterType === 'critical' ? 'No vehicles overdue for less than 8 hours. Longer overdue vehicles appear in Overstay Holding.'
+        : 'No vehicles in the main roster. Older overdue vehicles appear in Overstay Holding.';
 
     if (shouldAnimate && window.gsap && visibleRows.length > 0 && visibleRows.length <= 40) {
         gsap.fromTo(visibleRows, { opacity: 0.35, y: 3 }, { opacity: 1, y: 0, duration: 0.18, stagger: 0.02, ease: 'power1.out' });
@@ -2786,6 +2835,8 @@ function initWizard() {
             if (nameIn)  nameIn.value  = '';
             if (phoneIn) phoneIn.value = '';
             STATE.wizard.destination = '';
+            STATE.wizard.destinations=[];
+            document.getElementById('wizardMultiStore').checked=false;
             GuardProfiles.reset('wiz');
             document.querySelectorAll('.dest-tile').forEach(t => t.classList.remove('selected'));
 
@@ -2867,12 +2918,15 @@ function updateWizardStep() {}
 let guardActiveFloor = 'ALL';
 
 function selectDestination(name) {
-    STATE.wizard.destination = name;
+    const picked=document.getElementById('wizardMultiStore')?.checked ? [...(STATE.wizard.destinations || [])] : [];
+    const at=picked.indexOf(name); if(at>=0) picked.splice(at,1); else picked.push(name);
+    STATE.wizard.destinations=picked;
+    STATE.wizard.destination = picked[0] || '';
     document.querySelectorAll('.dest-tile').forEach(tile => {
-        tile.classList.toggle('selected', tile.getAttribute('data-name') === name);
+        tile.classList.toggle('selected', picked.includes(tile.getAttribute('data-name')));
     });
     const label = document.getElementById('wizSelectedDestLabel');
-    if (label) label.textContent = name || 'None';
+    if (label) label.textContent = picked.join(', ') || 'None';
 }
 
 function renderGuardDestGrid() {
@@ -2905,7 +2959,7 @@ function renderGuardDestGrid() {
 
     filtered.forEach(d => {
         const tile = document.createElement('div');
-        const isSelected = STATE.wizard.destination === d.name;
+        const isSelected = (STATE.wizard.destinations || [STATE.wizard.destination]).includes(d.name);
         tile.className = 'dest-tile' + (isSelected ? ' selected' : '');
         tile.setAttribute('data-name', d.name);
         tile.onclick = () => selectDestination(d.name);
@@ -2963,6 +3017,7 @@ async function submitManualWizard() {
                 driver_name:  name,
                 driver_phone: phone,
                 destination:  dest,
+                ...(STATE.wizard.destinations?.length ? {destinations:STATE.wizard.destinations} : {}),
             }),
         });
         const json = await res.json();
@@ -3139,7 +3194,7 @@ function executeLogout() {
         btn.classList.add('btn-loading');
     }
     if (lbl) lbl.textContent = 'Signing Out…';
-    showToast('👋 Ending shift. Signing out…');
+    showToast('Signing out of the station…');
     setTimeout(() => {
         window.location.href = '../api/auth/logout.php';
     }, 450);
@@ -3202,3 +3257,28 @@ document.addEventListener('keydown', (e) => {
         fastRefreshEntryQueue(true);
     }
 });
+
+function resetMultiStore(box) {
+    if(box.checked) return;
+    if(box.id==='intakeMultiStore') {
+        STATE.intakeDestinations=(STATE.intakeDestinations || []).slice(0,1);
+        STATE.intakeSelectedDest=STATE.intakeDestinations[0] || '';
+        document.getElementById('intakeDestinationValue').value=STATE.intakeSelectedDest;
+        document.getElementById('intakeSelectedDestLabel').textContent=STATE.intakeSelectedDest || 'Choose destination';
+        renderIntakeShops();
+    } else {
+        STATE.wizard.destinations=(STATE.wizard.destinations || []).slice(0,1);
+        STATE.wizard.destination=STATE.wizard.destinations[0] || '';
+        document.getElementById('wizSelectedDestLabel').textContent=STATE.wizard.destination || 'None';
+        renderGuardDestGrid();
+    }
+}
+
+function showDepartureRestriction(policy) {
+    if(!pendingExitData)return;
+    pendingExitData.policy=policy;
+    const required=policy.is_blacklisted||policy.is_clamped||policy.has_incident||policy.requires_supervisor;
+    document.getElementById('exitRestrictionFields').hidden=!required;
+    document.getElementById('exitRestrictionMessage').textContent=policy.is_clamped?'CLAMPED: Record clamp release in Follow-ups before departure.':policy.is_blacklisted?'BLACKLISTED: Supervisor code and departure reason are required.':'OPEN INCIDENT: Supervisor code and departure reason are required.';
+    document.getElementById('btnConfirmClearExit').disabled=!!policy.is_clamped;
+}

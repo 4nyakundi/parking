@@ -25,11 +25,12 @@ const report = (overrides = {}) => ({ mode: 'exited', date: '', today: '2026-11-
     sessions: [], total: 0, page: 1, pages: 1, server_timestamp: 1793689200, ...overrides });
 const response = data => ({ ok: true, json: async () => ({ ok: true, data }) });
 
-test('exited view starts with all dates, daily view chooses Nairobi today', async () => {
+test('exited view starts with current shift, daily view chooses Nairobi today', async () => {
     const urls = [];
     const h = harness(async url => { urls.push(url); return response(report()); });
     h.history.select('exited'); h.history.show(); await h.history.refresh();
     assert.equal(new URLSearchParams(urls[0].split('?')[1]).get('date'), '');
+    assert.equal(new URLSearchParams(urls[0].split('?')[1]).get('scope'), 'current_shift');
     h.history.select('day'); h.history.show(); await h.history.refresh();
     assert.equal(new URLSearchParams(urls[1].split('?')[1]).get('date'), '2026-11-03');
     assert.equal(h.element('trafficAllDates').hidden, true);

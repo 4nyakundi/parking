@@ -8,6 +8,7 @@
 declare(strict_types=1);
 
 header('Content-Type: application/json; charset=utf-8');
+require_once __DIR__ . '/../../includes/visit_destinations.php';
 
 require_once __DIR__ . '/../../includes/auth.php';
 require_once __DIR__ . '/../../includes/audit.php';
@@ -18,6 +19,7 @@ require_once __DIR__ . '/../../includes/printer_service.php';
 require_once __DIR__ . '/../../includes/whatsapp_service.php';
 require_once __DIR__ . '/../../includes/cloud_sync_service.php';
 require_once __DIR__ . '/../../includes/databank.php';
+require_once __DIR__.'/../../includes/vehicle_restrictions.php';
 
 $user = require_auth(true);
 
@@ -65,9 +67,6 @@ try {
         $source = $req['source'] ?? 'self_signin';
         $entryMethod = in_array($source, ['alpr_camera', 'alpr_only', 'alpr'], true) ? 'alpr' : ($source === 'manual_guard' ? 'manual' : 'self_signin');
 
-        // Update the visitor request with filled details
-        $db->prepare('UPDATE visitors SET driver_name = :name, driver_phone = :phone, destination = :dest WHERE id = :id')
-           ->execute([':name' => $driverName, ':phone' => $driverPhone, ':dest' => $destination, ':id' => $requestId]);
     } else {
         $plateNumber = PlateHelper::clean((string)($input['plate_number'] ?? ''));
         $driverName  = trim((string)($input['driver_name'] ?? ''));
@@ -82,12 +81,18 @@ try {
         }
     }
 
+    $stores = visit_stores($db,$input,$destination);
+    if (!$stores && $requestId>0 && !array_key_exists('destination',$input)) $stores=visit_store_rows($db,'visitor',$requestId);
+    if ($stores) $destination=$stores[0]['name'];
     $submittedPhone = (string)($input['driver_phone'] ?? $driverPhone);
     if ($submittedPhone !== '' && (!in_array(strlen(preg_replace('/\D/', '', $submittedPhone)), [9,10,12], true) || !PhoneHelper::validate($driverPhone))) {
         http_response_code(422); echo json_encode(['ok'=>false,'error'=>'Please enter a valid Kenyan mobile number or leave it blank.']); exit;
     }
     $cleanPlate = PlateHelper::clean($plateNumber);
     $formattedPlate = PlateHelper::format($cleanPlate);
+
+    $entryPolicy=vehicle_exit_policy($db,$cleanPlate);
+    if($entryPolicy['is_blacklisted']){http_response_code(403);echo json_encode(['ok'=>false,'error'=>'Blacklisted car approaching. Do not admit; ask a supervisor to authorize departure.']);exit;}
 
     // 2. Check if vehicle is already actively inside
     $actStmt = $db->prepare('
@@ -133,6 +138,7 @@ try {
 
     // 4. Begin Database Transaction
     $db->beginTransaction();
+    if(vehicle_exit_policy($db,$cleanPlate,0,true)['is_blacklisted'])throw new DomainException('Blacklisted vehicle: admission is not permitted.');
 
     // Preserve exact camera detection entry timestamp if available
     $actualEntryTime = date('Y-m-d H:i:s');
@@ -169,12 +175,14 @@ try {
 
     // Mark pending visitor request as APPROVED
     if ($requestId > 0) {
-        $db->prepare('UPDATE visitors SET status = "APPROVED", handled_by = :guard WHERE id = :id')
-           ->execute([':guard' => $user['id'], ':id' => $requestId]);
+        $db->prepare('UPDATE visitors SET status = "APPROVED", handled_by = :guard,driver_name=:name,driver_phone=:phone,destination=:destination WHERE id = :id')
+           ->execute([':guard' => $user['id'], ':id' => $requestId,':name'=>$driverName,':phone'=>$driverPhone,':destination'=>$destination]);
     }
 
+    visit_store_save($db,'session',$sessionId,$stores);
     $db->commit();
 
+    if ($stores) $destination=implode(', ',array_column($stores,'name'));
     $profileSaved = false;
     // 4b. Record visit in Data Bank (enables frequent client promotion after 3 visits)
     try {
@@ -193,6 +201,7 @@ try {
         'plate_number'       => $cleanPlate,
         'driver_name'        => $driverName,
         'destination'        => $destination,
+        'destinations' => $stores ? array_column($stores,'name') : [$destination],
         'entry_time'         => $entryTime,
         'expected_exit_time' => $expectedExitTime,
         'guard_name'         => $user['full_name'],
@@ -218,6 +227,7 @@ try {
         'driver'       => $driverName,
         'phone'        => $driverPhone,
         'destination'  => $destination,
+        'destinations' => $stores ? array_column($stores,'name') : [$destination],
         'print_status' => $printStatus,
         'wa_status'    => $waStatus,
     ]);
@@ -230,6 +240,7 @@ try {
         'formatted_plate'  => $formattedPlate,
         'driver_name'      => $driverName,
         'destination'      => $destination,
+        'destinations' => $stores ? array_column($stores,'name') : [$destination],
         'entry_time'       => $entryTime,
         'expected_exit'    => $expectedExitTime,
         'print_status'     => $printStatus,
@@ -252,6 +263,7 @@ try {
             'driver_name'        => $driverName,
             'driver_phone'       => $driverPhone,
             'destination'        => $destination,
+        'destinations' => $stores ? array_column($stores,'name') : [$destination],
             'entry_time'         => $entryTime,
             'entry_time_fmt'     => date('H:i:s - d/m/Y', $entryTsVal),
             'expected_exit_time' => $expectedExitTime,
