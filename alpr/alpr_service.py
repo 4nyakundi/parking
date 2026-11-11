@@ -14,6 +14,7 @@ import base64
 import argparse
 import threading
 import logging
+from urllib.parse import urlsplit, urlunsplit
 from logging.handlers import RotatingFileHandler
 from datetime import datetime
 from collections import defaultdict, deque
@@ -52,6 +53,26 @@ HEARTBEAT_SECONDS = int(CONFIG.get("HEARTBEAT_SECONDS", "30"))
 
 ENTRANCE_RTSP = CONFIG.get("ENTRANCE_RTSP", "rtsp://admin:password@192.168.1.1:554/Streaming/Channels/101")
 EXIT_RTSP = CONFIG.get("EXIT_RTSP", "rtsp://admin:password@192.168.1.1:554/Streaming/Channels/201")
+
+def lock_camera_stream(configured_url, camera_ip):
+    parts = urlsplit(configured_url)
+    if parts.scheme.lower() != "rtsp" or not parts.hostname or "@" not in parts.netloc:
+        raise ValueError("Camera RTSP configuration must include an authenticated RTSP URL.")
+
+    credentials = parts.netloc.rsplit("@", 1)[0]
+    port = parts.port or 554
+    return urlunsplit((
+        "rtsp",
+        f"{credentials}@{camera_ip}:{port}",
+        "/cam/realmonitor",
+        "channel=1&subtype=0",
+        "",
+    ))
+
+
+ENTRANCE_RTSP = lock_camera_stream(ENTRANCE_RTSP, "192.168.1.230")
+EXIT_RTSP = lock_camera_stream(EXIT_RTSP, "192.168.1.210")
+
 
 # Configure Logging
 log_file = os.path.join(SCRIPT_DIR, CONFIG.get("LOG_FILE", "../storage/logs/alpr.log"))

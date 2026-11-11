@@ -18,6 +18,7 @@ if (!function_exists('get_config')) {
                     $cfg = array_replace_recursive($cfg, $localConfig);
                 }
             }
+            $cfg = lock_parking_camera_config($cfg);
         }
         return $cfg;
     }

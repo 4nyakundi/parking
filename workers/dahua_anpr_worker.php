@@ -26,6 +26,7 @@ if (file_exists(__DIR__ . '/../config/config.local.php')) {
         $config = array_replace_recursive($config, $localConfig);
     }
 }
+$config = lock_parking_camera_config($config);
 require_once __DIR__ . '/../includes/plate_helper.php';
 
 $apiKey    = $config['alpr']['api_key'] ?? 'MOMBASA_PARKING_ALPR_SECRET_KEY_2026';
@@ -79,7 +80,13 @@ $lastHeartbeat = 0;
 
 function log_msg(string $msg): void {
     $time = date('Y-m-d H:i:s');
-    echo "[{$time}] {$msg}\n";
+    $line = "[{$time}] {$msg}";
+    echo $line . "\n";
+
+    $logFile = __DIR__ . '/../storage/logs/dahua-anpr-worker.log';
+    if (file_put_contents($logFile, $line . PHP_EOL, FILE_APPEND | LOCK_EX) === false) {
+        error_log('Unable to write Dahua ANPR worker log: ' . $logFile);
+    }
 }
 
 function grab_snapshot_base64(array|string $snapUrls, string $user, string $pass): ?string {
@@ -159,7 +166,9 @@ function send_system_heartbeat(string $healthUrl, string $apiKey, array &$camera
     foreach ($cameras as $camKey => $cam) {
         $camStatus[$camKey] = [
             'ip'      => $cam['ip'],
-            'status'  => $cam['status'],
+            'status'  => $cam['status'] === 'OK'
+                ? 'OK'
+                : ($cam['status'] === 'OFFLINE' ? 'OFFLINE' : 'WARNING'),
             'message' => "Dahua {$cam['name']} ({$cam['ip']}): {$cam['status']}",
         ];
     }
@@ -196,6 +205,8 @@ function init_camera_stream(string $camKey, array &$camConfig, string $apiUrl, s
     log_msg("Connecting stream for [{$camKey}] -> {$camConfig['stream']} ...");
 
     $buffer = '';
+    $camConfig['last_seen'] = time();
+    $camConfig['status'] = 'CONNECTING';
     $ch = curl_init($camConfig['stream']);
     curl_setopt($ch, CURLOPT_HTTPAUTH, CURLAUTH_DIGEST);
     curl_setopt($ch, CURLOPT_USERPWD, "{$camConfig['user']}:{$camConfig['pass']}");
@@ -211,10 +222,22 @@ function init_camera_stream(string $camKey, array &$camConfig, string $apiUrl, s
         $camConfig['last_seen'] = time();
         $camConfig['status'] = 'OK';
 
-        // Split on Dahua boundary markers
-        while (($pos = strpos($buffer, "\r\n--myboundary\r\n")) !== false || ($pos = strpos($buffer, "--myboundary\r\n")) !== false) {
+        // Split on Dahua boundary markers, including the initial boundary without CRLF.
+        while (true) {
+            $boundary = "\r\n--myboundary\r\n";
+            $boundaryLength = strlen($boundary);
+            $pos = strpos($buffer, $boundary);
+            if ($pos === false) {
+                $boundary = "--myboundary\r\n";
+                $boundaryLength = strlen($boundary);
+                $pos = strpos($buffer, $boundary);
+            }
+            if ($pos === false) {
+                break;
+            }
+
             $part = substr($buffer, 0, $pos);
-            $buffer = substr($buffer, $pos + strlen("\r\n--myboundary\r\n"));
+            $buffer = substr($buffer, $pos + $boundaryLength);
 
             if (empty(trim($part))) continue;
 
@@ -332,6 +355,18 @@ while (true) {
                 $handles[$camKey]['retry_at'] = time() + 3;
                 break;
             }
+        }
+    }
+
+    // Reconnect streams that stay open but stop delivering event data.
+    foreach ($handles as $camKey => $data) {
+        if ($data['ch'] !== null && time() - $cameras[$camKey]['last_seen'] > 120) {
+            log_msg("[{$camKey}] Stream idle for over 120 seconds. Reconnecting...");
+            curl_multi_remove_handle($mh, $data['ch']);
+            curl_close($data['ch']);
+            $handles[$camKey]['ch'] = null;
+            $handles[$camKey]['retry_at'] = time() + 3;
+            $cameras[$camKey]['status'] = 'OFFLINE';
         }
     }
 

@@ -16,7 +16,9 @@ ini_set('error_log', __DIR__ . '/../storage/logs/php_error.log');
 // Timezone requirement: Africa/Nairobi
 date_default_timezone_set('Africa/Nairobi');
 
-return [
+require_once __DIR__ . '/camera_config.php';
+
+$config = [
     // ---------------------------------------------------------
     // Application & Mall Info
     // ---------------------------------------------------------
@@ -178,3 +180,5 @@ return [
         'logs'      => __DIR__ . '/../storage/logs',
     ],
 ];
+
+return lock_parking_camera_config($config);
