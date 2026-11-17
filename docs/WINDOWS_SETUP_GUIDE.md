@@ -185,7 +185,7 @@ New-NetFirewallRule -DisplayName "Mombasa Mall Parking HTTP" `
 
 Run these three commands in Admin Command Prompt to register the automated background jobs:
 
-### Job 1: Cloud Sync Worker (Every 1 minute)
+### Job 1: Cloud Sync Worker (checks every 1 minute; uploads 50-record segments every 20 minutes)
 ```cmd
 schtasks /create /tn "MombasaParking_CloudSync" /tr "C:\xampp\php\php.exe C:\xampp\htdocs\parking\workers\sync_worker.php" /sc minute /mo 1 /ru SYSTEM /f
 ```

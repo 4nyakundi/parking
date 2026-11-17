@@ -15,12 +15,12 @@ A complete offline-first parking operations platform engineered for **Mombasa Ma
 | Portal | URL (Edge PC / Wi-Fi) | Default Credentials |
 | :--- | :--- | :--- |
 | **Portal Router** | `http://localhost/parking/` (or `http://192.168.0.50/parking/`) | Automatic device routing (mobile vs. desktop) |
-| **Guard Station Kiosk** | `http://localhost/parking/guard/` | Guard 1 PIN: `1234`<br>Guard 2 PIN: `5678`<br>Supervisor PIN: `9999` |
+| **Guard Station Kiosk** | `http://localhost/parking/guard/` | Guard and supervisor credentials are set for each local deployment. |
 | **Driver Self Check-In** | `http://localhost/parking/driver/` | Public mobile check-in via QR code |
-| **Admin & Supervisor Portal** | `http://localhost/parking/admin/` | Administrator: `admin` / `admin123`<br>Supervisor: `supervisor` / `super123` |
-| **Remote Cloud Mirror** | `http://localhost/parking/cloud/` | Username: `management` / Password: `mall2026` |
-| **Dahua Cameras & NVR** | Hardware RTSP & Web GUI | Username: `admin` / Password: `Mall@2024` |
-| **phpMyAdmin** | `http://localhost/phpmyadmin/` | Username: `root` / Password: *(blank)* |
+| **Admin & Supervisor Portal** | `http://localhost/parking/admin/` | Administrator and supervisor accounts are configured locally. |
+| **Remote Cloud Mirror** | `http://localhost/parking/cloud/` | Configure the initial management account using `CLOUD_INITIAL_ADMIN_PASSWORD`. |
+| **Dahua Cameras & NVR** | Hardware RTSP & Web GUI | Camera credentials are configured locally and must not be committed. |
+| **phpMyAdmin** | `http://localhost/phpmyadmin/` | Credentials are managed by the local MySQL installation. |
 
 ---
 
@@ -314,7 +314,7 @@ Register the background tasks in Windows to handle cloud sync, WhatsApp ticket d
 Open **Command Prompt as Administrator** and execute:
 
 ```cmd
-REM 1. Cloud Sync Worker (Runs every 1 minute)
+REM 1. Cloud Sync Worker (checks every 1 minute; uploads 50-record segments every 20 minutes)
 schtasks /create /tn "MombasaParking_CloudSync" /tr "C:\xampp\php\php.exe C:\xampp\htdocs\parking\workers\sync_worker.php" /sc minute /mo 1 /ru SYSTEM /f
 
 REM 2. WhatsApp Outbox Worker (Runs every 1 minute)
@@ -345,7 +345,7 @@ Execute this 7-step checklist to verify end-to-end operational readiness:
 | **3** | **Manual Check-In** | Tap **ADD CAR MANUALLY**, enter `KDB 888B`, store `Gym`. | Session created immediately, ticket prints, and occupancy updates. |
 | **4** | **Exit Clearance** | Switch to **CARS LEAVING**, search `KDA 555A`, tap **CLEAR EXIT**. | Session marked `COMPLETED`, dwell time calculated, and slot returned to pool. |
 | **5** | **Offline Tolerance**| Disconnect internet WAN cable from NIC 1. Perform check-ins and exits. | System operates with zero downtime. Offline status banner displayed. |
-| **6** | **Cloud Synchronization**| Reconnect NIC 1 internet cable. Wait 60 seconds. | Queued offline transactions push to Cloud Mirror; status returns to green. |
+| **6** | **Cloud Synchronization**| Reconnect NIC 1 internet cable. Wait for the scheduled cycle. | Queued offline transactions push to Cloud Mirror in configured segments. |
 | **7** | **Database Backup** | Execute `scripts\backup.bat`. | Verified `.sql` dump generated in `storage\backups\` and `D:\ParkingBackups\`. |
 
 ---

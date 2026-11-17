@@ -235,7 +235,7 @@ if ($isMobile && !isset($_GET['portal'])) {
         </div>
         <div class="sys-bar-right">
             <span>Mombasa, Kenya</span>
-            <span class="sys-badge">60 Slots</span>
+            <span class="sys-badge">70 Slots</span>
             <span id="sysTime" style="font-family:'Courier New',monospace; font-size:13px; color:rgba(255,255,255,0.9);"></span>
         </div>
     </header>

@@ -556,12 +556,12 @@ $user = require_role(['supervisor', 'admin'], false);
                 <div class="kpi-card accent-amber">
                     <div class="kpi-title">Pending Sync Queue</div>
                     <div class="kpi-val" id="cloudPendingCount" style="color:#d97706;">0</div>
-                    <div class="kpi-sub">Local records awaiting mirror</div>
+                    <div class="kpi-sub">Parking sessions awaiting mirror</div>
                 </div>
                 <div class="kpi-card accent-blue">
                     <div class="kpi-title">Last Cloud Sync</div>
                     <div class="kpi-val" id="cloudLastSync" style="font-size:18px;">No confirmed sync</div>
-                    <div class="kpi-sub">Background cycle runs every 60s</div>
+                    <div class="kpi-sub">50-record segments run every 20 minutes</div>
                 </div>
                 <div class="kpi-card">
                     <div class="kpi-title">Remote Portal</div>
@@ -577,7 +577,7 @@ $user = require_role(['supervisor', 'admin'], false);
                 <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
                     <div>
                         <h3 style="margin-bottom:4px;">Edge PC Synchronization Control</h3>
-                        <p style="font-size:13px; color:var(--text-sub);">Push local basement parking records to the remote executive cloud repository with cryptographic integrity verification.</p>
+                        <p style="font-size:13px; color:var(--text-sub);">Mirror all local parking sessions and registered vehicle profiles in signed, 50-record segments every 20 minutes.</p>
                     </div>
                     <div style="display:flex; gap:10px;">
                         <button type="button" class="btn-primary btn-success" id="btnTriggerCloudSync" onclick="triggerManualCloudSync()">

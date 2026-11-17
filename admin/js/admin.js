@@ -863,7 +863,7 @@ async function loadCloudSyncStatus() {
         setTxt('cloudLastSync', d.last_synced_at || 'No confirmed sync');
         
         const sub = document.getElementById('cloudConnSub');
-        if (sub) sub.textContent = `${d.synced_count} of ${d.total_sessions} records synced (${d.hmac_enabled ? 'HMAC-SHA256' : 'Standard'})`;
+        if (sub) sub.textContent = `${d.synced_count} of ${d.total_sessions} sessions synced; ${d.total_vehicles} vehicle profiles; ${d.batch_size} records every ${d.interval_minutes} min; ${d.hmac_enabled ? 'HMAC-SHA256' : 'Standard'}`;
     }
     return json.ok;
 }
@@ -891,7 +891,7 @@ async function triggerManualCloudSync() {
 
     if (consoleBox) {
         if (json.ok) {
-            consoleBox.textContent += (json.log || `[${new Date().toLocaleTimeString()}] Sync successful.\n`) + `\n[${new Date().toLocaleTimeString()}] [SUCCESS] All records verified. Zero packet drops. Parity confirmed.`;
+            consoleBox.textContent += (json.log || `[${new Date().toLocaleTimeString()}] Sync successful: ${json.session_count || 0} session(s), ${json.vehicle_count || 0} vehicle profile(s).`);
         } else {
             consoleBox.textContent += `[${new Date().toLocaleTimeString()}] [ERROR] Sync failed: ${json.error || 'Connection error'}`;
         }

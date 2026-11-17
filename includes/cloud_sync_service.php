@@ -1,7 +1,7 @@
 <?php
 /**
  * Mombasa Mall Basement Parking - Cloud Synchronization Service
- * Handles instant and batch transmission of parking sessions to Cloud Mirror
+ * Mirrors parking sessions and registered vehicle profiles in bounded batches.
  */
 
 declare(strict_types=1);
@@ -10,46 +10,91 @@ require_once __DIR__ . '/../config/database.php';
 
 class CloudSyncService
 {
-    /**
-     * Synchronize a specific session immediately upon creation or exit
-     */
+    private const STATE_TABLE = 'cloud_sync_state';
+
     public static function syncSession(int $sessionId): bool
     {
         try {
             $db = get_db();
-            $stmt = $db->prepare('SELECT * FROM parking_sessions WHERE id = ?');
+            $stmt = $db->prepare('
+                SELECT id, ticket_id, plate_number, driver_name, driver_phone, destination,
+                       entry_time, exit_time, status, duration_minutes, entry_method, exit_method, notes
+                FROM parking_sessions WHERE id = ?
+            ');
             $stmt->execute([$sessionId]);
-            $sess = $stmt->fetch();
-            if (!$sess) return false;
+            $session = $stmt->fetch();
+            if (!$session) {
+                return false;
+            }
 
-            return self::transmitSessions([$sess]);
+            return self::transmitRecords([$session], []);
         } catch (Throwable $e) {
             error_log('CloudSyncService::syncSession Error: ' . $e->getMessage());
             return false;
         }
     }
 
-    /**
-     * Batch synchronize all pending unsynced sessions
-     */
     public static function syncPendingBatch(int $limit = 50): array
     {
-        try {
-            $db = get_db();
-            $stmt = $db->prepare('SELECT * FROM parking_sessions WHERE synced_to_cloud = 0 ORDER BY id ASC LIMIT :limit');
-            $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
-            $stmt->execute();
-            $sessions = $stmt->fetchAll();
+        if ($limit < 1 || $limit > 500) {
+            return ['ok' => false, 'error' => 'Segment size must be between 1 and 500 records.'];
+        }
 
-            if (empty($sessions)) {
-                return ['ok' => true, 'synced' => 0, 'message' => 'Zero unsynced records found. Local and Cloud databases are in parity.'];
+        try {
+            $config = require __DIR__ . '/../config/config.php';
+            if (empty($config['cloud_sync']['enabled'])) {
+                return ['ok' => false, 'error' => 'Cloud synchronization is disabled in the local configuration.'];
             }
 
-            $success = self::transmitSessions($sessions);
+            $db = get_db();
+            self::ensureStateTable($db);
+
+            $sessionLimit = (int)ceil($limit / 2);
+            $sessionBackfill = self::getState($db, 'parking_session_backfill_complete', '0') !== '1';
+            $sessionCursor = null;
+            if ($sessionBackfill) {
+                $sessionCursor = (int)self::getState($db, 'parking_session_cursor', '0');
+                $sessions = self::fetchSessionBatch($db, $sessionCursor, $sessionLimit);
+                if (!$sessions) {
+                    self::setState($db, 'parking_session_backfill_complete', '1');
+                    $sessionBackfill = false;
+                }
+            }
+            if (!$sessionBackfill) {
+                $sessions = self::fetchPendingSessions($db, $sessionLimit);
+            }
+
+            $vehicleLimit = max(0, $limit - count($sessions));
+            $vehicles = $vehicleLimit > 0 ? self::nextVehicleBatch($db, $vehicleLimit) : [];
+            if (!$sessions && !$vehicles) {
+                return [
+                    'ok' => true,
+                    'synced' => 0,
+                    'session_count' => 0,
+                    'vehicle_count' => 0,
+                    'message' => 'No unsynced sessions or vehicle profiles were found in this segment.',
+                ];
+            }
+
+            if (!self::transmitRecords($sessions, $vehicles)) {
+                return ['ok' => false, 'error' => 'Failed to synchronize the segment to Cloud Mirror. Local records remain unchanged.'];
+            }
+
+            if ($vehicles) {
+                self::setState($db, 'registered_vehicle_cursor', (string)end($vehicles)['id']);
+            }
+            if ($sessionBackfill && $sessions) {
+                self::setState($db, 'parking_session_cursor', (string)end($sessions)['id']);
+            }
+
+            $sessionCount = count($sessions);
+            $vehicleCount = count($vehicles);
             return [
-                'ok'      => $success,
-                'synced'  => $success ? count($sessions) : 0,
-                'message' => $success ? ('Successfully synchronized ' . count($sessions) . ' session(s) to Cloud Mirror.') : 'Failed to synchronize batch to Cloud Mirror.',
+                'ok' => true,
+                'synced' => $sessionCount + $vehicleCount,
+                'session_count' => $sessionCount,
+                'vehicle_count' => $vehicleCount,
+                'message' => "Synchronized {$sessionCount} session(s) and {$vehicleCount} vehicle profile(s) to Cloud Mirror.",
             ];
         } catch (Throwable $e) {
             error_log('CloudSyncService::syncPendingBatch Error: ' . $e->getMessage());
@@ -57,142 +102,348 @@ class CloudSyncService
         }
     }
 
-    /**
-     * Transmit sessions payload to Cloud Ingest endpoint or direct database upsert
-     */
-    private static function transmitSessions(array $sessions): bool
+    public static function claimScheduledRun(int $intervalMinutes): array
     {
-        if (empty($sessions)) return true;
+        $intervalMinutes = max(1, $intervalMinutes);
+        $db = get_db();
+        self::ensureStateTable($db);
+        $db->prepare('INSERT IGNORE INTO ' . self::STATE_TABLE . ' (state_key, state_value) VALUES (?, "0")')
+            ->execute(['scheduled_last_attempt']);
+
+        $db->beginTransaction();
+        try {
+            $stmt = $db->prepare('SELECT state_value FROM ' . self::STATE_TABLE . ' WHERE state_key = ? FOR UPDATE');
+            $stmt->execute(['scheduled_last_attempt']);
+            $lastAttempt = (int)$stmt->fetchColumn();
+            $remaining = ($lastAttempt + ($intervalMinutes * 60)) - time();
+            if ($remaining > 0) {
+                $db->commit();
+                return ['due' => false, 'seconds_remaining' => $remaining];
+            }
+
+            self::setState($db, 'scheduled_last_attempt', (string)time());
+            $db->commit();
+            return ['due' => true, 'seconds_remaining' => 0];
+        } catch (Throwable $e) {
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
+            throw $e;
+        }
+    }
+
+    public static function lastSuccessfulSyncAt(): ?string
+    {
+        $db = get_db();
+        $tableCheck = $db->prepare('
+            SELECT COUNT(*) FROM information_schema.tables
+            WHERE table_schema = DATABASE() AND table_name = ?
+        ');
+        $tableCheck->execute([self::STATE_TABLE]);
+        if ((int)$tableCheck->fetchColumn() === 0) {
+            return null;
+        }
+        $timestamp = (int)self::getState($db, 'last_success_at', '0');
+        return $timestamp > 0 ? date('Y-m-d H:i:s', $timestamp) : null;
+    }
+
+    private static function nextVehicleBatch(PDO $db, int $limit): array
+    {
+        $cursor = (int)self::getState($db, 'registered_vehicle_cursor', '0');
+        $vehicles = self::fetchVehicleBatch($db, $cursor, $limit);
+
+        if (!$vehicles && $cursor > 0) {
+            self::setState($db, 'registered_vehicle_cursor', '0');
+            $vehicles = self::fetchVehicleBatch($db, 0, $limit);
+        }
+
+        return $vehicles;
+    }
+
+    private static function fetchVehicleBatch(PDO $db, int $cursor, int $limit): array
+    {
+        $stmt = $db->prepare('
+            SELECT id, plate_number, owner_name, phone, vehicle_type, category, notes, is_active,
+                   visit_count, is_frequent, default_destination, last_visit_at, driver_name,
+                   driver_phone, profile_archived, profile_reset_at, created_at
+            FROM registered_vehicles
+            WHERE id > :cursor
+            ORDER BY id ASC
+            LIMIT :limit
+        ');
+        $stmt->bindValue(':cursor', $cursor, PDO::PARAM_INT);
+        $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+        $stmt->execute();
+        return $stmt->fetchAll();
+    }
+
+    private static function fetchSessionBatch(PDO $db, int $cursor, int $limit): array
+    {
+        $stmt = $db->prepare('
+            SELECT id, ticket_id, plate_number, driver_name, driver_phone, destination,
+                   entry_time, exit_time, status, duration_minutes, entry_method, exit_method, notes
+            FROM parking_sessions
+            WHERE id > :cursor
+            ORDER BY id ASC
+            LIMIT :limit
+        ');
+        $stmt->bindValue(':cursor', $cursor, PDO::PARAM_INT);
+        $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+        $stmt->execute();
+        return $stmt->fetchAll();
+    }
+
+    private static function fetchPendingSessions(PDO $db, int $limit): array
+    {
+        $stmt = $db->prepare('
+            SELECT id, ticket_id, plate_number, driver_name, driver_phone, destination,
+                   entry_time, exit_time, status, duration_minutes, entry_method, exit_method, notes
+            FROM parking_sessions
+            WHERE synced_to_cloud = 0
+            ORDER BY id ASC
+            LIMIT :limit
+        ');
+        $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+        $stmt->execute();
+        return $stmt->fetchAll();
+    }
+
+    private static function transmitRecords(array $sessions, array $vehicles): bool
+    {
+        if (!$sessions && !$vehicles) {
+            return true;
+        }
 
         $db = get_db();
         $config = require __DIR__ . '/../config/config.php';
         $cloudCfg = $config['cloud_sync'] ?? [];
+        if (empty($cloudCfg['enabled'])) {
+            return false;
+        }
 
-        $endpoint   = $cloudCfg['endpoint'] ?? 'http://127.0.0.1/parking/cloud/api/ingest.php';
-        $apiKey     = $cloudCfg['api_key'] ?? 'MOMBASA_CLOUD_SYNC_KEY_987654321';
-        $hmacSecret = $cloudCfg['hmac_secret'] ?? 'SEC_HMAC_MOMBASA_MALL_CLOUD_SIGNING_SECRET_2026';
+        $endpoint = $cloudCfg['endpoint'] ?? '';
+        $apiKey = $cloudCfg['api_key'] ?? '';
+        $hmacSecret = $cloudCfg['hmac_secret'] ?? '';
+        if ($endpoint === '' || $apiKey === '' || $hmacSecret === '') {
+            error_log('CloudSyncService: Cloud sync endpoint or credentials are not configured.');
+            return false;
+        }
 
         $payload = [
             'timestamp' => time(),
-            'edge_pc'   => 'Mombasa-Mall-Edge-01',
-            'sessions'  => $sessions,
+            'edge_pc' => 'Mombasa-Mall-Edge-01',
+            'sessions' => $sessions,
+            'vehicles' => $vehicles,
         ];
+        $jsonPayload = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
+        $signature = hash_hmac('sha256', $jsonPayload, $hmacSecret);
 
-        $jsonPayload = json_encode($payload, JSON_UNESCAPED_UNICODE);
-        $signature = hash_hmac('sha256', (string)$jsonPayload, $hmacSecret);
-
-        // 1. Attempt HTTP POST to ingest endpoint
         $httpSuccess = false;
         if (function_exists('curl_init')) {
             $ch = curl_init($endpoint);
-            curl_setopt($ch, CURLOPT_POST, true);
-            curl_setopt($ch, CURLOPT_POSTFIELDS, $jsonPayload);
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_TIMEOUT, 3);
-            curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 2);
-            curl_setopt($ch, CURLOPT_HTTPHEADER, [
-                'Content-Type: application/json',
-                "X-API-KEY: {$apiKey}",
-                "X-SIGNATURE: {$signature}",
+            curl_setopt_array($ch, [
+                CURLOPT_POST => true,
+                CURLOPT_POSTFIELDS => $jsonPayload,
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_TIMEOUT => (int)($cloudCfg['timeout_seconds'] ?? 10),
+                CURLOPT_CONNECTTIMEOUT => 5,
+                CURLOPT_SSL_VERIFYPEER => true,
+                CURLOPT_HTTPHEADER => [
+                    'Content-Type: application/json; charset=utf-8',
+                    'X-API-Key: ' . $apiKey,
+                    'X-Signature: ' . $signature,
+                ],
             ]);
             $response = curl_exec($ch);
-            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $httpCode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $curlError = curl_error($ch);
             curl_close($ch);
 
-            if ($httpCode === 200 && $response) {
-                $respJson = json_decode($response, true);
-                if (!empty($respJson['ok'])) {
-                    $httpSuccess = true;
-                }
+            $responseData = is_string($response) ? json_decode($response, true) : null;
+            $httpSuccess = $httpCode >= 200 && $httpCode < 300 && !empty($responseData['ok']);
+            if (!$httpSuccess && $curlError !== '') {
+                error_log('CloudSyncService HTTP transport error: ' . $curlError);
             }
         }
 
-        // 2. Fallback direct local DB upsert if loopback HTTP was blocked
         if (!$httpSuccess) {
-            try {
-                $cloudDbCfg = require __DIR__ . '/../cloud/config.cloud.php';
-                $cdb = $cloudDbCfg['db'];
-                $dsn = "mysql:host={$cdb['host']};port={$cdb['port']};dbname={$cdb['dbname']};charset=utf8mb4";
-                $cloudPdo = new PDO($dsn, $cdb['username'], $cdb['password'], [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
-                
-                require_once __DIR__ . '/../cloud/schema_init.php';
-                ensure_cloud_schema($cloudPdo);
+            $httpSuccess = self::transmitToConfiguredCloudDatabase($sessions, $vehicles);
+        }
 
-                $upsertStmt = $cloudPdo->prepare('
-                    INSERT INTO cloud_parking_sessions (
-                        edge_session_id, ticket_id, plate_number, driver_name, driver_phone,
-                        destination, entry_time, exit_time, status, duration_minutes,
-                        entry_method, exit_method, notes, synced_at
-                    ) VALUES (
-                        :edge_id, :ticket_id, :plate, :driver, :phone,
-                        :dest, :entry, :exit, :status, :dur,
-                        :emeth, :xmeth, :notes, NOW()
-                    )
-                    ON DUPLICATE KEY UPDATE
-                        destination      = VALUES(destination),
-                        exit_time        = VALUES(exit_time),
-                        status           = VALUES(status),
-                        duration_minutes = VALUES(duration_minutes),
-                        exit_method      = VALUES(exit_method),
-                        notes            = VALUES(notes),
-                        synced_at        = NOW()
-                ');
+        if (!$httpSuccess) {
+            return false;
+        }
 
-                $cloudPdo->beginTransaction();
-                foreach ($sessions as $s) {
-                    $dur = (isset($s['duration_minutes']) && (int)$s['duration_minutes'] > 0)
-                        ? (int)$s['duration_minutes']
-                        : (!empty($s['exit_time']) ? (int)round((strtotime($s['exit_time']) - strtotime($s['entry_time'])) / 60) : null);
-                    $upsertStmt->execute([
-                        ':edge_id'   => $s['id'],
-                        ':ticket_id' => $s['ticket_id'],
-                        ':plate'     => $s['plate_number'],
-                        ':driver'    => $s['driver_name'],
-                        ':phone'     => $s['driver_phone'] ?? '',
-                        ':dest'      => $s['destination'] ?? '',
-                        ':entry'     => $s['entry_time'],
-                        ':exit'      => $s['exit_time'] ?? null,
-                        ':status'    => $s['status'],
-                        ':dur'       => $dur,
-                        ':emeth'     => $s['entry_method'] ?? 'alpr',
-                        ':xmeth'     => $s['exit_method'] ?? null,
-                        ':notes'     => $s['notes'] ?? null,
-                    ]);
-                }
+        if ($sessions) {
+            $ids = array_map('intval', array_column($sessions, 'id'));
+            $placeholders = implode(',', array_fill(0, count($ids), '?'));
+            $db->prepare("UPDATE parking_sessions SET synced_to_cloud = 1, synced_at = NOW() WHERE id IN ({$placeholders})")
+                ->execute($ids);
+        }
 
-                // Record Heartbeat
-                $hbStmt = $cloudPdo->prepare('
-                    INSERT INTO cloud_edge_heartbeats (edge_pc, records_count, ip_address, last_synced_at)
-                    VALUES (:pc, :cnt, :ip, NOW())
-                ');
-                $hbStmt->execute([
-                    ':pc'  => 'Mombasa-Mall-Edge-01',
-                    ':cnt' => count($sessions),
-                    ':ip'  => $_SERVER['SERVER_ADDR'] ?? '127.0.0.1',
+        self::recordHealth($db, 'Synchronized ' . count($sessions) . ' session(s) and ' . count($vehicles) . ' vehicle profile(s)');
+        return true;
+    }
+
+    private static function transmitToConfiguredCloudDatabase(array $sessions, array $vehicles): bool
+    {
+        try {
+            $cloudConfig = require __DIR__ . '/../cloud/config.cloud.php';
+            $dbConfig = $cloudConfig['db'];
+            $dsn = "mysql:host={$dbConfig['host']};port={$dbConfig['port']};dbname={$dbConfig['dbname']};charset=utf8mb4";
+            $cloudDb = new PDO($dsn, $dbConfig['username'], $dbConfig['password'], [
+                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                PDO::ATTR_EMULATE_PREPARES => false,
+            ]);
+
+            require_once __DIR__ . '/../cloud/schema_init.php';
+            ensure_cloud_schema($cloudDb);
+
+            $sessionUpsert = $cloudDb->prepare('
+                INSERT INTO cloud_parking_sessions (
+                    edge_session_id, ticket_id, plate_number, driver_name, driver_phone,
+                    destination, entry_time, exit_time, status, duration_minutes,
+                    entry_method, exit_method, notes, synced_at
+                ) VALUES (
+                    :edge_id, :ticket_id, :plate, :driver, :phone, :dest, :entry, :exit,
+                    :status, :dur, :entry_method, :exit_method, :notes, NOW()
+                )
+                ON DUPLICATE KEY UPDATE
+                    destination = VALUES(destination), exit_time = VALUES(exit_time),
+                    status = VALUES(status), duration_minutes = VALUES(duration_minutes),
+                    exit_method = VALUES(exit_method), notes = VALUES(notes), synced_at = NOW()
+            ');
+            $vehicleUpsert = self::vehicleUpsertStatement($cloudDb);
+
+            $cloudDb->beginTransaction();
+            foreach ($sessions as $session) {
+                $duration = isset($session['duration_minutes']) && (int)$session['duration_minutes'] > 0
+                    ? (int)$session['duration_minutes']
+                    : (!empty($session['exit_time'])
+                        ? (int)round((strtotime($session['exit_time']) - strtotime($session['entry_time'])) / 60)
+                        : null);
+                $sessionUpsert->execute([
+                    ':edge_id' => $session['id'],
+                    ':ticket_id' => $session['ticket_id'],
+                    ':plate' => $session['plate_number'],
+                    ':driver' => $session['driver_name'],
+                    ':phone' => $session['driver_phone'] ?? '',
+                    ':dest' => $session['destination'] ?? '',
+                    ':entry' => $session['entry_time'],
+                    ':exit' => $session['exit_time'] ?? null,
+                    ':status' => $session['status'],
+                    ':dur' => $duration,
+                    ':entry_method' => $session['entry_method'] ?? 'self_signin',
+                    ':exit_method' => $session['exit_method'] ?? null,
+                    ':notes' => $session['notes'] ?? null,
                 ]);
-
-                $cloudPdo->commit();
-                $httpSuccess = true;
-            } catch (Throwable $dbErr) {
-                error_log('Local cloud fallback error: ' . $dbErr->getMessage());
             }
-        }
-
-        if ($httpSuccess) {
-            $ids = array_column($sessions, 'id');
-            if (!empty($ids)) {
-                $inList = implode(',', array_map('intval', $ids));
-                $db->exec("UPDATE parking_sessions SET synced_to_cloud = 1, synced_at = NOW() WHERE id IN ({$inList})");
+            foreach ($vehicles as $vehicle) {
+                self::executeVehicleUpsert($vehicleUpsert, $vehicle);
             }
-            // Update device health
-            $db->prepare('
-                INSERT INTO device_health (device, status, last_checked_at, message)
-                VALUES ("cloud_sync", "OK", NOW(), :msg)
-                ON DUPLICATE KEY UPDATE status = "OK", last_checked_at = NOW(), message = VALUES(message)
-            ')->execute([':msg' => 'Synchronized ' . count($sessions) . ' session(s) successfully']);
+
+            $cloudDb->prepare('
+                INSERT INTO cloud_edge_heartbeats (edge_pc, records_count, ip_address, last_synced_at)
+                VALUES (?, ?, ?, NOW())
+            ')->execute([
+                'Mombasa-Mall-Edge-01',
+                count($sessions) + count($vehicles),
+                $_SERVER['SERVER_ADDR'] ?? '127.0.0.1',
+            ]);
+            $cloudDb->commit();
             return true;
+        } catch (Throwable $e) {
+            if (isset($cloudDb) && $cloudDb->inTransaction()) {
+                $cloudDb->rollBack();
+            }
+            error_log('CloudSyncService database fallback error: ' . $e->getMessage());
+            return false;
         }
+    }
 
-        return false;
+    private static function vehicleUpsertStatement(PDO $pdo): PDOStatement
+    {
+        return $pdo->prepare('
+            INSERT INTO registered_vehicles (
+                id, plate_number, owner_name, phone, vehicle_type, category, notes, is_active,
+                visit_count, is_frequent, default_destination, last_visit_at, driver_name,
+                driver_phone, profile_archived, profile_reset_at, created_at
+            ) VALUES (
+                :id, :plate, :owner, :phone, :type, :category, :notes, :active, :visits,
+                :frequent, :destination, :last_visit, :driver, :driver_phone, :archived,
+                :reset_at, :created_at
+            )
+            ON DUPLICATE KEY UPDATE
+                plate_number = VALUES(plate_number), owner_name = VALUES(owner_name),
+                phone = VALUES(phone), vehicle_type = VALUES(vehicle_type),
+                category = VALUES(category), notes = VALUES(notes), is_active = VALUES(is_active),
+                visit_count = VALUES(visit_count), is_frequent = VALUES(is_frequent),
+                default_destination = VALUES(default_destination), last_visit_at = VALUES(last_visit_at),
+                driver_name = VALUES(driver_name), driver_phone = VALUES(driver_phone),
+                profile_archived = VALUES(profile_archived), profile_reset_at = VALUES(profile_reset_at),
+                created_at = VALUES(created_at)
+        ');
+    }
+
+    private static function executeVehicleUpsert(PDOStatement $stmt, array $vehicle): void
+    {
+        $stmt->execute([
+            ':id' => $vehicle['id'],
+            ':plate' => $vehicle['plate_number'],
+            ':owner' => $vehicle['owner_name'] ?? null,
+            ':phone' => $vehicle['phone'] ?? null,
+            ':type' => $vehicle['vehicle_type'] ?? 'car',
+            ':category' => $vehicle['category'] ?? 'regular',
+            ':notes' => $vehicle['notes'] ?? null,
+            ':active' => $vehicle['is_active'] ?? 1,
+            ':visits' => $vehicle['visit_count'] ?? 0,
+            ':frequent' => $vehicle['is_frequent'] ?? 0,
+            ':destination' => $vehicle['default_destination'] ?? null,
+            ':last_visit' => $vehicle['last_visit_at'] ?? null,
+            ':driver' => $vehicle['driver_name'] ?? null,
+            ':driver_phone' => $vehicle['driver_phone'] ?? null,
+            ':archived' => $vehicle['profile_archived'] ?? 0,
+            ':reset_at' => $vehicle['profile_reset_at'] ?? null,
+            ':created_at' => $vehicle['created_at'],
+        ]);
+    }
+
+    private static function ensureStateTable(PDO $db): void
+    {
+        $db->exec('
+            CREATE TABLE IF NOT EXISTS ' . self::STATE_TABLE . ' (
+                state_key VARCHAR(64) NOT NULL PRIMARY KEY,
+                state_value VARCHAR(255) NOT NULL,
+                updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ');
+    }
+
+    private static function getState(PDO $db, string $key, string $default): string
+    {
+        $stmt = $db->prepare('SELECT state_value FROM ' . self::STATE_TABLE . ' WHERE state_key = ?');
+        $stmt->execute([$key]);
+        $value = $stmt->fetchColumn();
+        return $value === false ? $default : (string)$value;
+    }
+
+    private static function setState(PDO $db, string $key, string $value): void
+    {
+        $db->prepare('
+            INSERT INTO ' . self::STATE_TABLE . ' (state_key, state_value) VALUES (?, ?)
+            ON DUPLICATE KEY UPDATE state_value = VALUES(state_value)
+        ')->execute([$key, $value]);
+    }
+
+    private static function recordHealth(PDO $db, string $message): void
+    {
+        self::ensureStateTable($db);
+        self::setState($db, 'last_success_at', (string)time());
+        $db->prepare('
+            INSERT INTO device_health (device, status, last_checked_at, message)
+            VALUES ("cloud_sync", "OK", NOW(), :message)
+            ON DUPLICATE KEY UPDATE status = "OK", last_checked_at = NOW(), message = VALUES(message)
+        ')->execute([':message' => $message]);
     }
 }

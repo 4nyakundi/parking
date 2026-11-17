@@ -18,7 +18,9 @@ if (empty($_SESSION['cloud_user_id'])) {
 require_once __DIR__ . '/../../includes/cloud_sync_service.php';
 
 try {
-    $result = CloudSyncService::syncPendingBatch(100);
+    $config = require __DIR__ . '/../../config/config.php';
+    $batchSize = (int)($config['cloud_sync']['batch_size'] ?? 50);
+    $result = CloudSyncService::syncPendingBatch($batchSize);
     echo json_encode($result);
 } catch (Throwable $e) {
     http_response_code(500);
