@@ -97,6 +97,63 @@
     .dashboard-admin #opsContent { grid-template-columns: minmax(0, 1fr); }
     .dashboard-admin .ops-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+/* Keep intrinsic table, chart and label widths inside their own cards. */
+@media screen {
+    .management-dashboard :is(.main-content, .section-content, .cloud-section, .kpi-grid, .kpi-row, .kpi-card, .chart-card, .charts-grid, .table-card, .hw-card, .brand-badge, .brand-badge > div, .dashboard-heading, .dashboard-actions, .ops-card) { min-width: 0; }
+    .management-dashboard :is(h1, h2, h3, p, .kpi-title, .kpi-sub, .hw-val, .hw-title, .admin-connection-notice, .user-badge, .ops-history) { overflow-wrap: anywhere; }
+    .management-dashboard :is(input, select, textarea) { max-width: 100%; min-width: 0; }
+    .management-dashboard :is(.admin-table-scroll, .table-responsive, .table-wrapper, .ops-scroll) { max-width: 100%; overflow-x: auto; overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch; }
+    .dashboard-admin .top-nav { height: auto; min-height: 58px; gap: 12px; padding-block: 12px; flex-wrap: wrap; }
+    .dashboard-admin .dashboard-heading { flex: 1 1 240px; }
+    .dashboard-admin .dashboard-heading h2 { line-height: 1.35; }
+    .management-dashboard .dashboard-actions { min-width: 0; }
+    .dashboard-cloud .brand-badge .icon, .dashboard-admin .sidebar-toggle-btn { flex-shrink: 0; }
+    .management-dashboard :is(.dashboard-actions a, .dashboard-actions button) { justify-content: center; text-align: center; white-space: normal; overflow-wrap: anywhere; line-height: 1.4; }
+}
+@media screen and (max-width: 992px) {
+    .dashboard-admin .sidebar { width: min(290px, 88vw); height: 100dvh; }
+    .dashboard-admin .sidebar-nav { min-height: 0; overscroll-behavior-y: contain; }
+    .dashboard-admin .sidebar-footer { flex-shrink: 0; padding-bottom: max(16px, env(safe-area-inset-bottom)); }
+    .dashboard-admin .top-nav { position: relative; }
+    .dashboard-admin .dashboard-heading { flex-basis: 100%; }
+    .dashboard-admin .dashboard-actions { width: 100%; }
+    .dashboard-admin .dashboard-actions > * { flex: 1 1 140px; }
+}
+@media screen and (max-width: 600px) {
+    .dashboard-admin .section-content { padding: 12px; }
+    .dashboard-admin .top-nav { padding: 12px; }
+    .management-dashboard .dashboard-actions { display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px !important; width: 100%; }
+    .management-dashboard .dashboard-actions > :is(a, button) { width: 100%; min-width: 0; min-height: 44px; height: auto; padding: 10px 8px !important; }
+    .dashboard-admin .sidebar-toggle-btn { width: 44px; height: 44px; }
+    .management-dashboard :is(.kpi-grid, .kpi-row) { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .management-dashboard .kpi-card { padding: 14px 12px; }
+    .dashboard-admin .kpi-title { font-size: 12px; line-height: 1.4; }
+    .dashboard-admin .kpi-sub { font-size: 11px; }
+    .dashboard-admin .kpi-val, .dashboard-cloud .kpi-card .num { font-size: 28px; line-height: 1.2; }
+    .management-dashboard :is(.filter-bar, .table-header-bar, .table-header-row, .admin-day-controls, .admin-pagination, .admin-modal-actions) { min-width: 0; flex-wrap: wrap; gap: 10px; }
+    .management-dashboard :is(.filter-bar, .table-header-bar, .table-header-row) > * { max-width: 100%; min-width: 0; }
+    .management-dashboard :is(.filter-input, .search-input-box, .delta-input, .ops-panel input, .ops-panel select, .ops-panel textarea) { font-size: 16px; }
+    .management-dashboard :is(.data-table td, .data-table th, .table-card td, .table-card th) { white-space: normal; overflow-wrap: anywhere; padding: 10px 12px; }
+    .dashboard-cloud .table-responsive table { min-width: 640px; }
+    .dashboard-cloud .top-bar { padding: 14px; gap: 14px; }
+    .dashboard-cloud .brand-badge { align-items: flex-start; width: 100%; gap: 10px; }
+    .dashboard-cloud .brand-badge h1 { font-size: 17px !important; line-height: 1.4; }
+    .dashboard-cloud .dashboard-actions > :is(.edge-status-pill, .edge-hw-pill) { grid-column: 1 / -1; min-width: 0; white-space: normal; overflow-wrap: anywhere; }
+    .dashboard-cloud .cloud-nav-strip { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); overflow: visible; }
+    .dashboard-cloud .cloud-nav-btn { min-width: 0; white-space: normal; overflow-wrap: anywhere; padding: 10px; justify-content: center; font-size: 12px; }
+    .dashboard-cloud :is(.charts-grid, .hw-strip, .cloud-device-grid) { grid-template-columns: minmax(0, 1fr) !important; gap: 12px; }
+    .dashboard-cloud .hw-card > div { min-width: 0; }
+    .dashboard-cloud .chart-card { padding: 14px; }
+    .dashboard-cloud #cloudToast { left: 12px; right: 12px; bottom: max(12px, env(safe-area-inset-bottom)); max-width: none; overflow-wrap: anywhere; }
+    .dashboard-admin .admin-modal-overlay { padding: 8px; }
+    .dashboard-admin .admin-modal { width: 100%; max-height: 94dvh; padding: 16px 12px; }
+    .dashboard-admin .modal-header { gap: 12px; }
+    .dashboard-admin .modal-header h3 { min-width: 0; }
+    .dashboard-admin .ops-panel { max-height: 94dvh; }
+    .dashboard-admin .ops-metrics span { min-width: 0; }
+    .dashboard-admin .ops-stores { grid-template-columns: minmax(0, 1fr); }
+    .management-dashboard .delta-calculator-card { min-width: 0; }
+}
 @media screen and (prefers-reduced-motion: reduce) {
     .management-dashboard *, .management-dashboard *::before, .management-dashboard *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }

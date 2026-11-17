@@ -211,7 +211,7 @@ try {
             </div>
         </div>
 
-        <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+        <div class="dashboard-actions" style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
             <!-- Edge PC Status Pill -->
             <div class="edge-status-pill <?= $isOnline ? '' : 'offline' ?>" title="Edge PC Heartbeat: <?= htmlspecialchars($lastSyncText) ?>">
                 <span class="status-indicator <?= $isOnline ? 'online' : 'offline' ?>"></span>
@@ -945,7 +945,7 @@ try {
                 </button>
             </div>
 
-            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:16px;">
+            <div class="cloud-device-grid" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:16px;">
                 <div style="background:var(--card-hover); border:1px solid var(--border); border-radius:8px; padding:16px;">
                     <div style="font-size:12px; font-weight:800; color:var(--text-sub); text-transform:uppercase;">Basement Capacity</div>
                     <div style="font-size:22px; font-weight:900; margin-top:4px;"><?= $capacity ?> Slots</div>

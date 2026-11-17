@@ -121,11 +121,11 @@ $user = require_role(['supervisor', 'admin'], false);
     <!-- Main Content Stage -->
     <main class="main-content">
         <header class="top-nav">
-            <div style="display:flex; align-items:center; gap:10px;">
+            <div class="dashboard-heading" style="display:flex; align-items:center; gap:10px;">
                 <button type="button" id="btnSidebarToggle" class="sidebar-toggle-btn" onclick="toggleSidebarMobile()" aria-label="Toggle menu">&#9776;</button>
                 <h2 id="topNavTitle" style="font-size:18px; font-weight:800;"><?= $user['role'] === 'supervisor' ? 'Supervisor Control Center' : 'Administrative Control Center' ?></h2>
             </div>
-            <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+            <div class="dashboard-actions" style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
                 <button type="button" class="btn-primary" onclick="navigateTo('sessions')" style="background:#f0f6fc; color:#116FC7; border:1px solid #b0cfec; padding:7px 12px; font-size:12px; font-weight:700;">
                     All Sessions
                 </button>
