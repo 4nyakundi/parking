@@ -1,6 +1,7 @@
 # Environment and Local Config Overrides
 *.env.local
 config/config.local.php
+cloud/config.cloud.local.php
 
 # Logs
 *.log
