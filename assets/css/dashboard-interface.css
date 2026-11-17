@@ -141,6 +141,8 @@
     .dashboard-cloud .dashboard-actions > :is(.edge-status-pill, .edge-hw-pill) { grid-column: 1 / -1; min-width: 0; white-space: normal; overflow-wrap: anywhere; }
     .dashboard-cloud .cloud-nav-strip { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); overflow: visible; }
     .dashboard-cloud .cloud-nav-btn { min-width: 0; white-space: normal; overflow-wrap: anywhere; padding: 10px; justify-content: center; font-size: 12px; }
+    .dashboard-cloud .cloud-nav-btn > span:first-child { min-width: 0; }
+    .dashboard-cloud .cloud-nav-badge { flex-shrink: 0; white-space: nowrap; overflow-wrap: normal; }
     .dashboard-cloud :is(.charts-grid, .hw-strip, .cloud-device-grid) { grid-template-columns: minmax(0, 1fr) !important; gap: 12px; }
     .dashboard-cloud .hw-card > div { min-width: 0; }
     .dashboard-cloud .chart-card { padding: 14px; }
