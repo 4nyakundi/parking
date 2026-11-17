@@ -2,5 +2,5 @@
 deployment:
   tasks:
     - /bin/mkdir -p /home/mombasam/public_html/parking
-    - /bin/bash -o pipefail -c '/bin/tar --exclude=config/config.local.php --exclude=cloud/config.cloud.local.php -cf - .htaccess index.php admin api assets cloud config driver guard includes vendor | /bin/tar -xf - -C /home/mombasam/public_html/parking'
+    - /bin/bash -o pipefail -c 'if [ "$(pwd -P)" != "/home/mombasam/public_html/parking" ]; then /bin/tar --exclude=config/config.local.php --exclude=cloud/config.cloud.local.php -cf - .htaccess index.php admin api assets cloud config driver guard includes vendor | /bin/tar -xf - -C /home/mombasam/public_html/parking; fi'
     - /bin/mkdir -p /home/mombasam/public_html/parking/storage/logs /home/mombasam/public_html/parking/storage/backups /home/mombasam/public_html/parking/storage/snapshots
