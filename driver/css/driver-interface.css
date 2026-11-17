@@ -41,3 +41,48 @@ button:focus-visible, input:focus-visible { outline: 3px solid #116fc7; outline-
     .cam-cars-carousel { gap: 8px; }
     .cam-car-card { padding: 8px; }
 }
+
+/* Wrap each part of the mobile sign-in flow within the available screen. */
+@media screen {
+    html, body { height: auto; min-height: 100%; }
+    body { min-height: 100dvh; }
+    .main { overflow: visible; min-width: 0; }
+    :is(.sys-header, .form-card, .form-body, .form-card-header, .form-card-header-text, .field, .field-row, .dest-filter-bar, .dest-grid, .dest-btn, .success-panel, .success-details-card, .timing-highlight-card, .cam-car-card) { min-width: 0; }
+    :is(.sys-header-label, h2, p, label, .form-section-label, .policy-title, .selected-dest-banner, .dest-btn, .success-title, .success-plate, .detail-value, .timing-val, .cam-car-plate, .sys-footer) { overflow-wrap: anywhere; }
+    .sys-header { height: auto; min-height: 52px; padding-block: 10px; }
+    .sys-header img, .divider-v, .policy-badge-icon { flex-shrink: 0; }
+    .sys-header-label { min-width: 0; line-height: 1.5; }
+    .field-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    :is(input, select, textarea) { max-width: 100%; min-width: 0; }
+    :is(.floor-tab, .dest-btn, .btn-submit, .btn-again, .btn-manual-toggle, .btn-select-car, .btn-cam-refresh) { white-space: normal; overflow-wrap: anywhere; height: auto; min-height: 44px; line-height: 1.4; }
+    :is(.btn-submit, .btn-again, .btn-select-car) { padding-block: 12px; }
+    .cam-car-card { max-width: 100%; }
+    :is(.cam-section-header, .cam-section-footer) { flex-wrap: wrap; }
+    .cam-count-chip { white-space: nowrap; }
+    :is(.detail-row, .timing-row) { gap: 8px 14px; flex-wrap: wrap; }
+    :is(.detail-row, .timing-row) > span { min-width: 0; overflow-wrap: anywhere; }
+    .success-plate { max-width: 100%; }
+}
+@media screen and (max-width: 540px) {
+    .sys-header { padding: 10px 12px; }
+    .form-card-header { flex-wrap: wrap; gap: 12px; }
+    .form-card-header img { max-width: 100%; width: auto; }
+    .form-card-header-text { flex: 1 1 150px; }
+    .field-row { grid-template-columns: minmax(0, 1fr); }
+    .floor-tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); overflow: visible; gap: 6px; }
+    .floor-tab { min-width: 0; padding: 10px 8px; }
+    .dest-grid { grid-template-columns: minmax(0, 1fr); overscroll-behavior-y: contain; }
+    :is(.field input, .dest-search-input) { font-size: 16px; }
+    .consent-row { align-items: flex-start; }
+    .consent-row label { min-width: 0; line-height: 1.6; }
+    .selected-dest-banner { white-space: normal; }
+    .success-panel { padding: 20px 14px; }
+    :is(.detail-row, .timing-row) { display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; padding-block: 8px; }
+    .detail-value { max-width: 100%; text-align: left; }
+    .timing-val { max-width: 100%; }
+    .driver-toast { width: calc(100% - 24px); min-width: 0; max-width: none; overflow-wrap: anywhere; bottom: max(12px, env(safe-area-inset-bottom)); }
+}
+@media screen and (max-width: 380px) {
+    .cam-cars-carousel { grid-template-columns: minmax(0, 1fr); }
+    .cam-section-footer > button { width: 100%; }
+}
