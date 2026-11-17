@@ -361,7 +361,7 @@
     .center-main-area { overflow: visible; }
     .center-content-section { flex: 0 0 auto; }
     .roster-table-wrapper { max-height: 65dvh; }
-    .right-queue-sidebar.mobile-open { position: relative; inset: auto; height: auto; min-height: 320px; z-index: auto; border-left: 0; }
+    .right-queue-sidebar.mobile-open { position: relative; inset: auto; height: auto; min-height: 320px; z-index: auto; border-left: 0; transform: none !important; opacity: 1 !important; }
     .guard-main-layout:has(.right-queue-sidebar.mobile-open) .center-main-area { display: none; }
     .queue-cards-list { overflow: visible; }
     .mode-tabs-container { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); white-space: normal; overflow: visible; gap: 4px; padding: 6px 10px; }
@@ -370,6 +370,9 @@
 }
 @media screen and (max-width: 640px) {
     .top-bar { padding: 10px; gap: 10px; }
+    .mode-tab { flex-direction: column; gap: 4px; }
+    .mode-tab .i-icon { display: none; }
+    .mode-tab > span { max-width: 100%; }
     .brand-section { width: 100%; }
     .brand-text h1 { font-size: 14px; }
     .user-clock-section { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); width: 100%; gap: 8px; }
@@ -406,6 +409,7 @@
     :is(.modal-footer, .intake-actions-footer, .receipt-dialog-actions, .returning-actions) > button { flex: 1 1 160px; min-width: 0; height: auto; min-height: 44px; white-space: normal; padding: 10px; }
     :is(.manual-form-grid, .intake-grid-2) { grid-template-columns: minmax(0, 1fr); }
     :is(.destinations-grid, .intake-shops-grid, #wizFloorTabs, .intake-floor-tabs) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    #wizFloorTabs { display: grid !important; }
     :is(.floor-pill, .intake-floor-tab, .dest-btn, .intake-shop-btn) { min-width: 0; white-space: normal; overflow-wrap: anywhere; min-height: 44px; }
     #parkingOperations { padding: 8px; }
     #parkingOperations .ops-panel { padding: 14px 12px; max-height: 94dvh; }
