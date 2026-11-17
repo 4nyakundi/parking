@@ -47,14 +47,14 @@ button:focus-visible, input:focus-visible { outline: 3px solid #116fc7; outline-
     html, body { height: auto; min-height: 100%; }
     body { min-height: 100dvh; }
     .main { overflow: visible; min-width: 0; }
-    :is(.sys-header, .form-card, .form-body, .form-card-header, .form-card-header-text, .field, .field-row, .dest-filter-bar, .dest-grid, .dest-btn, .success-panel, .success-details-card, .timing-highlight-card, .cam-car-card) { min-width: 0; }
-    :is(.sys-header-label, h2, p, label, .form-section-label, .policy-title, .selected-dest-banner, .dest-btn, .success-title, .success-plate, .detail-value, .timing-val, .cam-car-plate, .sys-footer) { overflow-wrap: anywhere; }
+    :is(.sys-header, .form-card, .form-body, .form-card-header, .form-card-header-text, .field, .field-row, .dest-filter-bar, .dest-grid, .dest-card, .success-panel, .success-details-card, .timing-highlight-card, .cam-car-card) { min-width: 0; }
+    :is(.sys-header-label, h2, p, label, .form-section-label, .policy-title, .selected-dest-banner, .dest-card, .success-title, .success-plate, .detail-value, .timing-val, .cam-car-plate, .sys-footer) { overflow-wrap: anywhere; }
     .sys-header { height: auto; min-height: 52px; padding-block: 10px; }
     .sys-header img, .divider-v, .policy-badge-icon { flex-shrink: 0; }
     .sys-header-label { min-width: 0; line-height: 1.5; }
     .field-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     :is(input, select, textarea) { max-width: 100%; min-width: 0; }
-    :is(.floor-tab, .dest-btn, .btn-submit, .btn-again, .btn-manual-toggle, .btn-select-car, .btn-cam-refresh) { white-space: normal; overflow-wrap: anywhere; height: auto; min-height: 44px; line-height: 1.4; }
+    :is(.floor-tab, .dest-card, .btn-submit, .btn-again, .btn-manual-toggle, .btn-select-car, .btn-cam-refresh) { white-space: normal; overflow-wrap: anywhere; height: auto; min-height: 44px; line-height: 1.4; }
     :is(.btn-submit, .btn-again, .btn-select-car) { padding-block: 12px; }
     .cam-car-card { max-width: 100%; }
     :is(.cam-section-header, .cam-section-footer) { flex-wrap: wrap; }
