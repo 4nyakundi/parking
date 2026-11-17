@@ -133,6 +133,8 @@ document.addEventListener('DOMContentLoaded', () => {
  * Fetch stores from backend API and update grid
  */
 async function loadDestinationsFromApi() {
+    // Firebase serves the bundled directory; the PHP endpoint runs on the parking server.
+    if (isFirebaseHost()) return;
     try {
         const res = await fetch('../api/driver/destinations.php');
         const json = await res.json();
@@ -143,6 +145,10 @@ async function loadDestinationsFromApi() {
     } catch (err) {
         // Silently use DEFAULT_STORES if offline
     }
+}
+
+function isFirebaseHost() {
+    return /\.(web\.app|firebaseapp\.com)$/.test(window.location.hostname);
 }
 
 /**
@@ -293,8 +299,7 @@ async function submitDriverSignIn() {
     let responseData = null;
 
     // 1. Try Firebase Cloud Firestore first if available
-    const isCloudHost = window.location.hostname.includes('web.app') || 
-                        window.location.hostname.includes('firebaseapp.com') ||
+    const isCloudHost = isFirebaseHost() ||
                         window.location.hostname.includes('github.io');
 
     if (window.firebaseBridge && typeof window.firebaseBridge.submitDriverRequest === 'function') {
