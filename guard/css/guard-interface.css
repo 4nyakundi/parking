@@ -343,3 +343,74 @@
     .modal-box { padding: 18px; border-radius: 16px; }
     .mode-tab { min-height: 44px; }
 }
+
+/* Flexible station layout: keep wide record tables inside their own scroller. */
+@media screen {
+    :is(.brand-section, .brand-text, .user-clock-section, .guard-pill, .guard-main-layout, .center-main-area, .center-content-section, .roster-header-bar, .roster-title-group, .roster-title-group > div, .right-queue-sidebar, .queue-title-badge, .camera-queue-card, .modal-box, .form-field) { min-width: 0; }
+    :is(.roster-title, .roster-subtitle, .metric-label, .daily-metric-note, .daily-overview-heading, .queue-title, .queue-subtitle, .modal-title, .form-field label, .ops-history) { overflow-wrap: anywhere; }
+    :is(.roster-table-wrapper, .table-responsive, .ops-scroll) { max-width: 100%; overflow-x: auto; overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch; }
+    :is(.tab-badge, .queue-counter-badge, .roster-pill > span, .status-dot, .i-icon, .modal-close-btn) { flex-shrink: 0; }
+    :is(input, select, textarea) { min-width: 0; max-width: 100%; }
+    .top-bar { height: auto; min-height: 58px; flex-wrap: wrap; gap: 10px 16px; padding-block: 10px; }
+    .user-clock-section { flex-wrap: wrap; }
+}
+@media screen and (max-width: 992px) {
+    .top-bar { position: relative; }
+    .offline-banner { position: static; flex-shrink: 0; }
+    .guard-main-layout { height: auto; min-height: 320px; flex: 1 0 auto; overflow: visible; grid-template-columns: minmax(0, 1fr); }
+    .center-main-area { overflow: visible; }
+    .center-content-section { flex: 0 0 auto; }
+    .roster-table-wrapper { max-height: 65dvh; }
+    .right-queue-sidebar.mobile-open { position: relative; inset: auto; height: auto; min-height: 320px; z-index: auto; border-left: 0; }
+    .guard-main-layout:has(.right-queue-sidebar.mobile-open) .center-main-area { display: none; }
+    .queue-cards-list { overflow: visible; }
+    .mode-tabs-container { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); white-space: normal; overflow: visible; gap: 4px; padding: 6px 10px; }
+    .mode-tab { min-width: 0; height: auto; min-height: 48px; padding: 10px 6px; white-space: normal; overflow-wrap: anywhere; justify-content: center; gap: 6px; line-height: 1.4; }
+    .mode-tab .tab-badge { white-space: nowrap; }
+}
+@media screen and (max-width: 640px) {
+    .top-bar { padding: 10px; gap: 10px; }
+    .brand-section { width: 100%; }
+    .brand-text h1 { font-size: 14px; }
+    .user-clock-section { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); width: 100%; gap: 8px; }
+    .live-clock { grid-column: span 2; font-size: 16px; }
+    .guard-pill { grid-column: span 2; justify-content: center; }
+    #guardNameDisplay { max-width: none; white-space: normal; overflow-wrap: anywhere; }
+    .user-clock-section .icon-btn { width: 100%; height: auto; min-height: 44px; padding: 8px 4px; flex-direction: column; gap: 4px; }
+    .user-clock-section .btn-lbl { display: inline; font-size: 11px; }
+    .top-bar > button { min-height: 44px; max-width: 100%; white-space: normal; }
+    .occupancy-dashboard { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .occupancy-dashboard .occupancy-actions { grid-column: 1 / -1; }
+    .occupancy-dashboard .btn-manual-add { height: auto; min-height: 44px; padding: 10px; }
+    .daily-overview-heading > span { min-width: 0; }
+    .roster-heading-row { flex-wrap: wrap; gap: 12px; }
+    .roster-heading-row .view-switch-btns { width: 100%; display: flex; flex-wrap: wrap; gap: 6px; }
+    .roster-heading-row .btn-view-toggle { flex: 1 1 100px; min-width: 0; height: auto; min-height: 44px; white-space: normal; padding: 8px; }
+    .roster-actions-row { grid-template-columns: minmax(0, 1fr); }
+    .roster-actions-row .roster-status-tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); overflow: visible; gap: 4px; }
+    .roster-actions-row .roster-pill { min-width: 0; white-space: normal; overflow-wrap: anywhere; min-height: 44px; line-height: 1.4; }
+    .roster-actions-row .roster-pill span { white-space: nowrap; }
+    :is(.roster-search-input, .search-input-large, .form-field input, .form-field select, .form-field textarea, .traffic-toolbar input, #parkingOperations input, #parkingOperations select, #parkingOperations textarea) { font-size: 16px; }
+    :is(.traffic-toolbar, .traffic-toolbar label, .traffic-pagination, .queue-header-top, .queue-cam-telemetry-row, .queue-cam-actions, .queue-filter-pills) { flex-wrap: wrap; min-width: 0; }
+    .traffic-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .queue-filter-pills .q-filter-pill { min-width: 0; white-space: normal; min-height: 44px; }
+    .queue-cam-actions > button { flex: 1 1 120px; height: auto; min-height: 44px; white-space: normal; padding: 10px; }
+    :is(.cqc-header, .cqc-actions, .camera-queue-row, .entering-action-bar, .intake-header-left, .intake-meta-row) { flex-wrap: wrap; min-width: 0; }
+    .camera-queue-row { height: auto; }
+    :is(.cqc-driver-info, .cqc-dest-info, .cqr-driver, .cqr-dest, .intake-plate-meta) { min-width: 0; overflow-wrap: anywhere; }
+    .modal-overlay { padding: 8px; align-items: center; }
+    :is(.modal-box, .intake-modal-box, .receipt-dialog-box) { max-height: 94dvh; overflow-y: auto; width: 100%; padding: 16px 12px; border-radius: 14px; }
+    :is(.modal-header-row, .exit-modal-header, .logout-modal-header) { align-items: flex-start; gap: 10px; }
+    .modal-close-btn { width: 44px; height: 44px; }
+    :is(.modal-footer, .intake-actions-footer, .receipt-dialog-actions, .returning-actions) { flex-wrap: wrap; gap: 8px; }
+    :is(.modal-footer, .intake-actions-footer, .receipt-dialog-actions, .returning-actions) > button { flex: 1 1 160px; min-width: 0; height: auto; min-height: 44px; white-space: normal; padding: 10px; }
+    :is(.manual-form-grid, .intake-grid-2) { grid-template-columns: minmax(0, 1fr); }
+    :is(.destinations-grid, .intake-shops-grid, #wizFloorTabs, .intake-floor-tabs) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    :is(.floor-pill, .intake-floor-tab, .dest-btn, .intake-shop-btn) { min-width: 0; white-space: normal; overflow-wrap: anywhere; min-height: 44px; }
+    #parkingOperations { padding: 8px; }
+    #parkingOperations .ops-panel { padding: 14px 12px; max-height: 94dvh; }
+    #parkingOperations .ops-panel > header { flex-wrap: wrap; }
+    #parkingOperations .ops-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    #parkingOperations .ops-stores { grid-template-columns: minmax(0, 1fr); }
+    .toast-msg { min-width: 0; max-width: none; width: calc(100% - 24px); overflow-wrap: anywhere; bottom: max(12px, env(safe-area-inset-bottom)); }
+}
