@@ -104,7 +104,8 @@ function guard_roster_snapshot(PDO $db, string $query = ''): array
             d.icon AS destination_icon,
             rv.category AS vehicle_category,
             EXISTS(SELECT 1 FROM parking_actions clamp WHERE clamp.session_id=s.id AND clamp.action_type="clamped" AND clamp.resolved_at IS NULL) is_clamped,
-            EXISTS(SELECT 1 FROM parking_actions incident WHERE incident.session_id=s.id AND incident.action_type="incident" AND incident.resolved_at IS NULL) has_incident
+            EXISTS(SELECT 1 FROM parking_actions incident WHERE incident.session_id=s.id AND incident.action_type="incident" AND incident.resolved_at IS NULL) has_incident,
+            (SELECT COUNT(*) FROM parking_actions outstanding WHERE outstanding.session_id=s.id AND outstanding.resolved_at IS NULL) open_actions
         FROM parking_sessions s
         LEFT JOIN parking_extensions e ON e.session_id=s.id
         LEFT JOIN users u ON u.id = s.approved_by
@@ -194,6 +195,7 @@ function guard_roster_snapshot(PDO $db, string $query = ''): array
             'print_status'          => $row['print_status'],
             'is_clamped'            => (bool)$row['is_clamped'],
             'has_incident'          => (bool)$row['has_incident'],
+            'open_actions'          => (int)$row['open_actions'],
             'is_blacklisted'        => ($row['vehicle_category']??'')==='blacklisted',
             'category'              => $row['vehicle_category'] ?? 'regular',
         ];

@@ -34,7 +34,7 @@ function parking_operation(PDO $db, array $user, string $action, array $input): 
             $q=$db->prepare('SELECT * FROM parking_shifts WHERE guard_id=? AND ended_at IS NULL ORDER BY id DESC LIMIT 1');
             $q->execute([$user['id']]); $current=$q->fetch();
             $recent=$db->query('SELECT s.*,u.full_name guard_name FROM parking_shifts s LEFT JOIN users u ON u.id=s.guard_id ORDER BY s.id DESC LIMIT 20')->fetchAll();
-            $cases=$db->query("SELECT s.id,s.plate_number,s.driver_name,s.destination,s.entry_time,s.status,s.exit_time,
+            $cases=$db->query("SELECT s.id,s.ticket_id,s.plate_number,s.driver_name,s.driver_phone,s.destination,s.entry_time,s.status,s.exit_time,
                 COALESCE(e.approved_until,DATE_ADD(s.entry_time,INTERVAL 2 HOUR)) deadline,
                 e.reason extension_reason,rv.category vehicle_category,rv.notes blacklist_reason,
                 EXISTS(SELECT 1 FROM parking_actions clamp WHERE clamp.session_id=s.id AND clamp.resolved_at IS NULL AND clamp.action_type='clamped') is_clamped,
@@ -52,9 +52,31 @@ function parking_operation(PDO $db, array $user, string $action, array $input): 
     }
     if ($action==='history') {
         $q=$db->prepare('SELECT a.*,u.full_name author,r.full_name resolved_by_name,approver.full_name authorized_by_name,sh.started_at shift_started_at FROM parking_actions a LEFT JOIN users u ON u.id=a.user_id LEFT JOIN users r ON r.id=a.resolved_by LEFT JOIN users approver ON approver.id=a.authorized_by LEFT JOIN parking_shifts sh ON sh.id=a.shift_id WHERE session_id=? ORDER BY a.id DESC LIMIT 100');
-        $q->execute([(int)($input['session_id']??0)]); return ['actions'=>$q->fetchAll()];
+        $q->execute([(int)($input['session_id']??0)]); $actions=$q->fetchAll();
+        $resolution=$db->prepare("SELECT new_value FROM audit_log WHERE action='PARKING_RESOLVE_ACTION' AND entity='parking_sessions' AND entity_id=(SELECT ticket_id FROM parking_sessions WHERE id=?) ORDER BY id DESC");
+        $resolution->execute([(int)($input['session_id']??0)]);$outcomes=[];
+        while($row=$resolution->fetch()){
+            $details=json_decode($row['new_value']?:'{}',true);
+            if(isset($details['action_id'])&&!isset($outcomes[$details['action_id']]))$outcomes[$details['action_id']]=$details['resolution_notes']??null;
+        }
+        foreach($actions as &$item)$item['resolution_notes']=$outcomes[$item['id']]??null;
+        unset($item); return ['actions'=>$actions];
     }
     $approver=null;
+    // Capture and validate the desk record before asking for supervisor approval.
+    if($action==='log_action'&&isset($input['issue'])){
+        $parts=[];
+        foreach(['issue'=>'Issue / observation','action_taken'=>'Action taken / outcome','next_step'=>'Next step / handover'] as $field=>$label){
+            $value=trim((string)($input[$field]??''));
+            if($value==='')throw new InvalidArgumentException('Complete the issue, action taken and next step before supervisor approval.');
+            $parts[]=$label.":\n".$value;
+        }
+        $input['notes']=implode("\n\n",$parts);
+    }
+    if(in_array($action,['log_action','resolve_action','extend','blacklist'],true)){
+        $notes=trim((string)($input['notes']??''));
+        if($notes===''||mb_strlen($notes)>4000)throw new InvalidArgumentException('Enter details up to 4,000 characters before supervisor approval.');
+    }
     if(in_array($action,['log_action','resolve_action','extend','end_shift','blacklist'],true))$approver=parking_supervisor_code($db,$user,$input);
     $db->beginTransaction();
     try {

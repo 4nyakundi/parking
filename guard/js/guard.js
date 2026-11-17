@@ -2588,6 +2588,7 @@ function renderActiveSessionsTable(sessions) {
         if(sess.is_blacklisted)catBadge+='<span class="category-badge-pill" style="background:#fee2e2;color:#991b1b">BLACKLISTED</span>';
         if(sess.is_clamped)catBadge+='<span class="category-badge-pill" style="background:#fee2e2;color:#991b1b">CLAMPED</span>';
         if(sess.has_incident)catBadge+='<span class="category-badge-pill" style="background:#fef3c7;color:#92400e">INCIDENT</span>';
+        if(Number(sess.open_actions)>0)catBadge+=`<span class="category-badge-pill" style="background:#e0eefb;color:#183957">OPEN ACTIONS (${Number(sess.open_actions)})</span>`;
         // Status badge
         let statusBadgeHtml = '';
         if (isCritical) {
