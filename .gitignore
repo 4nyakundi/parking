@@ -4,6 +4,7 @@ config/config.local.php
 cloud/config.cloud.local.php
 
 # Logs
+error_log
 *.log
 storage/logs/*.log
 storage/logs/*.txt
