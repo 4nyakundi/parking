@@ -6,10 +6,12 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/../config/database.php';
+$config = get_config();
 $baseUrl = 'http://127.0.0.1/parking';
 $camIp   = '192.168.1.230';
-$camUser = 'admin';
-$camPass = 'Mall@2024';
+$camUser = $config['alpr']['entrance']['username'];
+$camPass = $config['alpr']['entrance']['password'];
 
 echo "====================================================================\n";
 echo "  MOMBASA MALL BASEMENT PARKING - LIVE END-TO-END SYSTEM TEST\n";
@@ -90,11 +92,11 @@ curl_setopt_array($ch, [
         'plate'        => $testPlate,
         'confidence'   => 0.97,
         'image_base64' => $b64Image,
-        'api_key'      => 'MOMBASA_PARKING_ALPR_SECRET_KEY_2026',
+        'api_key'      => $config['alpr']['api_key'],
     ]),
     CURLOPT_HTTPHEADER     => [
         'Content-Type: application/json',
-        'X-API-Key: MOMBASA_PARKING_ALPR_SECRET_KEY_2026',
+        'X-API-Key: ' . $config['alpr']['api_key'],
     ],
 ]);
 $alprRes = curl_exec($ch);

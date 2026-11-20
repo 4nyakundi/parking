@@ -12,6 +12,7 @@ if (!empty($_SESSION['cloud_user_id'])) {
 }
 
 $error = '';
+require_once __DIR__ . '/../includes/security.php';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $username = trim((string)($_POST['username'] ?? ''));
     $password = (string)($_POST['password'] ?? '');
@@ -26,6 +27,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $dbCfg = $cfg['db'];
 
     try {
+        $reservations = [];
+        $reservations[] = security_rate_reserve('cloud-login-ip:' . security_peer_ip(), 20);
         $dsn = "mysql:host={$dbCfg['host']};port={$dbCfg['port']};dbname={$dbCfg['dbname']};charset=utf8mb4";
         $pdo = new PDO($dsn, $dbCfg['username'], $dbCfg['password'], [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
 
@@ -35,8 +38,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt = $pdo->prepare('SELECT id, username, password_hash, full_name, role FROM cloud_users WHERE username = ? AND is_active = 1');
         $stmt->execute([$username]);
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
+        if ($user) $reservations[] = security_rate_reserve('cloud-login-user-id:' . (int)$user['id'], 5);
 
         if ($user && password_verify($password, $user['password_hash'])) {
+            security_rate_success($reservations);
             session_regenerate_id(true);
             $_SESSION['cloud_user_id'] = $user['id'];
             $_SESSION['cloud_name']    = $user['full_name'];
@@ -44,8 +49,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             header('Location: index.php');
             exit;
         } else {
+            error_log('CLOUD_LOGIN_FAILED peer=' . security_peer_ip());
             $error = 'Invalid credentials. Access denied.';
         }
+    } catch (ParkingRateLimit $e) {
+        http_response_code(429);
+        header('Retry-After: ' . $e->retryAfter);
+        $error = $e->getMessage();
     } catch (Throwable $e) {
         error_log('CLOUD LOGIN DATABASE: '.$e->getMessage());
         $error = 'Cloud database is unavailable. Please contact your administrator.';

@@ -17,8 +17,11 @@ DirectoryIndex index.php index.html
 
 # Protect sensitive directories from direct browser access
 RewriteEngine On
-RewriteRule ^(config|database|includes|scripts|vendor|storage/logs|storage/backups)/ - [F,L,NC]
+RewriteRule ^(config|database|includes|scripts|vendor|scratch|workers|alpr|storage/logs|storage/backups|storage/security)/ - [F,L,NC]
 RewriteRule ^(\.git|\.env|composer\.(json|lock|phar)|requirements\.txt) - [F,L,NC]
+RewriteRule (^|/)[^/]*\.(env|env\.local|env\.sample|sql|bak|zip)$ - [F,L,NC]
+RewriteRule ^cloud/(config\.cloud(?:\.local)?\.php|schema_init\.php)$ - [F,L,NC]
+RewriteRule ^storage/snapshots/(.+)$ api/guard/snapshot-image.php?file=$1 [L,NC]
 
 # UTF-8 Encoding default
 AddDefaultCharset UTF-8

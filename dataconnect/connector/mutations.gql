@@ -11,7 +11,7 @@ mutation CreateMovie($title: String!, $imageUrl: String!, $genre: String) @auth(
   })
 }
 
-mutation UpsertUser($username: String!, $fullName: String!, $role: UserRole) @auth(level: USER) {
+mutation UpsertUser($username: String!, $fullName: String!, $role: UserRole) @auth(level: NO_ACCESS) {
   user_upsert(data: {
     uid_expr: "auth.uid",
     username: $username,
@@ -63,7 +63,7 @@ mutation CreateParkingSession(
   $driverPhone: String!,
   $destination: String!,
   $entryMethod: String
-) @auth(level: PUBLIC) {
+) @auth(level: NO_ACCESS) {
   parkingSession_insert(data: {
     ticketId: $ticketId,
     plateNumber: $plateNumber,
@@ -78,7 +78,7 @@ mutation CreateParkingSession(
 mutation CompleteParkingSession(
   $ticketId: String!,
   $durationMinutes: Int
-) @auth(level: PUBLIC) {
+) @auth(level: NO_ACCESS) {
   parkingSession_update(
     first: { where: { ticketId: { eq: $ticketId } } },
     data: {

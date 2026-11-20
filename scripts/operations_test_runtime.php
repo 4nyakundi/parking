@@ -3,8 +3,11 @@
 declare(strict_types=1);
 if(PHP_SAPI!=='cli')exit;
 function get_config(): array {
+    static $rateDirectory = null;
+    $rateDirectory ??= __DIR__ . '/../scratch/security-test-rates-' . bin2hex(random_bytes(8));
     $cfg=require __DIR__.'/../config/config.php';
     $cfg['db']=['host'=>'127.0.0.1','port'=>3308,'dbname'=>'mombasa_parking','charset'=>'utf8mb4','username'=>'root','password'=>'operations-test-local'];
+    $cfg['security']['login_rate_directory']=$rateDirectory;
     return $cfg;
 }
 require_once __DIR__.'/../config/database.php';

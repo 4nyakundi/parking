@@ -4,13 +4,11 @@
  */
 declare(strict_types=1);
 
-$nvrIp = '192.168.0.3';
+require_once __DIR__ . '/../config/database.php';
+$nvr = get_config()['alpr']['nvr'];
+$nvrIp = $nvr['ip'];
 $channels = [1, 2];
-$credentials = [
-    'admin:Mall@2024',
-    'admin:admin123',
-    'admin:admin',
-];
+$credentials = [$nvr['username'] . ':' . $nvr['password']];
 
 echo "Testing Dahua NVR connectivity at {$nvrIp}...\n";
 
@@ -34,7 +32,7 @@ foreach ($channels as $ch) {
         curl_close($c);
 
         if ($code === 200 && !empty($data) && strlen($data) > 1000) {
-            echo "SUCCESS: Channel {$ch} with [{$cred}]: Got " . strlen($data) . " bytes JPEG!\n";
+            echo "SUCCESS: Channel {$ch} with configured credentials: Got " . strlen($data) . " bytes JPEG!\n";
             $savePath = __DIR__ . "/../storage/snapshots/live_test_ch{$ch}.jpg";
             @mkdir(dirname($savePath), 0777, true);
             file_put_contents($savePath, $data);
@@ -42,7 +40,7 @@ foreach ($channels as $ch) {
             $success = true;
             break;
         } else {
-            echo "Attempt [{$cred}]: HTTP {$code}, Error: {$err}, Bytes: " . strlen((string)$data) . "\n";
+            echo "Attempt with configured credentials: HTTP {$code}, Error: {$err}, Bytes: " . strlen((string)$data) . "\n";
         }
     }
     if (!$success) {

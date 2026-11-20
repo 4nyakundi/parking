@@ -51,7 +51,7 @@ $sessionPath=session_save_path().DIRECTORY_SEPARATOR.'sess_'.session_id();
 $_SESSION=['user_id'=>1,'role'=>'guard','full_name'=>'Test Guard','last_activity'=>time(),'csrf_token'=>'test-token'];
 $_SERVER['REQUEST_METHOD']='POST';$_SERVER['REMOTE_ADDR']='127.0.0.1';$_SERVER['HTTP_X_CSRF_TOKEN']='test-token';$_GET=[];
 $endpoint='gate/clear-exit.php';$_POST=['session_id'=>1];
-if(str_starts_with($case,'camera_')){$endpoint='gate/plate-detected.php';$_POST=['camera'=>$case==='camera_blacklist_entrance_pending'?'entrance':'exit','plate'=>'KDA123A'];}
+if(str_starts_with($case,'camera_')){$endpoint='gate/plate-detected.php';$_SERVER['HTTP_X_API_KEY']=get_config()['alpr']['api_key'];$_POST=['camera'=>$case==='camera_blacklist_entrance_pending'?'entrance':'exit','plate'=>'KDA123A'];}
 elseif($case==='exit_blacklist_unknown_authorized')$_POST=['plate_number'=>'KDA123A','supervisor_pin'=>'834672','departure_reason'=>'Supervisor directed this blacklisted vehicle to leave'];
 elseif($case==='exit_clamp_blocked_with_code')$_POST=$approval+['departure_reason'=>'Supervisor approved'];
 elseif($case==='exit_guard_code')$_POST=['session_id'=>1,'supervisor_pin'=>'123456','departure_reason'=>'Attempt'];

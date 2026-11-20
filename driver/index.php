@@ -952,6 +952,6 @@
 
     <script src="../assets/vendor/gsap/gsap.min.js"></script>
     <script src="js/driver.js?v=<?= filemtime(__DIR__.'/js/driver.js') ?>"></script>
-    <script type="module" src="../assets/js/firebase-init.js?v=20261005_1722"></script>
+    <script type="module" src="../assets/js/firebase-init.js?v=<?= filemtime(__DIR__.'/../assets/js/firebase-init.js') ?>"></script>
 </body>
 </html>

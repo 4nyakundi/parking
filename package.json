@@ -7,7 +7,8 @@
     "doc": "docs"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node scripts/test_admin_dashboard.cjs && node scripts/test_guard_dashboard.cjs && node scripts/test_guard_holding.cjs && node scripts/test_guard_profiles.cjs && node scripts/test_parking_alerts.cjs && node scripts/test_shift_followup.cjs && node scripts/test_firebase_bridge.cjs",
+    "test:firestore": "node scripts/test_firestore_rules.cjs"
   },
   "repository": {
     "type": "git",
@@ -23,5 +24,8 @@
   "homepage": "https://github.com/4nyakundi/parking#readme",
   "dependencies": {
     "firebase": "^12.19.0"
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^5.0.2"
   }
 }

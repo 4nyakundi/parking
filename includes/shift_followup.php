@@ -38,9 +38,13 @@ function parking_supervisor_code(PDO $db,array $operator,array $input): array
     $q=$db->prepare("SELECT COUNT(*) FROM audit_log WHERE user_id=? AND action='PARKING_CODE_FAILED' AND created_at>=DATE_SUB(NOW(),INTERVAL 5 MINUTE)");
     $q->execute([$operator['id']]);
     if((int)$q->fetchColumn()>=5)throw new DomainException('Too many incorrect supervisor codes. Wait five minutes before retrying.');
-    $q=$db->query("SELECT id,full_name,role,pin_hash FROM users WHERE is_active=1 AND role IN ('supervisor','admin') AND pin_hash IS NOT NULL");
+    $q=$db->query("SELECT id,full_name,role,pin_hash FROM users WHERE is_active=1 AND pin_hash IS NOT NULL");
+    $matched=[];
     foreach($q->fetchAll() as $account){
-        if(password_verify($pin,$account['pin_hash'])){unset($account['pin_hash']);$db->commit();return $account;}
+        if(password_verify($pin,$account['pin_hash']))$matched[]=$account;
+    }
+    if(count($matched)===1&&in_array($matched[0]['role'],['supervisor','admin'],true)){
+        $account=$matched[0];unset($account['pin_hash']);$db->commit();return $account;
     }
     operation_audit($db,$operator,'PARKING_CODE_FAILED','parking_operations',(string)$operator['id'],['reason'=>'invalid_supervisor_code']);
     $db->commit();

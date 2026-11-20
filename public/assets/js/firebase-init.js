@@ -9,6 +9,7 @@
 // Import modern modular Firebase SDK via CDN (compatible with standard browser ES modules)
 import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
 import { getAnalytics, isSupported, logEvent } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-analytics.js";
+import { getAuth, setPersistence, inMemoryPersistence, signInWithCustomToken, signOut } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js";
 import { 
   getFirestore, 
   collection, 
@@ -40,6 +41,40 @@ export const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getA
 
 // Initialize Firestore
 export const db = getFirestore(app);
+
+// Staff permissions originate from the PHP session and expire after five minutes.
+const staffAuth = getAuth(app);
+let staffUntil = 0, staffLogin = null, staffEpoch = 0;
+const authUrl = new URL('../../../api/auth/', import.meta.url);
+async function ensureStaffAuth() {
+  if (staffAuth.currentUser && Date.now() < staffUntil) return;
+  if (staffLogin) return staffLogin;
+  const epoch = staffEpoch;
+  const pending = (async () => {
+    const me = await fetch(new URL('me.php', authUrl), { cache: 'no-store' });
+    const session = await me.json();
+    if (!me.ok || !session.authenticated || !session.csrf_token) throw new Error('Sign in to the guard station to access cloud requests.');
+    const response = await fetch(new URL('firebase-token.php', authUrl), {
+      method: 'POST', headers: { 'X-CSRF-Token': session.csrf_token }, cache: 'no-store'
+    });
+    const result = await response.json();
+    if (!response.ok || !result.ok) throw new Error(result.error || 'Secure cloud sign-in is unavailable.');
+    if (epoch !== staffEpoch) throw new Error('Staff session ended.');
+    await setPersistence(staffAuth, inMemoryPersistence);
+    await signInWithCustomToken(staffAuth, result.token);
+    if (epoch !== staffEpoch) { await signOut(staffAuth); throw new Error('Staff session ended.'); }
+    staffUntil = Date.now() + 240000;
+  })();
+  staffLogin = pending;
+  try { await pending; }
+  finally { if (staffLogin === pending) staffLogin = null; }
+}
+
+async function endStaffAuth() {
+  staffEpoch++;
+  staffUntil = 0;
+  await signOut(staffAuth);
+}
 
 // Initialize Analytics safely (guards against environments where IndexedDB/cookies are disabled)
 export let analytics = null;
@@ -86,6 +121,7 @@ export const firebaseBridge = {
         destination:     (data.destination || 'Mombasa Mall').trim(),
         status:          'PENDING',
         source:          data.source || 'firebase_web',
+        consent:         data.consent === true,
         created_at:      new Date().toISOString(),
         server_timestamp: serverTimestamp()
       });
@@ -103,32 +139,43 @@ export const firebaseBridge = {
   /**
    * Listen for incoming pending driver sign-in requests in real-time
    */
-  listenPendingRequests(callback) {
-    try {
-      const colRef = collection(db, "driver_requests");
-      const q = query(
-        colRef,
-        where("status", "==", "PENDING"),
-        limit(50)
-      );
-
-      return onSnapshot(q, (snapshot) => {
-        const requests = [];
-        snapshot.forEach(docSnap => {
-          const item = docSnap.data();
-          item.firestore_id = docSnap.id;
-          item.id = item.id || `fb_${docSnap.id}`;
-          item.source = item.source || 'firebase_web';
-          requests.push(item);
+  listenPendingRequests(callback, onError = () => {}) {
+    let stopped = false, unsubscribe = null, refresh = null;
+    async function connect() {
+      try {
+        await ensureStaffAuth();
+        if (stopped) return;
+        if (unsubscribe) return;
+        const colRef = collection(db, "driver_requests");
+        const q = query(colRef, where("status", "==", "PENDING"), limit(50));
+        unsubscribe = onSnapshot(q, (snapshot) => {
+          if (stopped) return;
+          const requests = [];
+          snapshot.forEach(docSnap => {
+            const item = docSnap.data();
+            item.firestore_id = docSnap.id;
+            item.id = item.id || `fb_${docSnap.id}`;
+            item.source = item.source || 'firebase_web';
+            requests.push(item);
+          });
+          callback(requests);
+        }, (err) => {
+          console.warn('[Firebase] listenPendingRequests listener error:', err);
+          onError(err);
         });
-        callback(requests);
-      }, (err) => {
-        console.warn('[Firebase] listenPendingRequests listener error:', err);
-      });
-    } catch (e) {
-      console.warn('[Firebase] listenPendingRequests setup error:', e);
-      return () => {};
+      } catch (e) {
+        if (stopped) return;
+        if (unsubscribe) unsubscribe();
+        unsubscribe = null;
+        callback([]);
+        await endStaffAuth();
+        console.warn('[Firebase] listenPendingRequests setup error:', e);
+        onError(e);
+      }
     }
+    connect();
+    refresh = setInterval(connect, 240000);
+    return () => { stopped = true; clearInterval(refresh); if (unsubscribe) unsubscribe(); endStaffAuth().catch(() => {}); };
   },
 
   /**
@@ -137,6 +184,7 @@ export const firebaseBridge = {
   async admitDriverRequest(firestoreId, ticketId = null) {
     if (!firestoreId) return;
     try {
+      await ensureStaffAuth();
       const docRef = doc(db, "driver_requests", firestoreId);
       await updateDoc(docRef, {
         status: 'ADMITTED',
@@ -157,6 +205,7 @@ export const firebaseBridge = {
   async rejectDriverRequest(firestoreId, reason = '') {
     if (!firestoreId) return;
     try {
+      await ensureStaffAuth();
       const docRef = doc(db, "driver_requests", firestoreId);
       await updateDoc(docRef, {
         status: 'REJECTED',
@@ -175,6 +224,7 @@ export const firebaseBridge = {
    */
   async updateOccupancyTelemetry(stats) {
     try {
+      await ensureStaffAuth();
       const docRef = doc(db, "parking_telemetry", "live");
       await setDoc(docRef, {
         capacity:  stats.capacity  || 60,

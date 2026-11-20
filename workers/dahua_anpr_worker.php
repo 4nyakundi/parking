@@ -5,7 +5,7 @@
  * Connects simultaneously to BOTH Dahua ANPR Cameras:
  *   - Entrance ANPR Camera: 192.168.1.230
  *   - Exit ANPR Camera:     192.168.1.210
- * Master Credentials: Username: admin, Password: Mall@2024
+ * Credentials are supplied by protected deployment configuration.
  *
  * Listens to multipart /cgi-bin/eventManager.cgi event streams concurrently via curl_multi.
  * Extracts vehicle number plates, fetches high-res frame snapshots, and dispatches them
@@ -29,7 +29,7 @@ if (file_exists(__DIR__ . '/../config/config.local.php')) {
 $config = lock_parking_camera_config($config);
 require_once __DIR__ . '/../includes/plate_helper.php';
 
-$apiKey    = $config['alpr']['api_key'] ?? 'MOMBASA_PARKING_ALPR_SECRET_KEY_2026';
+$apiKey    = $config['alpr']['api_key'] ?? '';
 $apiUrl    = 'http://127.0.0.1/parking/api/gate/plate-detected.php';
 $healthUrl = 'http://127.0.0.1/parking/api/health.php';
 
@@ -41,7 +41,7 @@ $cameras = [
         'name'      => 'Entrance ANPR Camera',
         'ip'        => $config['alpr']['entrance']['ip'] ?? '192.168.1.230',
         'user'      => $config['alpr']['entrance']['username'] ?? 'admin',
-        'pass'      => $config['alpr']['entrance']['password'] ?? 'Mall@2024',
+        'pass'      => $config['alpr']['entrance']['password'] ?? '',
         'stream'    => "http://" . ($config['alpr']['entrance']['ip'] ?? '192.168.1.230') . "/cgi-bin/eventManager.cgi?action=attach&codes=[Traffic,TrafficTollGate,PlateDetection,All]",
         'snap'      => [
             "http://" . ($config['alpr']['entrance']['ip'] ?? '192.168.1.230') . "/cgi-bin/snapshot.cgi?channel=1",
@@ -55,7 +55,7 @@ $cameras = [
         'name'      => 'Exit ANPR Camera',
         'ip'        => $config['alpr']['exit']['ip'] ?? '192.168.1.210',
         'user'      => $config['alpr']['exit']['username'] ?? 'admin',
-        'pass'      => $config['alpr']['exit']['password'] ?? 'Mall@2024',
+        'pass'      => $config['alpr']['exit']['password'] ?? '',
         'stream'    => "http://" . ($config['alpr']['exit']['ip'] ?? '192.168.1.210') . "/cgi-bin/eventManager.cgi?action=attach&codes=[Traffic,TrafficTollGate,PlateDetection,All]",
         'snap'      => [
             "http://" . ($config['alpr']['exit']['ip'] ?? '192.168.1.210') . "/cgi-bin/snapshot.cgi?channel=1",
@@ -72,7 +72,7 @@ echo " Mombasa Mall ANPR Worker - Dahua Dual-Camera Real-Time Engine\n";
 echo " Entrance Camera: http://{$cameras['entrance']['ip']} (NVR Ch 1: http://{$nvrIp})\n";
 echo " Exit Camera:     http://{$cameras['exit']['ip']} (NVR Ch 2: http://{$nvrIp})\n";
 echo " API Receiver:    {$apiUrl}\n";
-echo " Credentials:     Locked (admin / Mall@2024)\n";
+echo " Credentials:     Locked (admin / )\n";
 echo "====================================================================\n\n";
 
 $debounceCache = []; // [plate_camera => timestamp]

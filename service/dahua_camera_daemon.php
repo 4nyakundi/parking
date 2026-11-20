@@ -17,7 +17,7 @@
 declare(strict_types=1);
 
 // Prevent execution from web browser if directly accessed without auth
-if (php_sapi_name() !== 'cli' && (!isset($_GET['token']) || $_GET['token'] !== 'DAHUA_LIVE_DAEMON_2026')) {
+if (php_sapi_name() !== 'cli') {
     http_response_code(403);
     die("Dahua Camera Daemon must be executed via CLI or authorized background service.\n");
 }
@@ -35,8 +35,8 @@ $config = require __DIR__ . '/../config/config.php';
 
 $nvrIp = $config['alpr']['nvr']['ip'] ?? '192.168.0.3';
 $nvrUser = $config['alpr']['nvr']['username'] ?? 'admin';
-$nvrPass = $config['alpr']['nvr']['password'] ?? 'Mall@2024';
-$apiKey  = $config['alpr']['api_key'] ?? 'MOMBASA_PARKING_ALPR_SECRET_KEY_2026';
+$nvrPass = $config['alpr']['nvr']['password'] ?? '';
+$apiKey  = $config['alpr']['api_key'] ?? '';
 
 $logFile = __DIR__ . '/../storage/logs/dahua_daemon.log';
 @mkdir(dirname($logFile), 0777, true);

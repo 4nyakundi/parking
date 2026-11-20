@@ -12,6 +12,7 @@ require_once __DIR__ . '/../../includes/auth.php';
 require_once __DIR__ . '/../../includes/audit.php';
 require_once __DIR__ . '/../../includes/parking_operations.php';
 require_once __DIR__ . '/../../includes/phone_helper.php';
+require_once __DIR__ . '/../../includes/security.php';
 
 $currUser = require_role(['supervisor', 'admin'], true);
 
@@ -68,7 +69,7 @@ try {
         $password = (string)($input['password'] ?? '');
 
         $db->beginTransaction();
-        $db->query('SELECT id FROM users ORDER BY id FOR UPDATE')->fetchAll();
+        $pinAccounts = security_lock_pin_accounts($db);
         $target = null;
         if ($userId > 0) {
             $q=$db->prepare('SELECT * FROM users WHERE id=?'); $q->execute([$userId]); $target=$q->fetch();
@@ -82,9 +83,7 @@ try {
         if (!$target && $role==='guard' && $pin==='') throw new InvalidArgumentException('A new guard requires a PIN.');
         if ($role!=='guard' && ($username==='' || (!$target && $password===''))) throw new InvalidArgumentException('Management accounts require a username and password.');
         if ($pin!=='') {
-            foreach ($db->query('SELECT id,pin_hash FROM users WHERE pin_hash IS NOT NULL')->fetchAll() as $other) {
-                if ((int)$other['id']!==$userId && password_verify($pin,$other['pin_hash'])) throw new InvalidArgumentException('That PIN is already assigned. Choose another.');
-            }
+            security_require_unique_pin($pinAccounts, $pin, $userId);
         }
         if (empty($fullName)) {
             echo json_encode(['ok' => false, 'error' => 'Full Name is required.']);

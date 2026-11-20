@@ -1,7 +1,10 @@
 <?php
+if (PHP_SAPI !== 'cli') { http_response_code(403); exit; }
+require_once __DIR__ . '/../config/database.php';
+$config = get_config();
 $camIp = '192.168.1.230';
-$user = 'admin';
-$pass = 'Mall@2024';
+$user = $config['alpr']['entrance']['username'];
+$pass = $config['alpr']['entrance']['password'];
 
 $testEndpoints = [
     // Hikvision ISAPI
@@ -23,7 +26,7 @@ $testEndpoints = [
     '/api/v1/snapshot',
 ];
 
-echo "Testing camera endpoints on http://$camIp with admin / Mall@2024 ...\n\n";
+echo "Testing camera endpoints on http://$camIp with admin /  ...\n\n";
 
 foreach ($testEndpoints as $ep) {
     $url = "http://{$camIp}{$ep}";

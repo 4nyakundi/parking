@@ -11,6 +11,15 @@ header('Content-Type: application/json; charset=utf-8');
 require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../../includes/audit.php';
 require_once __DIR__ . '/../../includes/parking_operations.php';
+require_once __DIR__ . '/../../includes/security.php';
+
+header('Cache-Control: no-store');
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
+    http_response_code(405);
+    header('Allow: POST');
+    echo json_encode(['ok' => false, 'error' => 'Use POST to sign in.']);
+    exit;
+}
 
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
@@ -20,41 +29,51 @@ $rawInput = file_get_contents('php://input');
 $input = json_decode($rawInput, true) ?? $_POST;
 
 $authType = trim((string)($input['type'] ?? ''));
+$isPin = $authType === 'pin' || (!empty($input['pin']) && empty($input['username']));
+$reservations = [];
+function login_reject(string $message, string $method): never
+{
+    audit_log(null, 'LOGIN_FAILED', 'authentication', null, null, ['method' => $method, 'peer_ip' => security_peer_ip()]);
+    http_response_code(401);
+    echo json_encode(['ok' => false, 'error' => $message]);
+    exit;
+}
 
 try {
+    $reservations[] = security_rate_reserve('login-ip:' . security_peer_ip(), 20);
+    if ($isPin) $reservations[] = security_rate_reserve('login-pin:' . security_peer_ip(), 5);
     $db = get_db();
 
     // -------------------------------------------------------------
     // Guard PIN Authentication (Tablet keypad)
     // -------------------------------------------------------------
-    if ($authType === 'pin' || (!empty($input['pin']) && empty($input['username']))) {
+    if ($isPin) {
         $pin = trim((string)($input['pin'] ?? ''));
 
         if (!preg_match('/^[0-9]{4,6}$/', $pin)) {
-            echo json_encode(['ok' => false, 'error' => 'Please enter a valid numeric PIN.']);
-            exit;
+            login_reject('Please enter a valid numeric PIN.', 'pin');
         }
 
-        // Fetch active guards & supervisors with PIN set
+        // Check all active PINs so legacy collisions fail closed. Only guards may sign in by PIN.
         $stmt = $db->prepare('
             SELECT id, username, full_name, role, pin_hash, phone, is_active
             FROM users
-            WHERE is_active = 1 AND pin_hash IS NOT NULL AND role IN ("guard", "supervisor")
+            WHERE is_active = 1 AND pin_hash IS NOT NULL
         ');
         $stmt->execute();
         $users = $stmt->fetchAll();
 
         $matchedUser = null;
+        $matches = 0;
         foreach ($users as $u) {
             if (password_verify($pin, $u['pin_hash'])) {
                 $matchedUser = $u;
-                break;
+                $matches++;
             }
         }
 
-        if (!$matchedUser) {
-            echo json_encode(['ok' => false, 'error' => 'Incorrect PIN. Please try again.']);
-            exit;
+        if ($matches !== 1 || $matchedUser['role'] !== 'guard') {
+            login_reject('PIN sign-in is unavailable for these credentials. Guards: check your PIN. Management: use username and password.', 'pin');
         }
 
         $signedInAt=date('Y-m-d H:i:s');
@@ -79,6 +98,7 @@ try {
             'role' => $matchedUser['role'],
             'name' => $matchedUser['full_name'],
         ]);
+        security_rate_success($reservations);
 
         echo json_encode([
             'ok'   => true,
@@ -98,8 +118,7 @@ try {
     $password = (string)($input['password'] ?? '');
 
     if (empty($username) || empty($password)) {
-        echo json_encode(['ok' => false, 'error' => 'Please enter both username and password.']);
-        exit;
+        login_reject('Please enter both username and password.', 'password');
     }
 
     $stmt = $db->prepare('
@@ -110,10 +129,11 @@ try {
     ');
     $stmt->execute([':username' => $username]);
     $user = $stmt->fetch();
+    // Unknown usernames use the address limit; avoid creating unbounded files for invented names.
+    if ($user) $reservations[] = security_rate_reserve('login-user-id:' . (int)$user['id'], 5);
 
     if (!$user || empty($user['password_hash']) || !password_verify($password, $user['password_hash'])) {
-        echo json_encode(['ok' => false, 'error' => 'Invalid username or password.']);
-        exit;
+        login_reject('Invalid username or password.', 'password');
     }
 
     // Reuse the account's present shift when signing in to management.
@@ -139,6 +159,7 @@ try {
         'username' => $user['username'],
         'role'     => $user['role'],
     ]);
+    security_rate_success($reservations);
 
     echo json_encode([
         'ok'   => true,
@@ -150,7 +171,13 @@ try {
             'must_change_password' => (bool)$user['must_change_password'],
         ],
     ]);
+} catch (ParkingRateLimit $e) {
+    http_response_code(429);
+    header('Retry-After: ' . $e->retryAfter);
+    audit_log(null, 'LOGIN_THROTTLED', 'authentication', null, null, ['peer_ip' => security_peer_ip()]);
+    echo json_encode(['ok' => false, 'error' => $e->getMessage(), 'retry_after' => $e->retryAfter]);
 } catch (Throwable $e) {
+    http_response_code(503);
     error_log('LOGIN ERROR: ' . $e->getMessage());
     echo json_encode(['ok' => false, 'error' => 'An internal error occurred during login. Please try again.']);
 }

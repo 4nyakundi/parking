@@ -20,9 +20,6 @@ function audit_log(
         $db = get_db();
 
         $ip = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
-        if (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
-            $ip = trim(explode(',', $_SERVER['HTTP_X_FORWARDED_FOR'])[0]);
-        }
 
         $oldJson = $oldValue !== null ? json_encode($oldValue, JSON_UNESCAPED_UNICODE) : null;
         $newJson = $newValue !== null ? json_encode($newValue, JSON_UNESCAPED_UNICODE) : null;

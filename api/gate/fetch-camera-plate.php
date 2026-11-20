@@ -28,13 +28,13 @@ $nvrConfig = $config['alpr']['nvr'] ?? [];
 
 $camIp   = $camConfig['ip'] ?? ($targetCamera === 'exit' ? '192.168.0.3' : '192.168.0.3');
 $camUser = $camConfig['username'] ?? 'admin';
-$camPass = $camConfig['password'] ?? 'Mall@2024';
+$camPass = $camConfig['password'] ?? '';
 $directSnapUrl = $camConfig['snapshot_url'] ?? "http://{$camIp}/cgi-bin/snapshot.cgi?channel=1";
 
 $nvrChannel = (int)($camConfig['nvr_channel'] ?? ($targetCamera === 'exit' ? 2 : 1));
 $nvrIp = $nvrConfig['ip'] ?? '192.168.0.3';
 $nvrUser = $nvrConfig['username'] ?? 'admin';
-$nvrPass = $nvrConfig['password'] ?? 'Mall@2024';
+$nvrPass = $nvrConfig['password'] ?? '';
 $nvrSnapUrl = $camConfig['nvr_snapshot_url'] ?? "http://{$nvrIp}/cgi-bin/snapshot.cgi?channel={$nvrChannel}";
 
 $endpoints = [

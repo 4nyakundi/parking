@@ -306,20 +306,6 @@ function selectCameraCar(plateNumber) {
         }
     }
 
-    // Pre-fill existing driver details if available
-    const nameInput  = document.getElementById('inputName');
-    const phoneInput = document.getElementById('inputPhone');
-
-    if (car.existing_driver && nameInput && !nameInput.value) {
-        nameInput.value = car.existing_driver;
-    }
-    if (car.existing_phone && phoneInput && !phoneInput.value) {
-        phoneInput.value = car.existing_phone;
-    }
-    if (car.existing_dest) {
-        selectStoreByName(car.existing_dest);
-    }
-
     // Update active highlight across carousel cards
     document.querySelectorAll('.cam-car-card').forEach(el => {
         const isThis = el.getAttribute('data-plate') === plateNumber;

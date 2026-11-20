@@ -28,6 +28,7 @@ try {
 
         $map = [];
         foreach ($settings as $s) {
+            if (preg_match('/password|secret|token|api_key|credential/i', $s['key'])) continue;
             $map[$s['key']] = $s['value'];
         }
 

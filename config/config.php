@@ -3,8 +3,8 @@
  * Mombasa Mall Basement Parking Management System
  * Master Configuration File
  *
- * NOTE: All system secrets, network addresses, camera streams, printer details,
- * and credentials are centrally defined here.
+ * Public defaults and hardware settings. Deployment secrets are loaded from
+ * protected private configuration or environment variables below.
  */
 
 // Strict error reporting for reliability (log errors, display off in production)
@@ -43,7 +43,7 @@ $config = [
         'port'     => 3306,
         'dbname'   => 'mombasam_parking',
         'username' => 'mombasam_admin',
-        'password' => 'basement2026.',
+        'password' => '',
         'charset'  => 'utf8mb4',
     ],
 
@@ -66,11 +66,11 @@ $config = [
     ],
 
     // ---------------------------------------------------------
-    // ALPR & Dahua Camera Streams (Locked Credentials: admin / Mall@2024)
+    // ALPR & Dahua Camera Streams (Credentials supplied by protected deployment configuration)
     // Direct Access to Entrance (192.168.1.230) & Exit (192.168.1.210)
     // ---------------------------------------------------------
     'alpr' => [
-        'api_key'            => 'MOMBASA_PARKING_ALPR_SECRET_KEY_2026',
+        'api_key' => '',
         'min_confidence'     => 0.70,
         'debounce_seconds'   => 8,
         'voting_frames'      => 2,
@@ -81,7 +81,7 @@ $config = [
             'ip_cctv'          => '192.168.1.3',
             'ip_lan'           => '192.168.1.3',
             'username'         => 'admin',
-            'password'         => 'Mall@2024',
+            'password' => '',
             'rtsp_port'        => 554,
             'channel_entrance' => 1,
             'channel_exit'     => 2,
@@ -91,27 +91,27 @@ $config = [
         'entrance' => [
             'ip'               => '192.168.1.230',
             'username'         => 'admin',
-            'password'         => 'Mall@2024',
+            'password' => '',
             'nvr_channel'      => 1,
-            'rtsp_main'        => 'rtsp://admin:Mall@2024@192.168.1.230:554/cam/realmonitor?channel=1&subtype=0',
-            'rtsp_sub'         => 'rtsp://admin:Mall@2024@192.168.1.230:554/cam/realmonitor?channel=1&subtype=1',
+            'rtsp_main'        => 'rtsp://192.168.1.230:554/cam/realmonitor?channel=1&subtype=0',
+            'rtsp_sub'         => 'rtsp://192.168.1.230:554/cam/realmonitor?channel=1&subtype=1',
             'snapshot_url'     => 'http://192.168.1.230/cgi-bin/snapshot.cgi?channel=1',
             'nvr_snapshot_url' => 'https://192.168.1.3/cgi-bin/snapshot.cgi?channel=1',
             'event_url'        => 'http://192.168.1.230/cgi-bin/eventManager.cgi?action=attach&codes=[Traffic,TrafficTollGate,PlateDetection,All]',
-            'nvr_rtsp'         => 'rtsp://admin:Mall@2024@192.168.1.3:554/cam/realmonitor?channel=1&subtype=0',
+            'nvr_rtsp'         => 'rtsp://192.168.1.3:554/cam/realmonitor?channel=1&subtype=0',
         ],
         // Exit ANPR Camera (Dahua ITC413 Direct: 192.168.1.210 - Channel 2)
         'exit' => [
             'ip'               => '192.168.1.210',
             'username'         => 'admin',
-            'password'         => 'Mall@2024',
+            'password' => '',
             'nvr_channel'      => 2,
-            'rtsp_main'        => 'rtsp://admin:Mall@2024@192.168.1.210:554/cam/realmonitor?channel=1&subtype=0',
-            'rtsp_sub'         => 'rtsp://admin:Mall@2024@192.168.1.210:554/cam/realmonitor?channel=1&subtype=1',
+            'rtsp_main'        => 'rtsp://192.168.1.210:554/cam/realmonitor?channel=1&subtype=0',
+            'rtsp_sub'         => 'rtsp://192.168.1.210:554/cam/realmonitor?channel=1&subtype=1',
             'snapshot_url'     => 'http://192.168.1.210/cgi-bin/snapshot.cgi?channel=1',
             'nvr_snapshot_url' => 'https://192.168.1.3/cgi-bin/snapshot.cgi?channel=2',
             'event_url'        => 'http://192.168.1.210/cgi-bin/eventManager.cgi?action=attach&codes=[Traffic,TrafficTollGate,PlateDetection,All]',
-            'nvr_rtsp'         => 'rtsp://admin:Mall@2024@192.168.1.3:554/cam/realmonitor?channel=2&subtype=0',
+            'nvr_rtsp'         => 'rtsp://192.168.1.3:554/cam/realmonitor?channel=2&subtype=0',
         ],
     ],
 
@@ -151,8 +151,8 @@ $config = [
     'cloud_sync' => [
         'enabled'          => false, // Set true once remote cPanel server is configured
         'endpoint'         => 'https://cloud.mombasamall.co.ke/remote/api/ingest.php',
-        'api_key'          => 'MOMBASA_CLOUD_SYNC_KEY_987654321',
-        'hmac_secret'      => 'SEC_HMAC_MOMBASA_MALL_CLOUD_SIGNING_SECRET_2026',
+        'api_key' => '',
+        'hmac_secret' => '',
         'batch_size'       => 50,
         'timeout_seconds'  => 10,
     ],
@@ -163,7 +163,7 @@ $config = [
     'security' => [
         'session_name'        => 'MM_PARKING_SESS',
         'session_lifetime'    => 28800, // 8 hours (typical guard shift)
-        'csrf_secret'         => 'MOMBASA_CSRF_TOKEN_KEY_RANDOM_SALT_2026',
+        'csrf_secret' => '',
         'guard_idle_timeout'  => 900,   // 15 minutes auto-lock
         'rate_limit_driver'   => [
             'max_requests'    => 5,
@@ -181,4 +181,30 @@ $config = [
     ],
 ];
 
+// Load secrets here so direct configuration readers and background workers agree.
+$secretsFile = __DIR__ . '/secrets.local.php';
+if (is_file($secretsFile)) {
+    $secrets = require $secretsFile;
+    if (!is_array($secrets)) throw new RuntimeException('Invalid deployment secrets configuration.');
+    $config = array_replace_recursive($config, $secrets);
+}
+foreach ([
+    'PARKING_DB_PASSWORD' => ['db', 'password'],
+    'PARKING_ALPR_API_KEY' => ['alpr', 'api_key'],
+    'PARKING_CLOUD_API_KEY' => ['cloud_sync', 'api_key'],
+    'PARKING_CLOUD_HMAC_SECRET' => ['cloud_sync', 'hmac_secret'],
+] as $variable => [$section, $key]) {
+    $value = getenv($variable);
+    if ($value !== false) $config[$section][$key] = $value;
+}
+foreach (['nvr', 'entrance', 'exit'] as $device) {
+    foreach (['username', 'password'] as $key) {
+        $value = getenv('PARKING_' . strtoupper($device . '_' . $key));
+        if ($value !== false) $config['alpr'][$device][$key] = $value;
+    }
+}
+$config['firebase'] = [
+    'service_account_file' => getenv('PARKING_FIREBASE_SERVICE_ACCOUNT') ?: __DIR__ . '/firebase-service-account.local.json',
+    'project_id' => 'mombasa-mall-parking',
+];
 return lock_parking_camera_config($config);

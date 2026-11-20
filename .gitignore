@@ -1,5 +1,8 @@
 # Environment and Local Config Overrides
 *.env.local
+config/secrets.local.php
+config/firebase-service-account*.json
+storage/security/*
 config/config.local.php
 cloud/config.cloud.local.php
 
@@ -24,3 +27,8 @@ scratch/
 # Node modules & Firebase cache
 node_modules/
 .firebase/
+
+# Local video source and processing files
+/Mombas Mall Parking System 2026-11-13 184444.mp4
+/video_work/
+/parking-system-explainer*.mp4

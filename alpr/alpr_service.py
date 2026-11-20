@@ -40,19 +40,23 @@ def load_env(env_path):
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 CONFIG = load_env(os.path.join(SCRIPT_DIR, "config.env"))
+CONFIG.update(load_env(os.path.join(SCRIPT_DIR, "config.env.local")))
+CONFIG.update({key: value for key, value in os.environ.items() if key in CONFIG})
 
 # Configuration values with robust defaults
 API_URL = CONFIG.get("API_URL", "http://127.0.0.1/parking/api/gate/plate-detected.php")
 HEALTH_URL = CONFIG.get("HEALTH_URL", "http://127.0.0.1/parking/api/health.php")
-API_KEY = CONFIG.get("API_KEY", "MOMBASA_PARKING_ALPR_SECRET_KEY_2026")
+API_KEY = CONFIG.get("API_KEY", "")
+if not API_KEY:
+    raise RuntimeError("Set API_KEY in the private config.env.local file before starting the worker.")
 MIN_CONFIDENCE = float(CONFIG.get("MIN_CONFIDENCE", "0.70"))
 DEBOUNCE_SECONDS = int(CONFIG.get("DEBOUNCE_SECONDS", "15"))
 VOTING_COUNT = int(CONFIG.get("VOTING_COUNT", "2"))
 FRAME_SKIP = int(CONFIG.get("FRAME_SKIP", "3"))
 HEARTBEAT_SECONDS = int(CONFIG.get("HEARTBEAT_SECONDS", "30"))
 
-ENTRANCE_RTSP = CONFIG.get("ENTRANCE_RTSP", "rtsp://admin:password@192.168.1.1:554/Streaming/Channels/101")
-EXIT_RTSP = CONFIG.get("EXIT_RTSP", "rtsp://admin:password@192.168.1.1:554/Streaming/Channels/201")
+ENTRANCE_RTSP = CONFIG.get("ENTRANCE_RTSP", "")
+EXIT_RTSP = CONFIG.get("EXIT_RTSP", "")
 
 def lock_camera_stream(configured_url, camera_ip):
     parts = urlsplit(configured_url)

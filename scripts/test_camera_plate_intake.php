@@ -23,7 +23,7 @@ $payload = [
     'camera'     => 'entrance',
     'plate'      => $cleanPlate,
     'confidence' => 0.98,
-    'api_key'    => 'MOMBASA_PARKING_ALPR_SECRET_KEY_2026',
+    'api_key'    => get_config()['alpr']['api_key'],
 ];
 curl_setopt($ch, CURLOPT_POST, true);
 curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));

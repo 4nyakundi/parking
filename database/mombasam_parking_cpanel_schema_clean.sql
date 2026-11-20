@@ -273,17 +273,13 @@ DELIMITER ;
 -- SEED INITIAL DATA
 -- ====================================================================
 
--- 1. System Users (Default admin, supervisor, guards)
--- Default admin password: "admin123" (forced change at first login)
--- Supervisor PIN: 9999, password: "super123"
--- Guard 1 PIN: 1234
--- Guard 2 PIN: 5678
+-- 1. Inactive account placeholders. Provision an initial administrator through scripts/provision_admin.php.
 INSERT INTO `users` (`id`, `username`, `full_name`, `role`, `pin_hash`, `password_hash`, `phone`, `is_active`, `must_change_password`) VALUES
-(1, 'admin', 'System Administrator', 'admin', NULL, '$2y$10$VnIj8aawPkUFawEf8SRy0u3qgoStfz0I4vWX3sAd4q8LuDgyX0Kq2', '254711000001', 1, 0),
-(2, 'supervisor', 'Security Supervisor', 'supervisor', '$2y$10$HpQFaoaPOWJa8YMkFweTa.ZRA0k5zLWoewJ5S..npuDsNUqBM/G02', '$2y$10$3k/NO1R3isRgR/B47AjuFedd7bAuAN0d.2eIYAtD7iJQDpmbsDFMi', '254711000002', 1, 0),
-(3, 'guard1', 'John Omondi (Gate 1)', 'guard', '$2y$10$oU0fG8MM.hUsKTdzyfL2rOVJpRzC8UCps8MCqlhvtRkMMCwMxnhc6', NULL, '254711000003', 1, 0),
-(4, 'guard2', 'Ali Hassan (Gate 2)', 'guard', '$2y$10$.jnnnHKhVwnVMeYgpkbeE.gnrkbvmof1w93Z7A.Df3dK6aFNe6k0a', NULL, '254711000004', 1, 0)
-ON DUPLICATE KEY UPDATE `full_name` = VALUES(`full_name`), `password_hash` = VALUES(`password_hash`), `pin_hash` = VALUES(`pin_hash`);
+(1, 'admin', 'System Administrator', 'admin', NULL, NULL, '254711000001', 0, 0),
+(2, 'supervisor', 'Security Supervisor', 'supervisor', NULL, NULL, '254711000002', 0, 0),
+(3, 'guard1', 'John Omondi (Gate 1)', 'guard', NULL, NULL, '254711000003', 0, 0),
+(4, 'guard2', 'Ali Hassan (Gate 2)', 'guard', NULL, NULL, '254711000004', 0, 0)
+ON DUPLICATE KEY UPDATE `id` = `id`;
 
 -- 2. Destinations (Mombasa Mall Full Directory: Ground, 1st, 2nd, 3rd Floor & Basement)
 INSERT INTO `destinations` (`id`, `name`, `unit_code`, `floor_level`, `category`, `description`, `sort_order`, `is_active`, `icon`) VALUES
@@ -377,7 +373,7 @@ INSERT INTO `system_settings` (`key`, `value`, `description`) VALUES
 ('cam_entrance_ip', '192.168.1.230', 'Dahua Entrance ANPR camera IP'),
 ('cam_exit_ip', '192.168.1.210', 'Dahua Exit ANPR camera IP'),
 ('cam_username', 'admin', 'Master camera username'),
-('cam_password', 'Mall@2024', 'Master camera password')
+('cam_password', '', 'Master camera password')
 ON DUPLICATE KEY UPDATE `value` = VALUES(`value`);
 
 -- 4. Initial Device Health Records

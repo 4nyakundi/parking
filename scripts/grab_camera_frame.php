@@ -12,7 +12,7 @@ $config = require __DIR__ . '/../config/config.php';
 $camCfg = $config['alpr']['entrance'] ?? [];
 $camIp   = $camCfg['ip'] ?? '192.168.1.230';
 $camUser = $camCfg['username'] ?? 'admin';
-$camPass = $camCfg['password'] ?? 'Mall@2024';
+$camPass = $camCfg['password'] ?? '';
 $snapUrl = $camCfg['snapshot_url'] ?? "http://{$camIp}/cgi-bin/snapshot.cgi?channel=1";
 
 echo "[" . date('Y-m-d H:i:s') . "] Grabbing frame from {$snapUrl} ...\n";

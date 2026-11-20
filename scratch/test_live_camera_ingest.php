@@ -1,11 +1,14 @@
 <?php
+if (PHP_SAPI !== 'cli') { http_response_code(403); exit; }
+require_once __DIR__ . '/../config/database.php';
+$config = get_config();
 /**
  * Test live camera fetch & ingestion into Mombasa Mall Parking System
  */
 
 $camIp = '192.168.1.230';
-$camUser = 'admin';
-$camPass = 'Mall@2024';
+$camUser = $config['alpr']['entrance']['username'];
+$camPass = $config['alpr']['entrance']['password'];
 
 echo "[1/4] Connecting to live camera at http://$camIp ...\n";
 
@@ -39,7 +42,7 @@ $payload = [
     'plate'        => 'KDA 456C', // Matches pending visitor Samuel Mwangi
     'confidence'   => 0.96,
     'image_base64' => $b64,
-    'api_key'      => 'MOMBASA_PARKING_ALPR_SECRET_KEY_2026',
+    'api_key'      => $config['alpr']['api_key'],
 ];
 
 echo "[3/4] Dispatching to http://127.0.0.1/parking/api/gate/plate-detected.php ...\n";
@@ -50,7 +53,7 @@ curl_setopt_array($chApi, [
     CURLOPT_POSTFIELDS     => json_encode($payload),
     CURLOPT_HTTPHEADER     => [
         'Content-Type: application/json',
-        'X-API-Key: MOMBASA_PARKING_ALPR_SECRET_KEY_2026',
+        'X-API-Key: ' . $config['alpr']['api_key'],
     ],
     CURLOPT_TIMEOUT        => 10,
 ]);

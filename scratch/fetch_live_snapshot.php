@@ -1,7 +1,10 @@
 <?php
+if (PHP_SAPI !== 'cli') { http_response_code(403); exit; }
+require_once __DIR__ . '/../config/database.php';
+$config = get_config();
 $camIp = '192.168.1.230';
-$user  = 'admin';
-$pass  = 'Mall@2024';
+$user = $config['alpr']['entrance']['username'];
+$pass = $config['alpr']['entrance']['password'];
 
 $url = "http://{$camIp}/cgi-bin/snapshot.cgi?channel=1";
 $savePath = __DIR__ . '/../storage/snapshots/live_entrance_snap.jpg';

@@ -4,8 +4,10 @@
  */
 declare(strict_types=1);
 
-$nvrIp = '192.168.0.3';
-$cred = 'admin:Mall@2024';
+require_once __DIR__ . '/../config/database.php';
+$nvr = get_config()['alpr']['nvr'];
+$nvrIp = $nvr['ip'];
+$cred = $nvr['username'] . ':' . $nvr['password'];
 
 $testEndpoints = [
     '/cgi-bin/configManager.cgi?action=getConfig&name=TrafficSnapshot',

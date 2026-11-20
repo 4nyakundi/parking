@@ -23,6 +23,11 @@ function lock_parking_camera_config(array $config): array
         $config['alpr'][$name]['event_url'] = "http://{$ip}/cgi-bin/eventManager.cgi?action=attach&codes=[Traffic,TrafficTollGate,PlateDetection,All]";
         $config['alpr'][$name]['rtsp_main'] = "rtsp://{$credentials}{$ip}:554/cam/realmonitor?channel={$channel}&subtype=0";
         $config['alpr'][$name]['rtsp_sub'] = "rtsp://{$credentials}{$ip}:554/cam/realmonitor?channel={$channel}&subtype=1";
+        $nvr = $config['alpr']['nvr'] ?? [];
+        $nvrCredentials = rawurlencode((string)($nvr['username'] ?? '')) . ':' . rawurlencode((string)($nvr['password'] ?? '')) . '@';
+        $nvrIp = (string)($nvr['ip'] ?? '192.168.1.3');
+        $nvrChannel = (int)($cameraConfig['nvr_channel'] ?? 1);
+        $config['alpr'][$name]['nvr_rtsp'] = "rtsp://{$nvrCredentials}{$nvrIp}:554/cam/realmonitor?channel={$nvrChannel}&subtype=0";
     }
 
     return $config;

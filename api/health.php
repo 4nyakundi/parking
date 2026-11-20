@@ -10,8 +10,9 @@ declare(strict_types=1);
 header('Content-Type: application/json; charset=utf-8');
 
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../includes/security.php';
 
-$config = require __DIR__ . '/../config/config.php';
+$config = get_config();
 
 // Check if this is an ALPR worker heartbeat POST
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -19,7 +20,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $postData = json_decode($rawInput, true) ?? $_POST;
 
     $apiKey = $_SERVER['HTTP_X_API_KEY'] ?? ($postData['api_key'] ?? '');
-    if (!hash_equals($config['alpr']['api_key'] ?? '', (string)$apiKey)) {
+    if (!security_machine_key_valid($config, $apiKey)) {
         http_response_code(401);
         echo json_encode(['ok' => false, 'error' => 'Invalid ALPR API Key.']);
         exit;

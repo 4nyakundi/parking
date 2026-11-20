@@ -221,7 +221,7 @@ return [
 - **Overstay Threshold**: `'overstay_hours' => 8`
 - **Timezone**: `'timezone' => 'Africa/Nairobi'`
 - **Camera Source Mode**: `'source_mode' => 'dahua_anpr'`
-- **Camera Credentials**: User: `admin` / Password: `Mall@2024`
+- **Camera Credentials**: Set per device in the private `config/secrets.local.php` file or deployment environment. See [security deployment notes](docs/SECURITY_HARDENING.md).
 
 ---
 
@@ -355,7 +355,7 @@ Execute this 7-step checklist to verify end-to-end operational readiness:
 | Issue | Root Cause | Solution |
 | :--- | :--- | :--- |
 | **Printer Not Printing** | Out of paper, share name incorrect, or print spooler stalled. | 1. Ensure thermal paper feeds from underneath the roll.<br>2. In Windows Settings > Printers, verify printer is named **POS80** and shared.<br>3. Open Admin Settings > Click **Test Print**.<br>4. Restart spooler in Admin CMD: `net stop spooler && net start spooler`. |
-| **Camera Red / Offline** | CCTV network cable detached or IP mismatch. | 1. Ping NVR: `ping 192.168.1.3` and cameras: `ping 192.168.1.230`.<br>2. Confirm NIC 2 gateway is completely blank (`ipconfig /all`).<br>3. Verify credentials in `config/config.php` (`admin` / `Mall@2024`). |
+| **Camera Red / Offline** | CCTV network cable detached or IP mismatch. | 1. Ping NVR: `ping 192.168.1.3` and cameras: `ping 192.168.1.230`.<br>2. Confirm NIC 2 gateway is completely blank (`ipconfig /all`).<br>3. Verify credentials in `config/config.php` (`admin` / `[configured privately]`). |
 | **Guard Tablet Unreachable** | Tablet on wrong Wi-Fi or Windows Firewall blocking Port 80. | 1. Ensure tablet is on Mall Wi-Fi (`192.168.0.x`).<br>2. Confirm Edge PC IP is `192.168.0.50`.<br>3. Re-run Windows Firewall script from [Section 8.1](#81-open-windows-firewall-for-port-80). |
 | **Apache Fails / Port 80 Occupied** | Windows IIS or World Wide Web Publishing Service running. | 1. Open Admin CMD and run: `net stop W3SVC`<br>2. Disable IIS: `sc config W3SVC start= disabled`<br>3. In XAMPP Control Panel, click **Start** for Apache. |
 | **WhatsApp Messages Queued** | Internet offline or Meta Token expired. | 1. Messages will safely remain queued in `whatsapp_queue` and send when internet returns.<br>2. Verify permanent Meta token in `config/config.php`. |

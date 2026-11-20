@@ -15,21 +15,18 @@ require_once __DIR__ . '/../../includes/phone_helper.php';
 require_once __DIR__ . '/../../includes/events.php';
 require_once __DIR__ . '/../../includes/databank.php';
 require_once __DIR__.'/../../includes/vehicle_restrictions.php';
+require_once __DIR__.'/../../includes/security.php';
 
-$config = require __DIR__ . '/../../config/config.php';
-$expectedApiKey = $config['alpr']['api_key'] ?? '';
-
-// Client IP resolution
-$clientIp = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
-if (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
-    $clientIp = trim(explode(',', $_SERVER['HTTP_X_FORWARDED_FOR'])[0]);
+$config = get_config();
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
+    http_response_code(405);
+    header('Allow: POST');
+    echo json_encode(['ok' => false, 'error' => 'Use POST for camera submissions.']);
+    exit;
 }
 
-// Allow direct machine push from Dahua NVR (192.168.1.3 / 192.168.0.3), cameras (192.168.1.230 / 192.168.1.210), local PC, or local loopback
-$isTrustedMachine = str_starts_with($clientIp, '192.168.') || str_starts_with($clientIp, '10.') || in_array($clientIp, ['127.0.0.1', '::1', 'localhost'], true);
-
 // Check API Key
-$providedKey = $_SERVER['HTTP_X_API_KEY'] ?? $_POST['api_key'] ?? $_GET['api_key'] ?? null;
+$providedKey = $_SERVER['HTTP_X_API_KEY'] ?? $_POST['api_key'] ?? null;
 $rawInput = file_get_contents('php://input');
 $jsonInput = json_decode($rawInput, true) ?? [];
 
@@ -37,7 +34,7 @@ if ($providedKey === null && isset($jsonInput['api_key'])) {
     $providedKey = $jsonInput['api_key'];
 }
 
-if (!$isTrustedMachine && (empty($providedKey) || !hash_equals($expectedApiKey, (string)$providedKey))) {
+if (!security_machine_key_valid($config, $providedKey)) {
     http_response_code(401);
     echo json_encode(['ok' => false, 'error' => 'Unauthorized machine access: Invalid ALPR API Key.']);
     exit;
